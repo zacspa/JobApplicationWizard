@@ -48,7 +48,10 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << INFOPLIST
 INFOPLIST
 
 echo "▶ Signing app bundle..."
-codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" "$APP_BUNDLE"
+codesign --force --deep --options runtime \
+    --entitlements "Entitlements.entitlements" \
+    --sign "$SIGN_IDENTITY" \
+    "$APP_BUNDLE"
 
 # ── 3. Generate DMG background image (pure Python stdlib, no deps) ─────────────
 echo "▶ Generating background image..."

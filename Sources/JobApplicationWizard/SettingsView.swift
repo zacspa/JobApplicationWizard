@@ -57,13 +57,25 @@ private struct ClaudeSettingsTab: View {
     let store: StoreOf<AppFeature>
     @State private var apiKey = ""
     @State private var showKey = false
+    @State private var saved = false
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Spacer()
+                if saved {
+                    Label("Saved", systemImage: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .transition(.opacity)
+                }
                 Button("Save") {
                     store.send(.saveSettingsKey(apiKey))
+                    withAnimation {
+                        saved = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation { saved = false }
+                    }
                 }
                 .buttonStyle(.borderedProminent)
             }
