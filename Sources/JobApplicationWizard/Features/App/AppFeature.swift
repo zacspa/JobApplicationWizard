@@ -24,14 +24,6 @@ struct AppFeature {
         var viewMode: ViewMode = .kanban
         var showOnboarding: Bool = false
         var showProfile: Bool = false
-        var updateCheck: UpdateCheckState = .idle
-
-        enum UpdateCheckState: Equatable {
-            case idle
-            case upToDate
-            case available(version: String, url: URL)
-            case failed
-        }
         var settings: AppSettings = AppSettings()
         var claudeAPIKey: String = ""   // runtime mirror of Keychain value; never persisted to disk
         var addJob: AddJobFeature.State = AddJobFeature.State()
@@ -80,9 +72,6 @@ struct AppFeature {
         case saveProfile(UserProfile)
         case defaultViewModeChanged(ViewMode)
         case resetAllData
-        case checkForUpdates
-        case updateCheckResponse(Result<(version: String, url: URL), Error>)
-        case dismissUpdateCheck
     }
 
     @Dependency(\.persistenceClient) var persistence
@@ -245,39 +234,6 @@ struct AppFeature {
                 state.jobDetail = nil
                 state.showOnboarding = true
                 return .run { _ in try? await persistence.saveJobs([]) }
-
-            case .checkForUpdates:
-                return .run { send in
-                    do {
-                        let url = URL(string: "https://api.github.com/repos/zacspa/JobApplicationWizard/releases/latest")!
-                        var request = URLRequest(url: url)
-                        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-                        let (data, _) = try await URLSession.shared.data(for: request)
-                        let json = try JSONDecoder().decode(GitHubRelease.self, from: data)
-                        let tag = json.tagName.hasPrefix("v") ? String(json.tagName.dropFirst()) : json.tagName
-                        let releaseURL = URL(string: json.htmlURL)!
-                        await send(.updateCheckResponse(.success((version: tag, url: releaseURL))))
-                    } catch {
-                        await send(.updateCheckResponse(.failure(error)))
-                    }
-                }
-
-            case .updateCheckResponse(.success(let release)):
-                let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-                if release.version == current {
-                    state.updateCheck = .upToDate
-                } else {
-                    state.updateCheck = .available(version: release.version, url: release.url)
-                }
-                return .none
-
-            case .updateCheckResponse(.failure):
-                state.updateCheck = .failed
-                return .none
-
-            case .dismissUpdateCheck:
-                state.updateCheck = .idle
-                return .none
             }
         }
         .ifLet(\.jobDetail, action: \.jobDetail) {
@@ -291,14 +247,5 @@ struct AppFeature {
 
     private func saveSettings(_ settings: AppSettings) -> Effect<Action> {
         .run { _ in try? await persistence.saveSettings(settings) }
-    }
-}
-
-private struct GitHubRelease: Decodable {
-    let tagName: String
-    let htmlURL: String
-    enum CodingKeys: String, CodingKey {
-        case tagName = "tag_name"
-        case htmlURL = "html_url"
     }
 }

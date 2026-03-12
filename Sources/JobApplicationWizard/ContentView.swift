@@ -54,42 +54,6 @@ struct ContentView: View {
             .frame(minWidth: 560, minHeight: 700)
         }
         .onAppear { store.send(.onAppear) }
-        .alert(
-            updateAlertTitle,
-            isPresented: Binding(
-                get: { store.updateCheck != .idle },
-                set: { if !$0 { store.send(.dismissUpdateCheck) } }
-            )
-        ) {
-            if case .available(_, let url) = store.updateCheck {
-                Button("Download") { NSWorkspace.shared.open(url) }
-                Button("Later", role: .cancel) { store.send(.dismissUpdateCheck) }
-            } else {
-                Button("OK", role: .cancel) { store.send(.dismissUpdateCheck) }
-            }
-        } message: {
-            Text(updateAlertMessage)
-        }
-    }
-
-    private var updateAlertTitle: String {
-        switch store.updateCheck {
-        case .available(let version, _): return "Update Available — v\(version)"
-        case .upToDate:                  return "You're Up to Date"
-        case .failed:                    return "Update Check Failed"
-        case .idle:                      return ""
-        }
-    }
-
-    private var updateAlertMessage: String {
-        switch store.updateCheck {
-        case .available(let version, _): return "Version \(version) is available. Download it from GitHub?"
-        case .upToDate:
-            let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-            return "Job Application Wizard \(current) is the latest version."
-        case .failed: return "Could not reach GitHub. Check your internet connection and try again."
-        case .idle:   return ""
-        }
     }
 
     var toolbar: some View {

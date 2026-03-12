@@ -26,5 +26,9 @@
     <true/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
+    <key>SUPublicEDKey</key>
+    <string>YY0EyAJ+Ce21J9m6kGnRDWaRGJSbLvnrStmrXLpiEto=</string>
+    <key>SUFeedURL</key>
+    <string>https://raw.githubusercontent.com/zacspa/JobApplicationWizard/main/appcast.xml</string>
 </dict>
 </plist>

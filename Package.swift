@@ -8,13 +8,18 @@ let package = Package(
         .package(
             url: "https://github.com/pointfreeco/swift-composable-architecture",
             from: "1.15.0"
+        ),
+        .package(
+            url: "https://github.com/sparkle-project/Sparkle",
+            from: "2.0.0"
         )
     ],
     targets: [
         .executableTarget(
             name: "JobApplicationWizard",
             dependencies: [
-                .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+                .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+                .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/JobApplicationWizard",
             resources: [.process("Resources")]

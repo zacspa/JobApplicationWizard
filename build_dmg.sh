@@ -22,9 +22,10 @@ swift build -c release
 # ── 2. Assemble .app bundle ───────────────────────────────────────────────────
 echo "▶ Assembling .app bundle..."
 rm -rf "$APP_BUNDLE"
-mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
+mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources" "$APP_BUNDLE/Contents/Frameworks"
 cp "$BUILD_DIR/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 [ -f "AppIcon.icns" ] && cp "AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+cp -r "$BUILD_DIR/Sparkle.framework" "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
 
 cat > "$APP_BUNDLE/Contents/Info.plist" << INFOPLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -43,12 +44,47 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << INFOPLIST
     <key>NSHighResolutionCapable</key><true/>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoads</key><true/></dict>
+    <key>SUPublicEDKey</key><string>YY0EyAJ+Ce21J9m6kGnRDWaRGJSbLvnrStmrXLpiEto=</string>
+    <key>SUFeedURL</key><string>https://raw.githubusercontent.com/zacspa/JobApplicationWizard/main/appcast.xml</string>
 </dict>
 </plist>
 INFOPLIST
 
-echo "▶ Signing app bundle..."
-codesign --force --deep --options runtime \
+echo "▶ Signing app bundle (inside-out)..."
+SPARKLE_FW="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+
+# Ensure all Sparkle files are writable (SPM copies them as read-only)
+chmod -R u+w "$SPARKLE_FW"
+
+# The SPM-built Sparkle.framework has real files at the root AND in Versions/B,
+# which makes codesign report "ambiguous bundle format". Fix by:
+#   1. Removing the root-level _CodeSignature left by Sparkle's own build
+#   2. Converting root-level real files into symlinks → standard versioned layout
+# The SPM-built Sparkle.framework has both root-level real files AND Versions/B/,
+# which causes codesign "ambiguous bundle format" / "unsealed contents" errors.
+# Embedded frameworks must be flat (non-versioned). The root-level binaries are
+# real copies (not symlinks), so we can drop Versions/ and use the flat layout.
+rm -rf "$SPARKLE_FW/Versions"
+rm -rf "$SPARKLE_FW/_CodeSignature"
+xattr -cr "$SPARKLE_FW" 2>/dev/null || true
+
+sign_cs() {
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$1"
+}
+
+# Sign inner bundles first (inside-out)
+for xpc in "$SPARKLE_FW/XPCServices/"*.xpc; do
+    [ -d "$xpc" ] || continue
+    sign_cs "$xpc"
+done
+sign_cs "$SPARKLE_FW/Updater.app"
+sign_cs "$SPARKLE_FW/Autoupdate"
+
+# Sign the flat framework
+sign_cs "$SPARKLE_FW"
+
+# Sign the app bundle
+codesign --force --options runtime --timestamp \
     --entitlements "Entitlements.entitlements" \
     --sign "$SIGN_IDENTITY" \
     "$APP_BUNDLE"
@@ -160,11 +196,11 @@ APPLESCRIPT
 
 # ── 7. Finalise and convert ───────────────────────────────────────────────────
 echo "▶ Finalising..."
-chmod -Rf go-w "$VOLUME"
+chmod -Rf go-w "$VOLUME" || true
 sync
-sleep 1
+sleep 2
 
-hdiutil detach "$VOLUME" -quiet
+hdiutil detach "$VOLUME" -quiet -force
 
 echo "▶ Converting to compressed read-only DMG..."
 hdiutil convert "$DMG_RW" \
@@ -182,6 +218,36 @@ xcrun notarytool submit "$DMG_FINAL" \
 
 echo "▶ Stapling notarization ticket..."
 xcrun stapler staple "$DMG_FINAL"
+
+# ── 9. Sign DMG for Sparkle and update appcast.xml ───────────────────────────
+echo "▶ Signing DMG for Sparkle..."
+SPARKLE_SIGN=".build/checkouts/Sparkle/bin/sign_update"
+SIG=$("$SPARKLE_SIGN" "$DMG_FINAL" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
+SIZE=$(stat -f%z "$DMG_FINAL")
+PUBDATE=$(date -u +"%a, %d %b %Y %H:%M:%S +0000")
+DOWNLOAD_URL="https://github.com/zacspa/JobApplicationWizard/releases/download/v${VERSION}/${DMG_FINAL}"
+
+cat > appcast.xml << APPCAST
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+    <channel>
+        <title>Job Application Wizard</title>
+        <item>
+            <title>Version ${VERSION}</title>
+            <pubDate>${PUBDATE}</pubDate>
+            <sparkle:version>${VERSION}</sparkle:version>
+            <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+            <enclosure
+                url="${DOWNLOAD_URL}"
+                sparkle:edSignature="${SIG}"
+                length="${SIZE}"
+                type="application/octet-stream"/>
+        </item>
+    </channel>
+</rss>
+APPCAST
+
+echo "▶ appcast.xml updated (sig: ${SIG:0:16}...)"
 
 echo ""
 echo "✓  $DMG_FINAL  ($(du -sh "$DMG_FINAL" | awk '{print $1}')) — notarized & stapled"

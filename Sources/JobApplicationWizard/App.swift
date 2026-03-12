@@ -1,9 +1,19 @@
 import SwiftUI
 import ComposableArchitecture
+import Sparkle
 
 @main
 struct JobApplicationWizardApp: App {
     @State var store = Store(initialState: AppFeature.State()) { AppFeature() }
+    private let updaterController: SPUStandardUpdaterController
+
+    init() {
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: true,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -15,9 +25,7 @@ struct JobApplicationWizardApp: App {
         .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
             CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") {
-                    store.send(.checkForUpdates)
-                }
+                CheckForUpdatesView(updater: updaterController.updater)
             }
             CommandGroup(replacing: .help) {
                 Link("Claude API Documentation",
@@ -36,5 +44,12 @@ struct JobApplicationWizardApp: App {
             SettingsView(store: store)
                 .frame(width: 480)
         }
+    }
+}
+
+struct CheckForUpdatesView: View {
+    let updater: SPUUpdater
+    var body: some View {
+        Button("Check for Updates…") { updater.checkForUpdates() }
     }
 }
