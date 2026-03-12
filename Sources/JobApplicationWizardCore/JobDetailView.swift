@@ -192,7 +192,7 @@ struct OverviewTab: View {
                         }
                         .padding(.vertical, 7).padding(.horizontal, 8)
 
-                        ForEach(store.job.interviews.filter { $0.date != nil }.sorted(by: { $0.date! < $1.date! })) { interview in
+                        ForEach(store.job.interviews.sorted(by: { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) })) { interview in
                             Divider()
                             HStack {
                                 Label {
@@ -202,7 +202,9 @@ struct OverviewTab: View {
                                         .foregroundColor(interview.completed ? .green : .secondary)
                                 }
                                 .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
-                                Text(interview.date!.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
+                                if let date = interview.date {
+                                    Text(date.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
+                                }
                                 Spacer()
                             }
                             .padding(.vertical, 7).padding(.horizontal, 8)
