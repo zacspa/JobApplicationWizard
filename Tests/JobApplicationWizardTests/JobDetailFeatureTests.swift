@@ -250,6 +250,43 @@ final class JobDetailFeatureTests: XCTestCase {
         await store.receive(\.delegate.jobUpdated)
     }
 
+    func testDeleteMiddleInterview() async {
+        let interviews = [
+            InterviewRound(round: 1, type: "Phone"),
+            InterviewRound(round: 2, type: "Technical"),
+            InterviewRound(round: 3, type: "Onsite"),
+        ]
+        let job = JobApplication.mock(interviews: interviews)
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+
+        await store.send(.deleteInterview(IndexSet(integer: 1))) {
+            $0.interviews = [interviews[0], interviews[2]]
+            $0.job.interviews = [interviews[0], interviews[2]]
+        }
+        await store.receive(\.delegate.jobUpdated)
+    }
+
+    func testDeleteLastInterviewFromMultiple() async {
+        let interviews = [
+            InterviewRound(round: 1, type: "Phone"),
+            InterviewRound(round: 2, type: "Technical"),
+        ]
+        let job = JobApplication.mock(interviews: interviews)
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+
+        await store.send(.deleteInterview(IndexSet(integer: 1))) {
+            $0.interviews = [interviews[0]]
+            $0.job.interviews = [interviews[0]]
+        }
+        await store.receive(\.delegate.jobUpdated)
+    }
+
     // MARK: - AI: sendMessage
 
     func testSendMessageWithChatMode() async {
