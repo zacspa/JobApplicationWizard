@@ -1,0 +1,151 @@
+import SwiftUI
+import ComposableArchitecture
+
+struct ContentView: View {
+    @Bindable var store: StoreOf<AppFeature>
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        NavigationSplitView(columnVisibility: .constant(.all)) {
+            SidebarView(store: store)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+        } content: {
+            VStack(spacing: 0) {
+                toolbar
+                Divider()
+                Group {
+                    switch store.viewMode {
+                    case .kanban: KanbanView(store: store)
+                    case .list:   ListView(store: store)
+                    }
+                }
+            }
+            .navigationSplitViewColumnWidth(min: 500, ideal: 1000)
+        } detail: {
+            if let detailStore = store.scope(state: \.jobDetail, action: \.jobDetail) {
+                JobDetailView(store: detailStore)
+                    .id(store.selectedJobID)
+            } else {
+                ContentUnavailableView(
+                    "Select a Job",
+                    systemImage: "briefcase",
+                    description: Text("Choose a job application to view details, or add a new one.")
+                )
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .sheet(isPresented: Binding(
+            get: { store.showOnboarding },
+            set: { if !$0 { store.send(.dismissOnboarding) } }
+        )) {
+            OnboardingView(store: store)
+        }
+        .onAppear { store.send(.onAppear) }
+    }
+
+    var toolbar: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("Search companies, titles, locations...", text: $store.searchQuery.sending(\.searchQueryChanged))
+                    .textFieldStyle(.plain)
+                if !store.searchQuery.isEmpty {
+                    Button { store.send(.searchQueryChanged("")) } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(8)
+
+            Spacer()
+
+            Button {
+                store.send(.prepareAddJob)
+                openWindow(id: "add-job")
+            } label: {
+                Label("Add Job", systemImage: "plus")
+                    .fontWeight(.medium)
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut("n", modifiers: .command)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+}
+
+// MARK: - Onboarding
+
+struct OnboardingView: View {
+    let store: StoreOf<AppFeature>
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "briefcase.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.accentColor)
+
+            VStack(spacing: 8) {
+                Text("Welcome to Job Application Wizard")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Text("Your personal job search command center")
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                FeatureRow(icon: "square.grid.3x2.fill", color: .blue,
+                    title: "Kanban Board",
+                    desc: "Drag jobs through your pipeline: Wishlist → Applied → Interview → Offer")
+                FeatureRow(icon: "doc.text.fill", color: .orange,
+                    title: "Save Job Descriptions",
+                    desc: "Paste the full JD before it gets taken down. It'll be there when you need it.")
+                FeatureRow(icon: "person.2.fill", color: .purple,
+                    title: "Track Contacts",
+                    desc: "Log recruiters, hiring managers, and referrals with notes and LinkedIn links")
+                FeatureRow(icon: "sparkles", color: .pink,
+                    title: "Claude AI Assistant",
+                    desc: "Tailor your resume, generate cover letters, and prep for interviews with AI")
+                FeatureRow(icon: "square.and.arrow.up.fill", color: .green,
+                    title: "Export to CSV",
+                    desc: "Export your data anytime — you always own it")
+            }
+
+            Button("Get Started") {
+                store.send(.dismissOnboarding)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.return)
+        }
+        .padding(40)
+        .frame(width: 520)
+    }
+}
+
+struct FeatureRow: View {
+    let icon: String
+    let color: Color
+    let title: String
+    let desc: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(color)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).fontWeight(.semibold)
+                Text(desc).font(.caption).foregroundColor(.secondary)
+            }
+        }
+    }
+}

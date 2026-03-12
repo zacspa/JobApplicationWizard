@@ -1,0 +1,10 @@
+.build/
+*.o
+*.d
+*.swp
+.DS_Store
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata
+JobApplicationWizard.app
+JobApplicationWizard.dmg
