@@ -1,11 +1,15 @@
 import SwiftUI
 import ComposableArchitecture
 
-struct AddJobView: View {
+public struct AddJobView: View {
     @Bindable var store: StoreOf<AddJobFeature>
     @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
+    public init(store: StoreOf<AddJobFeature>) {
+        self.store = store
+    }
+
+    public var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("New Job Application")

@@ -4,14 +4,24 @@ import ComposableArchitecture
 
 // MARK: - PDFClient
 
-struct PDFClient {
-    var printJobDescription: @Sendable (JobApplication) async -> Void
-    var generateAndSavePDF: @Sendable (JobApplication) async throws -> String  // returns saved path
-    var openPDF: @Sendable (String) async -> Void
+public struct PDFClient {
+    public var printJobDescription: @Sendable (JobApplication) async -> Void
+    public var generateAndSavePDF: @Sendable (JobApplication) async throws -> String  // returns saved path
+    public var openPDF: @Sendable (String) async -> Void
+
+    public init(
+        printJobDescription: @escaping @Sendable (JobApplication) async -> Void,
+        generateAndSavePDF: @escaping @Sendable (JobApplication) async throws -> String,
+        openPDF: @escaping @Sendable (String) async -> Void
+    ) {
+        self.printJobDescription = printJobDescription
+        self.generateAndSavePDF = generateAndSavePDF
+        self.openPDF = openPDF
+    }
 }
 
 extension PDFClient: DependencyKey {
-    static var liveValue: PDFClient {
+    public static var liveValue: PDFClient {
         PDFClient(
             printJobDescription: { job in
                 await MainActor.run {
@@ -100,8 +110,16 @@ private func buildTextView(for job: JobApplication) -> NSTextView {
     return textView
 }
 
+extension PDFClient: TestDependencyKey {
+    public static let testValue = PDFClient(
+        printJobDescription: unimplemented("\(Self.self).printJobDescription"),
+        generateAndSavePDF: unimplemented("\(Self.self).generateAndSavePDF"),
+        openPDF: unimplemented("\(Self.self).openPDF")
+    )
+}
+
 extension DependencyValues {
-    var pdfClient: PDFClient {
+    public var pdfClient: PDFClient {
         get { self[PDFClient.self] }
         set { self[PDFClient.self] = newValue }
     }

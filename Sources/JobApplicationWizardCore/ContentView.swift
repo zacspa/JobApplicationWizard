@@ -1,11 +1,15 @@
 import SwiftUI
 import ComposableArchitecture
 
-struct ContentView: View {
+public struct ContentView: View {
     @Bindable var store: StoreOf<AppFeature>
     @Environment(\.openWindow) private var openWindow
 
-    var body: some View {
+    public init(store: StoreOf<AppFeature>) {
+        self.store = store
+    }
+
+    public var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             SidebarView(store: store)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)

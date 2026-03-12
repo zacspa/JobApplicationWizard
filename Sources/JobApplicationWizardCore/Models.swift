@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Job Status
 
-enum JobStatus: String, Codable, CaseIterable, Identifiable, Equatable {
+public enum JobStatus: String, Codable, CaseIterable, Identifiable, Equatable {
     case wishlist = "Wishlist"
     case applied = "Applied"
     case phoneScreen = "Phone Screen"
@@ -12,9 +12,9 @@ enum JobStatus: String, Codable, CaseIterable, Identifiable, Equatable {
     case rejected = "Rejected"
     case withdrawn = "Withdrawn"
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var color: Color {
+    public var color: Color {
         switch self {
         case .wishlist:    return .purple
         case .applied:     return .blue
@@ -26,7 +26,7 @@ enum JobStatus: String, Codable, CaseIterable, Identifiable, Equatable {
         }
     }
 
-    var icon: String {
+    public var icon: String {
         switch self {
         case .wishlist:    return "star.fill"
         case .applied:     return "paperplane.fill"
@@ -41,12 +41,12 @@ enum JobStatus: String, Codable, CaseIterable, Identifiable, Equatable {
 
 // MARK: - Label
 
-struct JobLabel: Codable, Identifiable, Hashable, Equatable {
-    var id: UUID = UUID()
-    var name: String
-    var colorHex: String
+public struct JobLabel: Codable, Identifiable, Hashable, Equatable {
+    public var id: UUID = UUID()
+    public var name: String
+    public var colorHex: String
 
-    static let presets: [JobLabel] = [
+    public static let presets: [JobLabel] = [
         JobLabel(name: "Remote", colorHex: "#34C759"),
         JobLabel(name: "Hybrid", colorHex: "#FF9500"),
         JobLabel(name: "On-Site", colorHex: "#FF3B30"),
@@ -59,80 +59,116 @@ struct JobLabel: Codable, Identifiable, Hashable, Equatable {
         JobLabel(name: "Contract", colorHex: "#8E8E93"),
     ]
 
-    var color: Color {
+    public var color: Color {
         Color(hex: colorHex) ?? .blue
+    }
+
+    public init(id: UUID = UUID(), name: String, colorHex: String) {
+        self.id = id
+        self.name = name
+        self.colorHex = colorHex
     }
 }
 
 // MARK: - Note
 
-struct Note: Codable, Identifiable, Equatable {
-    var id: UUID = UUID()
-    var title: String = ""
-    var subtitle: String = ""
-    var body: String = ""
-    var tags: [String] = []
-    var createdAt: Date = Date()
-    var updatedAt: Date = Date()
+public struct Note: Codable, Identifiable, Equatable {
+    public var id: UUID = UUID()
+    public var title: String = ""
+    public var subtitle: String = ""
+    public var body: String = ""
+    public var tags: [String] = []
+    public var createdAt: Date = Date()
+    public var updatedAt: Date = Date()
+
+    public init(id: UUID = UUID(), title: String = "", subtitle: String = "", body: String = "", tags: [String] = [], createdAt: Date = Date(), updatedAt: Date = Date()) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.body = body
+        self.tags = tags
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
 }
 
 // MARK: - Contact
 
-struct Contact: Codable, Identifiable, Equatable {
-    var id: UUID = UUID()
-    var name: String = ""
-    var title: String = ""
-    var email: String = ""
-    var linkedin: String = ""
-    var notes: String = ""
-    var connected: Bool = false
+public struct Contact: Codable, Identifiable, Equatable {
+    public var id: UUID = UUID()
+    public var name: String = ""
+    public var title: String = ""
+    public var email: String = ""
+    public var linkedin: String = ""
+    public var notes: String = ""
+    public var connected: Bool = false
+
+    public init(id: UUID = UUID(), name: String = "", title: String = "", email: String = "", linkedin: String = "", notes: String = "", connected: Bool = false) {
+        self.id = id
+        self.name = name
+        self.title = title
+        self.email = email
+        self.linkedin = linkedin
+        self.notes = notes
+        self.connected = connected
+    }
 }
 
 // MARK: - Interview Round
 
-struct InterviewRound: Codable, Identifiable, Equatable {
-    var id: UUID = UUID()
-    var round: Int
-    var type: String = ""
-    var date: Date? = nil
-    var interviewers: String = ""
-    var notes: String = ""
-    var completed: Bool = false
+public struct InterviewRound: Codable, Identifiable, Equatable {
+    public var id: UUID = UUID()
+    public var round: Int
+    public var type: String = ""
+    public var date: Date? = nil
+    public var interviewers: String = ""
+    public var notes: String = ""
+    public var completed: Bool = false
+
+    public init(id: UUID = UUID(), round: Int, type: String = "", date: Date? = nil, interviewers: String = "", notes: String = "", completed: Bool = false) {
+        self.id = id
+        self.round = round
+        self.type = type
+        self.date = date
+        self.interviewers = interviewers
+        self.notes = notes
+        self.completed = completed
+    }
 }
 
 // MARK: - Job Application
 
-struct JobApplication: Codable, Identifiable, Equatable {
-    var id: UUID = UUID()
-    var company: String = ""
-    var title: String = ""
-    var url: String = ""
-    var status: JobStatus = .wishlist
-    var dateAdded: Date = Date()
-    var dateApplied: Date? = nil
-    var salary: String = ""
-    var location: String = ""
-    var jobDescription: String = ""
-    var noteCards: [Note] = []
-    var resumeUsed: String = ""
-    var coverLetter: String = ""
-    var labels: [JobLabel] = []
-    var contacts: [Contact] = []
-    var interviews: [InterviewRound] = []
-    var isFavorite: Bool = false
-    var excitement: Int = 3
-    var hasPDF: Bool = false
-    var pdfPath: String? = nil
+public struct JobApplication: Codable, Identifiable, Equatable {
+    public var id: UUID = UUID()
+    public var company: String = ""
+    public var title: String = ""
+    public var url: String = ""
+    public var status: JobStatus = .wishlist
+    public var dateAdded: Date = Date()
+    public var dateApplied: Date? = nil
+    public var salary: String = ""
+    public var location: String = ""
+    public var jobDescription: String = ""
+    public var noteCards: [Note] = []
+    public var resumeUsed: String = ""
+    public var coverLetter: String = ""
+    public var labels: [JobLabel] = []
+    public var contacts: [Contact] = []
+    public var interviews: [InterviewRound] = []
+    public var isFavorite: Bool = false
+    public var excitement: Int = 3
+    public var hasPDF: Bool = false
+    public var pdfPath: String? = nil
 
-    var displayTitle: String {
+    public var displayTitle: String {
         title.isEmpty ? "Untitled Position" : title
     }
 
-    var displayCompany: String {
+    public var displayCompany: String {
         company.isEmpty ? "Unknown Company" : company
     }
 
-    init() {}
+    public init() {}
 
     // Custom decoder: tolerates missing keys (all default) and migrates
     // legacy `notes: String` into a noteCard.
@@ -144,7 +180,7 @@ struct JobApplication: Codable, Identifiable, Equatable {
         case legacyNotes = "notes"
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id           = try c.decodeIfPresent(UUID.self,            forKey: .id)           ?? UUID()
         company      = try c.decodeIfPresent(String.self,          forKey: .company)      ?? ""
@@ -175,7 +211,7 @@ struct JobApplication: Codable, Identifiable, Equatable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id,             forKey: .id)
         try c.encode(company,        forKey: .company)
@@ -202,7 +238,7 @@ struct JobApplication: Codable, Identifiable, Equatable {
 
 // MARK: - Work Preference
 
-enum WorkPreference: String, Codable, CaseIterable, Equatable {
+public enum WorkPreference: String, Codable, CaseIterable, Equatable {
     case remote   = "Remote"
     case hybrid   = "Hybrid"
     case onSite   = "On-Site"
@@ -211,35 +247,50 @@ enum WorkPreference: String, Codable, CaseIterable, Equatable {
 
 // MARK: - User Profile
 
-struct UserProfile: Codable, Equatable {
-    var name: String = ""
-    var currentTitle: String = ""
-    var location: String = ""
-    var linkedIn: String = ""
-    var website: String = ""
-    var summary: String = ""
-    var targetRoles: [String] = []
-    var skills: [String] = []
-    var preferredSalary: String = ""
-    var workPreference: WorkPreference = .flexible
-    var resume: String = ""
-    var coverLetterTemplate: String = ""
+public struct UserProfile: Codable, Equatable {
+    public var name: String = ""
+    public var currentTitle: String = ""
+    public var location: String = ""
+    public var linkedIn: String = ""
+    public var website: String = ""
+    public var summary: String = ""
+    public var targetRoles: [String] = []
+    public var skills: [String] = []
+    public var preferredSalary: String = ""
+    public var workPreference: WorkPreference = .flexible
+    public var resume: String = ""
+    public var coverLetterTemplate: String = ""
+
+    public init(name: String = "", currentTitle: String = "", location: String = "", linkedIn: String = "", website: String = "", summary: String = "", targetRoles: [String] = [], skills: [String] = [], preferredSalary: String = "", workPreference: WorkPreference = .flexible, resume: String = "", coverLetterTemplate: String = "") {
+        self.name = name
+        self.currentTitle = currentTitle
+        self.location = location
+        self.linkedIn = linkedIn
+        self.website = website
+        self.summary = summary
+        self.targetRoles = targetRoles
+        self.skills = skills
+        self.preferredSalary = preferredSalary
+        self.workPreference = workPreference
+        self.resume = resume
+        self.coverLetterTemplate = coverLetterTemplate
+    }
 }
 
 // MARK: - App Settings
 
-struct AppSettings: Codable, Equatable {
+public struct AppSettings: Codable, Equatable {
     // API key is stored in the system Keychain, not here.
-    var userProfile: UserProfile = UserProfile()
-    var defaultViewMode: ViewMode = .kanban
+    public var userProfile: UserProfile = UserProfile()
+    public var defaultViewMode: ViewMode = .kanban
 
     private enum CodingKeys: String, CodingKey {
         case userProfile, defaultViewMode
     }
 
-    init() {}
+    public init() {}
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         userProfile     = try c.decodeIfPresent(UserProfile.self, forKey: .userProfile)     ?? UserProfile()
         defaultViewMode = try c.decodeIfPresent(ViewMode.self,    forKey: .defaultViewMode) ?? .kanban
@@ -248,7 +299,7 @@ struct AppSettings: Codable, Equatable {
 
 // MARK: - AI Action
 
-enum AIAction: String, CaseIterable, Equatable {
+public enum AIAction: String, CaseIterable, Equatable {
     case chat = "Chat"
     case tailorResume = "Tailor Resume"
     case coverLetter = "Cover Letter"
@@ -258,21 +309,28 @@ enum AIAction: String, CaseIterable, Equatable {
 
 // MARK: - Chat Message
 
-struct ChatMessage: Identifiable, Equatable {
-    var id: UUID = UUID()
-    var role: Role
-    var content: String
-    var timestamp: Date = Date()
+public struct ChatMessage: Identifiable, Equatable {
+    public var id: UUID = UUID()
+    public var role: Role
+    public var content: String
+    public var timestamp: Date = Date()
 
-    enum Role: Equatable {
+    public enum Role: Equatable {
         case user, assistant
+    }
+
+    public init(id: UUID = UUID(), role: Role, content: String, timestamp: Date = Date()) {
+        self.id = id
+        self.role = role
+        self.content = content
+        self.timestamp = timestamp
     }
 }
 
 // MARK: - Color Extension
 
 extension Color {
-    init?(hex: String) {
+    public init?(hex: String) {
         var cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.hasPrefix("#") { cleaned.removeFirst() }
         guard cleaned.count == 6, let value = UInt64(cleaned, radix: 16) else { return nil }
@@ -282,7 +340,7 @@ extension Color {
         self.init(red: r, green: g, blue: b)
     }
 
-    var hexString: String {
+    public var hexString: String {
         let components = NSColor(self).usingColorSpace(.sRGB)
         let r = Int((components?.redComponent ?? 0) * 255)
         let g = Int((components?.greenComponent ?? 0) * 255)
@@ -294,7 +352,7 @@ extension Color {
 // MARK: - String extension
 
 extension String {
-    var wordCount: Int {
+    public var wordCount: Int {
         components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
     }
 }
@@ -302,7 +360,7 @@ extension String {
 // MARK: - Date extension
 
 extension Date {
-    var relativeString: String {
+    public var relativeString: String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: self, relativeTo: Date())

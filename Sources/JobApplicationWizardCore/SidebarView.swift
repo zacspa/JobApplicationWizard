@@ -1,10 +1,14 @@
 import SwiftUI
 import ComposableArchitecture
 
-struct SidebarView: View {
+public struct SidebarView: View {
     @Bindable var store: StoreOf<AppFeature>
 
-    var body: some View {
+    public init(store: StoreOf<AppFeature>) {
+        self.store = store
+    }
+
+    public var body: some View {
         VStack(spacing: 0) {
             // Stats
             VStack(spacing: 6) {

@@ -2,22 +2,26 @@ import ComposableArchitecture
 import Foundation
 
 @Reducer
-struct AddJobFeature {
+public struct AddJobFeature {
+    public init() {}
+
     @ObservableState
-    struct State: Equatable {
-        var company = ""
-        var title = ""
-        var url = ""
-        var location = ""
-        var salary = ""
-        var status: JobStatus = .wishlist
-        var excitement: Int = 3
-        var jobDescription = ""
-        var selectedLabelNames: Set<String> = []
+    public struct State: Equatable {
+        public var company = ""
+        public var title = ""
+        public var url = ""
+        public var location = ""
+        public var salary = ""
+        public var status: JobStatus = .wishlist
+        public var excitement: Int = 3
+        public var jobDescription = ""
+        public var selectedLabelNames: Set<String> = []
 
-        var canSave: Bool { !company.isEmpty || !title.isEmpty }
+        public var canSave: Bool { !company.isEmpty || !title.isEmpty }
 
-        func buildJob() -> JobApplication {
+        public init() {}
+
+        public func buildJob() -> JobApplication {
             var job = JobApplication()
             job.company = company
             job.title = title
@@ -33,7 +37,7 @@ struct AddJobFeature {
         }
     }
 
-    enum Action: BindableAction {
+    public enum Action: BindableAction {
         case binding(BindingAction<State>)
         case toggleLabel(String)
         case setExcitement(Int)
@@ -41,13 +45,14 @@ struct AddJobFeature {
         case cancelTapped
         case delegate(Delegate)
 
-        enum Delegate: Equatable {
+        @CasePathable
+        public enum Delegate: Equatable {
             case save(JobApplication)
             case cancel
         }
     }
 
-    var body: some ReducerOf<Self> {
+    public var body: some ReducerOf<Self> {
         BindingReducer()
         Reduce { state, action in
             switch action {

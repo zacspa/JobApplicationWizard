@@ -3,29 +3,40 @@ import ComposableArchitecture
 
 // MARK: - Token Usage
 
-struct AITokenUsage: Equatable {
-    let inputTokens: Int
-    let outputTokens: Int
+public struct AITokenUsage: Equatable {
+    public let inputTokens: Int
+    public let outputTokens: Int
 
-    static let zero = AITokenUsage(inputTokens: 0, outputTokens: 0)
+    public static let zero = AITokenUsage(inputTokens: 0, outputTokens: 0)
+
+    public init(inputTokens: Int, outputTokens: Int) {
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+    }
 
     /// Estimated cost in USD using claude-sonnet-4-6 pricing ($3/MTok in, $15/MTok out)
-    var estimatedCost: Double {
+    public var estimatedCost: Double {
         Double(inputTokens) * 3.0 / 1_000_000 + Double(outputTokens) * 15.0 / 1_000_000
     }
 
-    var totalTokens: Int { inputTokens + outputTokens }
+    public var totalTokens: Int { inputTokens + outputTokens }
 }
 
 // MARK: - ClaudeClient
 
-struct ClaudeClient {
-    var chat: @Sendable (String, String, [ChatMessage]) async throws -> (String, AITokenUsage)
+public struct ClaudeClient {
+    public var chat: @Sendable (String, String, [ChatMessage]) async throws -> (String, AITokenUsage)
     // (apiKey, systemPrompt, messageHistory) -> (responseText, usage)
+
+    public init(
+        chat: @escaping @Sendable (String, String, [ChatMessage]) async throws -> (String, AITokenUsage)
+    ) {
+        self.chat = chat
+    }
 }
 
 extension ClaudeClient: DependencyKey {
-    static var liveValue: ClaudeClient {
+    public static var liveValue: ClaudeClient {
         ClaudeClient(
             chat: { apiKey, systemPrompt, history in
                 let messages = history.map { msg -> [String: String] in
@@ -85,12 +96,12 @@ private struct ClaudeResponse: Decodable {
     let usage: Usage
 }
 
-enum AIError: LocalizedError {
+public enum AIError: LocalizedError {
     case noAPIKey
     case invalidResponse
     case apiError(Int, String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .noAPIKey: return "No Claude API key. Add it in Settings."
         case .invalidResponse: return "Invalid response from Claude API."
@@ -99,8 +110,14 @@ enum AIError: LocalizedError {
     }
 }
 
+extension ClaudeClient: TestDependencyKey {
+    public static let testValue = ClaudeClient(
+        chat: unimplemented("\(Self.self).chat")
+    )
+}
+
 extension DependencyValues {
-    var claudeClient: ClaudeClient {
+    public var claudeClient: ClaudeClient {
         get { self[ClaudeClient.self] }
         set { self[ClaudeClient.self] = newValue }
     }

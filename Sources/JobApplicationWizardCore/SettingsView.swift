@@ -1,10 +1,14 @@
 import SwiftUI
 import ComposableArchitecture
 
-struct SettingsView: View {
+public struct SettingsView: View {
     @Bindable var store: StoreOf<AppFeature>
 
-    var body: some View {
+    public init(store: StoreOf<AppFeature>) {
+        self.store = store
+    }
+
+    public var body: some View {
         TabView {
             GeneralSettingsTab(store: store)
                 .tabItem { Label("General", systemImage: "gearshape") }

@@ -15,14 +15,30 @@ let package = Package(
         )
     ],
     targets: [
-        .executableTarget(
-            name: "JobApplicationWizard",
+        .target(
+            name: "JobApplicationWizardCore",
             dependencies: [
                 .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
                 .product(name: "Sparkle", package: "Sparkle")
             ],
-            path: "Sources/JobApplicationWizard",
+            path: "Sources/JobApplicationWizardCore",
             resources: [.process("Resources")]
+        ),
+        .executableTarget(
+            name: "JobApplicationWizard",
+            dependencies: [
+                "JobApplicationWizardCore",
+                .product(name: "Sparkle", package: "Sparkle")
+            ],
+            path: "Sources/JobApplicationWizard"
+        ),
+        .testTarget(
+            name: "JobApplicationWizardTests",
+            dependencies: [
+                "JobApplicationWizardCore",
+                .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+            ],
+            path: "Tests/JobApplicationWizardTests"
         )
     ]
 )
