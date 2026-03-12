@@ -5,15 +5,35 @@ import UniformTypeIdentifiers
 
 // MARK: - PersistenceClient
 
-struct PersistenceClient {
-    var loadJobs: @Sendable () async throws -> [JobApplication]
-    var saveJobs: @Sendable ([JobApplication]) async throws -> Void
-    var loadSettings: @Sendable () async throws -> AppSettings
-    var saveSettings: @Sendable (AppSettings) async throws -> Void
-    var exportCSV: @Sendable ([JobApplication]) -> String
-    var showCSVSavePanel: @Sendable (String) async -> Void
-    var showCSVOpenPanel: @Sendable () async -> String?   // returns CSV string if user picked a file
-    var importCSV: @Sendable (String) -> [JobApplication]
+public struct PersistenceClient {
+    public var loadJobs: @Sendable () async throws -> [JobApplication]
+    public var saveJobs: @Sendable ([JobApplication]) async throws -> Void
+    public var loadSettings: @Sendable () async throws -> AppSettings
+    public var saveSettings: @Sendable (AppSettings) async throws -> Void
+    public var exportCSV: @Sendable ([JobApplication]) -> String
+    public var showCSVSavePanel: @Sendable (String) async -> Void
+    public var showCSVOpenPanel: @Sendable () async -> String?   // returns CSV string if user picked a file
+    public var importCSV: @Sendable (String) -> [JobApplication]
+
+    public init(
+        loadJobs: @escaping @Sendable () async throws -> [JobApplication],
+        saveJobs: @escaping @Sendable ([JobApplication]) async throws -> Void,
+        loadSettings: @escaping @Sendable () async throws -> AppSettings,
+        saveSettings: @escaping @Sendable (AppSettings) async throws -> Void,
+        exportCSV: @escaping @Sendable ([JobApplication]) -> String,
+        showCSVSavePanel: @escaping @Sendable (String) async -> Void,
+        showCSVOpenPanel: @escaping @Sendable () async -> String?,
+        importCSV: @escaping @Sendable (String) -> [JobApplication]
+    ) {
+        self.loadJobs = loadJobs
+        self.saveJobs = saveJobs
+        self.loadSettings = loadSettings
+        self.saveSettings = saveSettings
+        self.exportCSV = exportCSV
+        self.showCSVSavePanel = showCSVSavePanel
+        self.showCSVOpenPanel = showCSVOpenPanel
+        self.importCSV = importCSV
+    }
 }
 
 // MARK: - CSV columns (complete dump)
@@ -170,7 +190,7 @@ private func rowToJob(_ row: [String], headers: [String]) -> JobApplication? {
 // MARK: - Live value
 
 extension PersistenceClient: DependencyKey {
-    static var liveValue: PersistenceClient {
+    public static var liveValue: PersistenceClient {
         let appSupport: URL = {
             let dir = FileManager.default
                 .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -248,8 +268,21 @@ extension PersistenceClient: DependencyKey {
     }
 }
 
+extension PersistenceClient: TestDependencyKey {
+    public static let testValue = PersistenceClient(
+        loadJobs: unimplemented("\(Self.self).loadJobs"),
+        saveJobs: unimplemented("\(Self.self).saveJobs"),
+        loadSettings: unimplemented("\(Self.self).loadSettings"),
+        saveSettings: unimplemented("\(Self.self).saveSettings"),
+        exportCSV: unimplemented("\(Self.self).exportCSV"),
+        showCSVSavePanel: unimplemented("\(Self.self).showCSVSavePanel"),
+        showCSVOpenPanel: unimplemented("\(Self.self).showCSVOpenPanel"),
+        importCSV: unimplemented("\(Self.self).importCSV")
+    )
+}
+
 extension DependencyValues {
-    var persistenceClient: PersistenceClient {
+    public var persistenceClient: PersistenceClient {
         get { self[PersistenceClient.self] }
         set { self[PersistenceClient.self] = newValue }
     }

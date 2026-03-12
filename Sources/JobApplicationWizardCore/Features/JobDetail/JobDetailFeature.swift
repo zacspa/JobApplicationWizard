@@ -3,45 +3,45 @@ import Foundation
 import AppKit
 
 @Reducer
-struct JobDetailFeature {
+public struct JobDetailFeature {
     @ObservableState
-    struct State: Equatable {
+    public struct State: Equatable {
         // Source of truth
-        var job: JobApplication
+        public var job: JobApplication
 
         // Flat editable fields (synced to/from job on BindingReducer changes)
-        var company: String
-        var title: String
-        var location: String
-        var salary: String
-        var url: String
-        var noteCards: [Note]
-        var jobDescription: String
-        var resumeUsed: String
-        var labels: [JobLabel]
-        var contacts: [Contact]
-        var interviews: [InterviewRound]
+        public var company: String
+        public var title: String
+        public var location: String
+        public var salary: String
+        public var url: String
+        public var noteCards: [Note]
+        public var jobDescription: String
+        public var resumeUsed: String
+        public var labels: [JobLabel]
+        public var contacts: [Contact]
+        public var interviews: [InterviewRound]
 
         // UI state
-        var selectedTab: Tab = .overview
-        var showDeleteConfirm: Bool = false
+        public var selectedTab: Tab = .overview
+        public var showDeleteConfirm: Bool = false
 
         // PDF state
-        var isGeneratingPDF: Bool = false
-        var pdfError: String? = nil
-        var showCopied: Bool = false
+        public var isGeneratingPDF: Bool = false
+        public var pdfError: String? = nil
+        public var showCopied: Bool = false
 
         // AI state
-        var aiSelectedAction: AIAction = .chat
-        var aiInput: String = ""
-        var chatMessages: [ChatMessage] = []
-        var aiIsLoading: Bool = false
-        var aiError: String? = nil
-        var apiKey: String
-        var userProfile: UserProfile
-        var aiTokenUsage: AITokenUsage = .zero
+        public var aiSelectedAction: AIAction = .chat
+        public var aiInput: String = ""
+        public var chatMessages: [ChatMessage] = []
+        public var aiIsLoading: Bool = false
+        public var aiError: String? = nil
+        public var apiKey: String
+        public var userProfile: UserProfile
+        public var aiTokenUsage: AITokenUsage = .zero
 
-        enum Tab: String, CaseIterable, Equatable {
+        public enum Tab: String, CaseIterable, Equatable {
             case overview = "Overview"
             case description = "Description"
             case notes = "Notes"
@@ -50,7 +50,7 @@ struct JobDetailFeature {
             case ai = "AI"
         }
 
-        init(job: JobApplication, apiKey: String = "", userProfile: UserProfile = UserProfile()) {
+        public init(job: JobApplication, apiKey: String = "", userProfile: UserProfile = UserProfile()) {
             self.job = job
             self.company = job.company
             self.title = job.title
@@ -68,7 +68,7 @@ struct JobDetailFeature {
         }
 
         // Build updated job from current flat fields
-        mutating func syncJobFromFields() {
+        public mutating func syncJobFromFields() {
             job.company = company
             job.title = title
             job.location = location
@@ -83,7 +83,7 @@ struct JobDetailFeature {
         }
     }
 
-    enum Action: BindableAction {
+    public enum Action: BindableAction {
         case binding(BindingAction<State>)
         case selectTab(State.Tab)
         case setExcitement(Int)
@@ -115,7 +115,8 @@ struct JobDetailFeature {
         // Delegate
         case delegate(Delegate)
 
-        enum Delegate: Equatable {
+        @CasePathable
+        public enum Delegate: Equatable {
             case jobUpdated(JobApplication)
             case jobDeleted(UUID)
         }
@@ -124,9 +125,11 @@ struct JobDetailFeature {
     @Dependency(\.pdfClient) var pdfClient
     @Dependency(\.claudeClient) var claudeClient
 
+    public init() {}
+
     private enum CancelID { case aiRequest }
 
-    var body: some ReducerOf<Self> {
+    public var body: some ReducerOf<Self> {
         BindingReducer()
         Reduce { state, action in
             switch action {

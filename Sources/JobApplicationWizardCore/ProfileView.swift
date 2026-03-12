@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ProfileView: View {
+public struct ProfileView: View {
     let onSave: (UserProfile) -> Void
     let onDismiss: () -> Void
 
@@ -8,13 +8,13 @@ struct ProfileView: View {
     @State private var newSkill: String = ""
     @State private var newRole: String = ""
 
-    init(profile: UserProfile, onSave: @escaping (UserProfile) -> Void, onDismiss: @escaping () -> Void) {
+    public init(profile: UserProfile, onSave: @escaping (UserProfile) -> Void, onDismiss: @escaping () -> Void) {
         self._draft = State(initialValue: profile)
         self.onSave = onSave
         self.onDismiss = onDismiss
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             // Navigation bar
             HStack {

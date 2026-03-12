@@ -3,10 +3,14 @@ import ComposableArchitecture
 
 // MARK: - Job Detail Panel
 
-struct JobDetailView: View {
+public struct JobDetailView: View {
     @Bindable var store: StoreOf<JobDetailFeature>
 
-    var body: some View {
+    public init(store: StoreOf<JobDetailFeature>) {
+        self.store = store
+    }
+
+    public var body: some View {
         VStack(spacing: 0) {
             header
             Divider()

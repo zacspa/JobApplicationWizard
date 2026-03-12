@@ -1,9 +1,13 @@
 import SwiftUI
 import ComposableArchitecture
 
-struct ListView: View {
+public struct ListView: View {
     let store: StoreOf<AppFeature>
     @State private var sortOrder = SortOrder.dateDesc
+
+    public init(store: StoreOf<AppFeature>) {
+        self.store = store
+    }
 
     enum SortOrder: String, CaseIterable {
         case dateDesc = "Newest First"
@@ -29,7 +33,7 @@ struct ListView: View {
         )
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("\(sortedJobs.count) jobs")

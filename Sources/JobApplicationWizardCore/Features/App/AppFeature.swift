@@ -1,11 +1,11 @@
 import ComposableArchitecture
 import Foundation
 
-enum ViewMode: String, Codable, CaseIterable, Equatable {
+public enum ViewMode: String, Codable, CaseIterable, Equatable {
     case kanban = "Kanban"
     case list = "List"
 
-    var icon: String {
+    public var icon: String {
         switch self {
         case .kanban: return "square.grid.3x2"
         case .list:   return "list.bullet"
@@ -14,22 +14,22 @@ enum ViewMode: String, Codable, CaseIterable, Equatable {
 }
 
 @Reducer
-struct AppFeature {
+public struct AppFeature {
     @ObservableState
-    struct State: Equatable {
-        var jobs: IdentifiedArrayOf<JobApplication> = []
-        var selectedJobID: UUID? = nil
-        var searchQuery: String = ""
-        var filterStatus: JobStatus? = nil
-        var viewMode: ViewMode = .kanban
-        var showOnboarding: Bool = false
-        var showProfile: Bool = false
-        var settings: AppSettings = AppSettings()
-        var claudeAPIKey: String = ""   // runtime mirror of Keychain value; never persisted to disk
-        var addJob: AddJobFeature.State = AddJobFeature.State()
-        var jobDetail: JobDetailFeature.State? = nil
+    public struct State: Equatable {
+        public var jobs: IdentifiedArrayOf<JobApplication> = []
+        public var selectedJobID: UUID? = nil
+        public var searchQuery: String = ""
+        public var filterStatus: JobStatus? = nil
+        public var viewMode: ViewMode = .kanban
+        public var showOnboarding: Bool = false
+        public var showProfile: Bool = false
+        public var settings: AppSettings = AppSettings()
+        public var claudeAPIKey: String = ""   // runtime mirror of Keychain value; never persisted to disk
+        public var addJob: AddJobFeature.State = AddJobFeature.State()
+        public var jobDetail: JobDetailFeature.State? = nil
 
-        var filteredJobs: [JobApplication] {
+        public var filteredJobs: [JobApplication] {
             jobs.filter { job in
                 let matchesSearch = searchQuery.isEmpty ||
                     job.company.localizedCaseInsensitiveContains(searchQuery) ||
@@ -40,15 +40,17 @@ struct AppFeature {
             }
         }
 
-        var stats: (total: Int, active: Int, offers: Int, interviews: Int) {
+        public var stats: (total: Int, active: Int, offers: Int, interviews: Int) {
             let active = jobs.filter { ![.rejected, .withdrawn, .offer].contains($0.status) }.count
             let offers = jobs.filter { $0.status == .offer }.count
             let interviews = jobs.filter { $0.status == .interview }.count
             return (jobs.count, active, offers, interviews)
         }
+
+        public init() {}
     }
 
-    enum Action {
+    public enum Action {
         case onAppear
         case jobsLoaded([JobApplication])
         case settingsLoaded(AppSettings)
@@ -77,7 +79,9 @@ struct AppFeature {
     @Dependency(\.persistenceClient) var persistence
     @Dependency(\.keychainClient) var keychain
 
-    var body: some ReducerOf<Self> {
+    public init() {}
+
+    public var body: some ReducerOf<Self> {
         Scope(state: \.addJob, action: \.addJob) { AddJobFeature() }
         Reduce { state, action in
             switch action {

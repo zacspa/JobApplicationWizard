@@ -4,6 +4,7 @@ import AppKit
 import SwiftUI
 import ComposableArchitecture
 import Sparkle
+import JobApplicationWizardCore
 
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {

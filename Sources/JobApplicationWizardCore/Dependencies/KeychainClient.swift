@@ -5,13 +5,21 @@ import ComposableArchitecture
 private let service = "com.zsparks.jobapplicationwizard"
 private let account = "claude-api-key"
 
-struct KeychainClient {
-    var loadAPIKey: @Sendable () -> String
-    var saveAPIKey: @Sendable (String) -> Void
+public struct KeychainClient {
+    public var loadAPIKey: @Sendable () -> String
+    public var saveAPIKey: @Sendable (String) -> Void
+
+    public init(
+        loadAPIKey: @escaping @Sendable () -> String,
+        saveAPIKey: @escaping @Sendable (String) -> Void
+    ) {
+        self.loadAPIKey = loadAPIKey
+        self.saveAPIKey = saveAPIKey
+    }
 }
 
 extension KeychainClient: DependencyKey {
-    static var liveValue: KeychainClient {
+    public static var liveValue: KeychainClient {
         KeychainClient(
             loadAPIKey: {
                 let query: [CFString: Any] = [
@@ -50,8 +58,15 @@ extension KeychainClient: DependencyKey {
     }
 }
 
+extension KeychainClient: TestDependencyKey {
+    public static let testValue = KeychainClient(
+        loadAPIKey: unimplemented("\(Self.self).loadAPIKey"),
+        saveAPIKey: unimplemented("\(Self.self).saveAPIKey")
+    )
+}
+
 extension DependencyValues {
-    var keychainClient: KeychainClient {
+    public var keychainClient: KeychainClient {
         get { self[KeychainClient.self] }
         set { self[KeychainClient.self] = newValue }
     }

@@ -3,8 +3,12 @@ import ComposableArchitecture
 
 // MARK: - Main Kanban Board
 
-struct KanbanView: View {
+public struct KanbanView: View {
     let store: StoreOf<AppFeature>
+
+    public init(store: StoreOf<AppFeature>) {
+        self.store = store
+    }
 
     func jobsInColumn(_ status: JobStatus) -> [JobApplication] {
         store.filteredJobs
@@ -12,7 +16,7 @@ struct KanbanView: View {
             .sorted { $0.dateAdded > $1.dateAdded }
     }
 
-    var body: some View {
+    public var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 8) {
                 let visibleStatuses = store.filterStatus.map { [$0] } ?? JobStatus.allCases
