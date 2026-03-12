@@ -72,19 +72,40 @@ A four-tab settings panel:
 
 ## Installation
 
-### Build from source
-Requires Xcode command-line tools.
+### Download
+Grab the latest DMG from the [Releases](https://github.com/zacspa/JobApplicationWizard/releases) page — it's signed and notarized.
+
+### Build from source (Xcode)
+The easiest way to build from source — macros are enabled via a one-time trust prompt.
 
 ```bash
 git clone https://github.com/zacspa/JobApplicationWizard
 cd JobApplicationWizard
-swift build -c release
+open Package.swift
+```
 
-# Assemble .app bundle
+Xcode will ask you to trust the Swift macro targets from TCA — click **Trust & Enable**. Then build and run (⌘R).
+
+### Build from source (command line)
+Requires Xcode command-line tools. This project uses TCA's Swift macro plugins, which
+need the `--disable-sandbox` flag when building outside Xcode (without it the macro
+plugins may crash the compiler or fail to build).
+
+```bash
+git clone https://github.com/zacspa/JobApplicationWizard
+cd JobApplicationWizard
+swift build -c release --disable-sandbox
+```
+
+To run the built binary as an `.app` bundle (needed for windowing, Sparkle updates, etc.),
+use the included `build_dmg.sh` script or assemble manually:
+
+```bash
 APP="JobApplicationWizard.app"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp .build/release/JobApplicationWizard "$APP/Contents/MacOS/JobApplicationWizard"
-cp Info.plist "$APP/Contents/Info.plist"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
+cp .build/release/JobApplicationWizard "$APP/Contents/MacOS/"
+cp -r .build/release/Sparkle.framework "$APP/Contents/Frameworks/"
+# You'll also need an Info.plist — see build_dmg.sh for the full template
 open "$APP"
 ```
 
@@ -106,34 +127,35 @@ The API key is stored securely in the macOS Keychain and never leaves your machi
 Built with [The Composable Architecture (TCA)](https://github.com/pointfreeco/swift-composable-architecture) by Point-Free.
 
 ```
-Sources/JobApplicationWizard/
-├── App.swift                             # SwiftUI App entry, Window scenes
-├── Models.swift                          # JobApplication, JobStatus, JobLabel,
-│                                         #   Contact, InterviewRound, Note,
-│                                         #   UserProfile, AppSettings, AIAction,
-│                                         #   ChatMessage
-├── Features/
-│   ├── App/AppFeature.swift              # Root reducer — job list, search,
-│   │                                     #   filter, settings, profile
-│   ├── AddJob/AddJobFeature.swift        # Add job form reducer
-│   └── JobDetail/JobDetailFeature.swift  # Detail reducer — all tabs, AI chat,
-│                                         #   PDF actions
-├── Dependencies/
-│   ├── ClaudeClient.swift                # Anthropic API — streaming multi-turn chat
-│   ├── PersistenceClient.swift           # JSON load/save, CSV import/export,
-│   │                                     #   NSSavePanel / NSOpenPanel
-│   ├── PDFClient.swift                   # NSPrintOperation, PDF generation
-│   └── KeychainClient.swift             # Secure API key storage
-└── Views/
-    ├── ContentView.swift                 # Root layout (NavigationSplitView),
-    │                                     #   StatusFilterBar, onboarding sheet
-    ├── SidebarView.swift                 # Stats, view mode toggle, profile card
-    ├── KanbanView.swift                  # Kanban board (respects status filter)
-    ├── ListView.swift                    # Compact list view
-    ├── JobDetailView.swift               # Detail panel + all tab views + chat UI
-    ├── AddJobView.swift                  # Add job form (separate window)
-    ├── ProfileView.swift                 # User profile editor sheet
-    └── SettingsView.swift                # 4-tab settings panel
+Sources/
+├── JobApplicationWizard/
+│   └── App.swift                             # SwiftUI App entry, Window scenes
+└── JobApplicationWizardCore/
+    ├── Models.swift                          # JobApplication, JobStatus, JobLabel,
+    │                                         #   Contact, InterviewRound, Note,
+    │                                         #   UserProfile, AppSettings, AIAction,
+    │                                         #   ChatMessage
+    ├── Features/
+    │   ├── App/AppFeature.swift              # Root reducer — job list, search,
+    │   │                                     #   filter, settings, profile
+    │   ├── AddJob/AddJobFeature.swift        # Add job form reducer
+    │   └── JobDetail/JobDetailFeature.swift  # Detail reducer — all tabs, AI chat,
+    │                                         #   PDF actions
+    ├── Dependencies/
+    │   ├── ClaudeClient.swift                # Anthropic API — streaming multi-turn chat
+    │   ├── PersistenceClient.swift           # JSON load/save, CSV import/export,
+    │   │                                     #   NSSavePanel / NSOpenPanel
+    │   ├── PDFClient.swift                   # NSPrintOperation, PDF generation
+    │   └── KeychainClient.swift              # Secure API key storage
+    ├── ContentView.swift                     # Root layout (NavigationSplitView),
+    │                                         #   StatusFilterBar, onboarding sheet
+    ├── SidebarView.swift                     # Stats, view mode toggle, profile card
+    ├── KanbanView.swift                      # Kanban board (respects status filter)
+    ├── ListView.swift                        # Compact list view
+    ├── JobDetailView.swift                   # Detail panel + all tab views + chat UI
+    ├── AddJobView.swift                      # Add job form (separate window)
+    ├── ProfileView.swift                     # User profile editor sheet
+    └── SettingsView.swift                    # 4-tab settings panel
 ```
 
 **Key TCA patterns used:**
