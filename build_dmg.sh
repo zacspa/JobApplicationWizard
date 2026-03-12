@@ -35,9 +35,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
     <key>CFBundleDisplayName</key>
     <string>Job Application Wizard</string>
     <key>CFBundleVersion</key>
-    <string>2.0</string>
+    <string>2.1</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.0</string>
+    <string>2.1</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
