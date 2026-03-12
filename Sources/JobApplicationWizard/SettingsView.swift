@@ -185,6 +185,7 @@ private struct DataSettingsTab: View {
                 Button("Reset All Data", role: .destructive) {
                     showResetConfirmation = true
                 }
+                .foregroundColor(.red)
                 .alert("Reset All Data?", isPresented: $showResetConfirmation) {
                     Button("Reset", role: .destructive) {
                         store.send(.resetAllData)

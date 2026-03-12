@@ -3,6 +3,7 @@ import ComposableArchitecture
 
 struct AddJobView: View {
     @Bindable var store: StoreOf<AddJobFeature>
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 0) {
@@ -10,8 +11,14 @@ struct AddJobView: View {
                 Text("New Job Application")
                     .font(.headline)
                 Spacer()
-                Button("Cancel") { store.send(.cancelTapped) }
-                Button("Save") { store.send(.saveTapped) }
+                Button("Cancel") {
+                    store.send(.cancelTapped)
+                    dismiss()
+                }
+                Button("Save") {
+                    store.send(.saveTapped)
+                    dismiss()
+                }
                     .keyboardShortcut(.return, modifiers: .command)
                     .buttonStyle(.borderedProminent)
                     .disabled(!store.canSave)
