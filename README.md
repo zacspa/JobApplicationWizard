@@ -4,6 +4,8 @@ A native macOS app for managing your job search — track applications on a Kanb
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue) ![Swift](https://img.shields.io/badge/Swift-5.9-orange) ![License](https://img.shields.io/badge/license-MIT-green)
 
+![Job Application Wizard screenshot](screenshot.png)
+
 ---
 
 ## Features
