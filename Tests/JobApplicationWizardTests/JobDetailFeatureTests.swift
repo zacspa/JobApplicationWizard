@@ -287,6 +287,43 @@ final class JobDetailFeatureTests: XCTestCase {
         await store.receive(\.delegate.jobUpdated)
     }
 
+    func testInterviewDatesPreservedInState() async {
+        let date1 = Date(timeIntervalSinceReferenceDate: 1000)
+        let date2 = Date(timeIntervalSinceReferenceDate: 2000)
+        let interviews = [
+            InterviewRound(round: 1, type: "Phone", date: date1, completed: true),
+            InterviewRound(round: 2, type: "Technical", date: date2),
+        ]
+        let job = JobApplication.mock(interviews: interviews)
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+
+        XCTAssertEqual(store.state.interviews.count, 2)
+        XCTAssertEqual(store.state.interviews[0].date, date1)
+        XCTAssertEqual(store.state.interviews[0].completed, true)
+        XCTAssertEqual(store.state.interviews[1].date, date2)
+        XCTAssertEqual(store.state.interviews[1].completed, false)
+        XCTAssertEqual(store.state.job.interviews.count, 2)
+    }
+
+    func testAddMultipleInterviewsIncrementsRound() async {
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
+            JobDetailFeature()
+        }
+        store.exhaustivity = .off
+
+        await store.send(.addInterview)
+        await store.send(.addInterview)
+        await store.send(.addInterview)
+
+        XCTAssertEqual(store.state.interviews.count, 3)
+        XCTAssertEqual(store.state.interviews[0].round, 1)
+        XCTAssertEqual(store.state.interviews[1].round, 2)
+        XCTAssertEqual(store.state.interviews[2].round, 3)
+    }
+
     // MARK: - AI: sendMessage
 
     func testSendMessageWithChatMode() async {
