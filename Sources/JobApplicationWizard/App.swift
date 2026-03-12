@@ -1,9 +1,28 @@
+#if os(macOS)
+import AppKit
+#endif
 import SwiftUI
 import ComposableArchitecture
 import Sparkle
 
+#if os(macOS)
+class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Set activation policy and bring window to front
+        NSApp.setActivationPolicy(.regular)
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            NSApp.windows.first?.makeKeyAndOrderFront(nil)
+        }
+    }
+}
+#endif
+
 @main
 struct JobApplicationWizardApp: App {
+#if os(macOS)
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+#endif
     @State var store = Store(initialState: AppFeature.State()) { AppFeature() }
     private let updaterController: SPUStandardUpdaterController
 
