@@ -232,6 +232,18 @@ struct AppSettings: Codable, Equatable {
     // API key is stored in the system Keychain, not here.
     var userProfile: UserProfile = UserProfile()
     var defaultViewMode: ViewMode = .kanban
+
+    private enum CodingKeys: String, CodingKey {
+        case userProfile, defaultViewMode
+    }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        userProfile     = try c.decodeIfPresent(UserProfile.self, forKey: .userProfile)     ?? UserProfile()
+        defaultViewMode = try c.decodeIfPresent(ViewMode.self,    forKey: .defaultViewMode) ?? .kanban
+    }
 }
 
 // MARK: - AI Action
