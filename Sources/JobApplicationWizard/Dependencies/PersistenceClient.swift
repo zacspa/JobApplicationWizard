@@ -89,14 +89,9 @@ private func parseCSV(_ text: String) -> [[String]] {
             } else if c == "," {
                 fields.append(field)
                 field = ""
-            } else if c == "\n" || c == "\r" {
+            } else if c.isNewline {
                 fields.append(field)
                 field = ""
-                // skip \r\n
-                let next = text.index(after: i)
-                if c == "\r", next < text.endIndex, text[next] == "\n" {
-                    i = next
-                }
                 if !fields.isEmpty {
                     rows.append(fields)
                     fields = []
@@ -211,23 +206,36 @@ extension PersistenceClient: DependencyKey {
                 return lines.joined(separator: "\n")
             },
             showCSVSavePanel: { csv in
-                await MainActor.run {
-                    let panel = NSSavePanel()
-                    panel.nameFieldStringValue = "job_applications.csv"
-                    panel.allowedContentTypes = [UTType.commaSeparatedText]
-                    if panel.runModal() == .OK, let url = panel.url {
-                        try? csv.write(to: url, atomically: true, encoding: .utf8)
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async {
+                        let panel = NSSavePanel()
+                        panel.nameFieldStringValue = "job_applications.csv"
+                        panel.allowedContentTypes = [UTType.commaSeparatedText]
+                        panel.begin { response in
+                            if response == .OK, let url = panel.url {
+                                try? csv.write(to: url, atomically: true, encoding: .utf8)
+                            }
+                            continuation.resume()
+                        }
                     }
                 }
             },
             showCSVOpenPanel: {
-                await MainActor.run {
-                    let panel = NSOpenPanel()
-                    panel.allowedContentTypes = [UTType.commaSeparatedText, UTType.plainText]
-                    panel.allowsMultipleSelection = false
-                    panel.message = "Select a Job Application Wizard CSV file to import"
-                    guard panel.runModal() == .OK, let url = panel.url else { return nil }
-                    return try? String(contentsOf: url, encoding: .utf8)
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async {
+                        let panel = NSOpenPanel()
+                        panel.allowedContentTypes = [UTType.commaSeparatedText, UTType.plainText]
+                        panel.allowsMultipleSelection = false
+                        panel.allowsOtherFileTypes = true
+                        panel.message = "Select a Job Application Wizard CSV file to import"
+                        panel.begin { response in
+                            guard response == .OK, let url = panel.url else {
+                                continuation.resume(returning: nil)
+                                return
+                            }
+                            continuation.resume(returning: try? String(contentsOf: url, encoding: .utf8))
+                        }
+                    }
                 }
             },
             importCSV: { text in

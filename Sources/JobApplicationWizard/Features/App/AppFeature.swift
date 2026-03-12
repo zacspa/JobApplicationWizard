@@ -197,6 +197,7 @@ struct AppFeature {
                 let existingIDs = Set(state.jobs.ids)
                 let newJobs = imported.filter { !existingIDs.contains($0.id) }
                 for job in newJobs { state.jobs.append(job) }
+                if !newJobs.isEmpty { state.filterStatus = nil }  // show all so imported jobs are visible
                 return saveJobs(state.jobs)
 
             case .dismissOnboarding:

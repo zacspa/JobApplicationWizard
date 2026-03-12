@@ -3,7 +3,8 @@ set -e
 
 APP_NAME="JobApplicationWizard"
 BUNDLE_ID="com.zsparks.jobapplicationwizard"
-VERSION="2.2"
+read -rp "Version (e.g. 2.3): " VERSION
+VERSION="${VERSION:?Version is required}"
 BUILD_DIR=".build/release"
 APP_BUNDLE="$APP_NAME.app"
 DMG_FINAL="$APP_NAME.dmg"
