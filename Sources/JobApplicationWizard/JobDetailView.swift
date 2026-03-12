@@ -637,6 +637,7 @@ struct ContactsTab: View {
             if store.contacts.isEmpty {
                 ContentUnavailableView("No Contacts", systemImage: "person.crop.circle.badge.xmark",
                     description: Text("Add recruiters, hiring managers, or referrals")).padding()
+                Spacer()
             } else {
                 List {
                     ForEach(store.contacts, id: \.id) { contact in
@@ -734,6 +735,7 @@ struct InterviewsTab: View {
                 ContentUnavailableView("No Interviews Yet",
                     systemImage: "calendar.badge.clock",
                     description: Text("Add interview rounds as you progress")).padding()
+                Spacer()
             } else {
                 List {
                     ForEach(store.interviews, id: \.id) { round in
@@ -833,6 +835,7 @@ struct AIAssistantTab: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.orange.opacity(0.1))
+                Spacer()
             }
 
             // Message history
