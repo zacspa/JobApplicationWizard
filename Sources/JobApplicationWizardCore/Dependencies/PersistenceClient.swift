@@ -270,14 +270,14 @@ extension PersistenceClient: DependencyKey {
 
 extension PersistenceClient: TestDependencyKey {
     public static let testValue = PersistenceClient(
-        loadJobs: unimplemented("\(Self.self).loadJobs"),
-        saveJobs: unimplemented("\(Self.self).saveJobs"),
-        loadSettings: unimplemented("\(Self.self).loadSettings"),
-        saveSettings: unimplemented("\(Self.self).saveSettings"),
-        exportCSV: unimplemented("\(Self.self).exportCSV"),
-        showCSVSavePanel: unimplemented("\(Self.self).showCSVSavePanel"),
-        showCSVOpenPanel: unimplemented("\(Self.self).showCSVOpenPanel"),
-        importCSV: unimplemented("\(Self.self).importCSV")
+        loadJobs: unimplemented("\(Self.self).loadJobs", placeholder: []),
+        saveJobs: unimplemented("\(Self.self).saveJobs", placeholder: ()),
+        loadSettings: unimplemented("\(Self.self).loadSettings", placeholder: AppSettings()),
+        saveSettings: unimplemented("\(Self.self).saveSettings", placeholder: ()),
+        exportCSV: unimplemented("\(Self.self).exportCSV", placeholder: ""),
+        showCSVSavePanel: unimplemented("\(Self.self).showCSVSavePanel", placeholder: ()),
+        showCSVOpenPanel: unimplemented("\(Self.self).showCSVOpenPanel", placeholder: nil),
+        importCSV: unimplemented("\(Self.self).importCSV", placeholder: [])
     )
 }
 

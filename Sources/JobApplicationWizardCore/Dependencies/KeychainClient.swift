@@ -60,8 +60,8 @@ extension KeychainClient: DependencyKey {
 
 extension KeychainClient: TestDependencyKey {
     public static let testValue = KeychainClient(
-        loadAPIKey: unimplemented("\(Self.self).loadAPIKey"),
-        saveAPIKey: unimplemented("\(Self.self).saveAPIKey")
+        loadAPIKey: unimplemented("\(Self.self).loadAPIKey", placeholder: ""),
+        saveAPIKey: unimplemented("\(Self.self).saveAPIKey", placeholder: ())
     )
 }
 
