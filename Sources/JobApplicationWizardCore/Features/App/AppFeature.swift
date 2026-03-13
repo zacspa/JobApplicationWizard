@@ -28,6 +28,9 @@ public struct AppFeature {
         public var claudeAPIKey: String = ""   // runtime mirror of Keychain value; never persisted to disk
         public var addJob: AddJobFeature.State = AddJobFeature.State()
         public var jobDetail: JobDetailFeature.State? = nil
+        public var pendingMoveJobID: UUID? = nil
+        public var pendingMoveStatus: JobStatus? = nil
+        public var showIncompleteTasksAlert: Bool = false
 
         public var filteredJobs: [JobApplication] {
             jobs.filter { job in
@@ -58,6 +61,9 @@ public struct AppFeature {
         case filterStatusChanged(JobStatus?)
         case viewModeChanged(ViewMode)
         case selectJob(UUID?)
+        case moveJobRequested(UUID, JobStatus)
+        case moveJobAlertContinue
+        case moveJobAlertCancel
         case moveJob(UUID, JobStatus)
         case deleteJob(UUID)
         case toggleFavorite(UUID)
@@ -126,6 +132,31 @@ public struct AppFeature {
                 } else {
                     state.jobDetail = nil
                 }
+                return .none
+
+            case .moveJobRequested(let id, let status):
+                guard let job = state.jobs[id: id] else { return .none }
+                let incomplete = job.tasks.filter { $0.forStatus == job.status && !$0.isCompleted }
+                if incomplete.isEmpty {
+                    return .send(.moveJob(id, status))
+                } else {
+                    state.pendingMoveJobID = id
+                    state.pendingMoveStatus = status
+                    state.showIncompleteTasksAlert = true
+                    return .none
+                }
+
+            case .moveJobAlertContinue:
+                guard let id = state.pendingMoveJobID, let status = state.pendingMoveStatus else { return .none }
+                state.pendingMoveJobID = nil
+                state.pendingMoveStatus = nil
+                state.showIncompleteTasksAlert = false
+                return .send(.moveJob(id, status))
+
+            case .moveJobAlertCancel:
+                state.pendingMoveJobID = nil
+                state.pendingMoveStatus = nil
+                state.showIncompleteTasksAlert = false
                 return .none
 
             case .moveJob(let id, let status):

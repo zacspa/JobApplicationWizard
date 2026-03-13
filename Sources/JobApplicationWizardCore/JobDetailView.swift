@@ -52,6 +52,15 @@ public struct JobDetailView: View {
         } message: {
             Text("Delete \(store.job.displayTitle) at \(store.job.displayCompany)? This cannot be undone.")
         }
+        .alert("Incomplete Tasks", isPresented: Binding(
+            get: { store.showIncompleteTasksAlert },
+            set: { if !$0 { store.send(.moveJobAlertCancel) } }
+        )) {
+            Button("Continue Anyway", role: .destructive) { store.send(.moveJobAlertContinue) }
+            Button("Cancel", role: .cancel) { store.send(.moveJobAlertCancel) }
+        } message: {
+            Text("You have incomplete tasks for this stage. Move anyway?")
+        }
     }
 
     var header: some View {
@@ -80,7 +89,7 @@ public struct JobDetailView: View {
 
                     Menu {
                         ForEach(JobStatus.allCases) { s in
-                            Button { store.send(.moveJob(s)) } label: {
+                            Button { store.send(.moveJobRequested(s)) } label: {
                                 Label(s.rawValue, systemImage: s.icon)
                             }
                         }
@@ -228,9 +237,127 @@ struct OverviewTab: View {
                 GroupBox("Labels") {
                     LabelsEditor(labels: $store.labels).padding(4)
                 }
+
+                let currentTasks = store.job.tasks.filter { $0.forStatus == store.job.status }
+                let remainingCount = currentTasks.filter { !$0.isCompleted }.count
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if currentTasks.isEmpty && !store.isAddingTask {
+                            Text("No tasks — tap + to add")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 8)
+                        } else {
+                            ForEach(currentTasks) { task in
+                                TaskRowView(
+                                    task: task,
+                                    onToggle: { store.send(.toggleTask(task.id)) },
+                                    onDelete: { store.send(.deleteTask(task.id)) }
+                                )
+                                if task.id != currentTasks.last?.id {
+                                    Divider()
+                                }
+                            }
+                        }
+
+                        if store.isAddingTask {
+                            if !currentTasks.isEmpty {
+                                Divider()
+                            }
+                            VStack(alignment: .leading, spacing: 8) {
+                                let suggestions = store.job.status.suggestedTaskTitles.filter { s in
+                                    !store.job.tasks.contains { $0.title == s && $0.forStatus == store.job.status }
+                                }
+                                if !suggestions.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 6) {
+                                            ForEach(suggestions, id: \.self) { suggestion in
+                                                Button { store.send(.addSuggestedTask(suggestion)) } label: {
+                                                    Text("+ \(suggestion)")
+                                                        .font(.footnote)
+                                                        .padding(.horizontal, 8)
+                                                        .padding(.vertical, 4)
+                                                        .background(Color.accentColor.opacity(0.1))
+                                                        .foregroundColor(.accentColor)
+                                                        .clipShape(Capsule())
+                                                }
+                                                .buttonStyle(.plain)
+                                            }
+                                        }
+                                    }
+                                }
+                                HStack {
+                                    TextField("Task title...", text: Binding(
+                                        get: { store.newTaskText },
+                                        set: { store.send(.newTaskTextChanged($0)) }
+                                    ))
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.subheadline)
+                                    .onSubmit { store.send(.saveNewTask) }
+                                    Button("Save") { store.send(.saveNewTask) }
+                                        .buttonStyle(.borderedProminent)
+                                        .controlSize(.small)
+                                        .disabled(store.newTaskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    Button("Cancel") { store.send(.cancelNewTask) }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(remainingCount > 0 ? "Tasks (\(remainingCount) remaining)" : "Tasks")
+                        Spacer()
+                        if !store.isAddingTask {
+                            Button { store.send(.addTaskTapped) } label: {
+                                Image(systemName: "plus").font(.footnote)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
             }
             .padding(16)
         }
+    }
+}
+
+// MARK: - Task Row
+
+struct TaskRowView: View {
+    let task: SubTask
+    let onToggle: () -> Void
+    let onDelete: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack {
+            Button(action: onToggle) {
+                Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(task.isCompleted ? .green : .secondary)
+            }
+            .buttonStyle(.plain)
+            Text(task.title)
+                .font(.subheadline)
+                .strikethrough(task.isCompleted)
+                .foregroundColor(task.isCompleted ? .secondary : .primary)
+            Spacer()
+            if isHovered {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 8)
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
     }
 }
 

@@ -520,4 +520,223 @@ final class JobDetailFeatureTests: XCTestCase {
         await store.send(.viewPDFTapped)
         // No effect, no crash
     }
+
+    // MARK: - moveJobRequested
+
+    func testMoveJobRequestedWithNoIncompleteTasks() async {
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock(status: .wishlist))) {
+            JobDetailFeature()
+        }
+
+        store.exhaustivity = .off
+        await store.send(.moveJobRequested(.applied))
+        await store.receive(\.moveJob)
+
+        XCTAssertEqual(store.state.job.status, .applied)
+        XCTAssertFalse(store.state.showIncompleteTasksAlert)
+    }
+
+    func testMoveJobRequestedWithIncompleteTasksShowsAlert() async {
+        let task = SubTask(title: "Research company", isCompleted: false, forStatus: .wishlist)
+        let job = JobApplication.mock(status: .wishlist, tasks: [task])
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+
+        await store.send(.moveJobRequested(.applied)) {
+            $0.pendingStatusChange = .applied
+            $0.showIncompleteTasksAlert = true
+        }
+
+        XCTAssertEqual(store.state.job.status, .wishlist)
+    }
+
+    func testMoveJobAlertContinueTransitionsStatus() async {
+        let task = SubTask(title: "Research company", isCompleted: false, forStatus: .wishlist)
+        let job = JobApplication.mock(status: .wishlist, tasks: [task])
+        var state = JobDetailFeature.State(job: job)
+        state.pendingStatusChange = .applied
+        state.showIncompleteTasksAlert = true
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        store.exhaustivity = .off
+        await store.send(.moveJobAlertContinue)
+        await store.receive(\.moveJob)
+
+        XCTAssertEqual(store.state.job.status, .applied)
+        XCTAssertFalse(store.state.showIncompleteTasksAlert)
+        XCTAssertNil(store.state.pendingStatusChange)
+    }
+
+    func testMoveJobAlertCancelLeavesStatusUnchanged() async {
+        let task = SubTask(title: "Research company", isCompleted: false, forStatus: .wishlist)
+        let job = JobApplication.mock(status: .wishlist, tasks: [task])
+        var state = JobDetailFeature.State(job: job)
+        state.pendingStatusChange = .applied
+        state.showIncompleteTasksAlert = true
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.moveJobAlertCancel) {
+            $0.pendingStatusChange = nil
+            $0.showIncompleteTasksAlert = false
+        }
+
+        XCTAssertEqual(store.state.job.status, .wishlist)
+    }
+
+    // MARK: - Task CRUD
+
+    func testToggleTaskCompletesIt() async {
+        let taskID = UUID(uuidString: "00000000-0000-0000-0000-000000000099")!
+        let task = SubTask(id: taskID, title: "Research company", isCompleted: false, forStatus: .wishlist)
+        let job = JobApplication.mock(tasks: [task])
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+
+        await store.send(.toggleTask(taskID)) {
+            $0.job.tasks[0].isCompleted = true
+        }
+        await store.receive(\.delegate.jobUpdated)
+    }
+
+    func testToggleTaskUnchecksCompleted() async {
+        let taskID = UUID(uuidString: "00000000-0000-0000-0000-000000000099")!
+        let task = SubTask(id: taskID, title: "Research company", isCompleted: true, forStatus: .wishlist)
+        let job = JobApplication.mock(tasks: [task])
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+
+        await store.send(.toggleTask(taskID)) {
+            $0.job.tasks[0].isCompleted = false
+        }
+        await store.receive(\.delegate.jobUpdated)
+    }
+
+    func testDeleteTask() async {
+        let taskID = UUID(uuidString: "00000000-0000-0000-0000-000000000099")!
+        let task = SubTask(id: taskID, title: "Research company", isCompleted: false, forStatus: .wishlist)
+        let job = JobApplication.mock(tasks: [task])
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+
+        await store.send(.deleteTask(taskID)) {
+            $0.job.tasks = []
+        }
+        await store.receive(\.delegate.jobUpdated)
+    }
+
+    func testAddTaskTapped() async {
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
+            JobDetailFeature()
+        }
+
+        await store.send(.addTaskTapped) {
+            $0.isAddingTask = true
+        }
+    }
+
+    func testSaveNewTask() async {
+        var state = JobDetailFeature.State(job: .mock(status: .wishlist))
+        state.isAddingTask = true
+        state.newTaskText = "My custom task"
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+        store.exhaustivity = .off
+
+        await store.send(.saveNewTask)
+        await store.receive(\.delegate.jobUpdated)
+
+        XCTAssertFalse(store.state.isAddingTask)
+        XCTAssertEqual(store.state.newTaskText, "")
+        XCTAssertEqual(store.state.job.tasks.count, 1)
+        XCTAssertEqual(store.state.job.tasks[0].title, "My custom task")
+        XCTAssertFalse(store.state.job.tasks[0].isCompleted)
+        XCTAssertEqual(store.state.job.tasks[0].forStatus, .wishlist)
+    }
+
+    func testSaveNewTaskWithEmptyTextCancels() async {
+        var state = JobDetailFeature.State(job: .mock())
+        state.isAddingTask = true
+        state.newTaskText = "   "
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.saveNewTask) {
+            $0.isAddingTask = false
+            $0.newTaskText = ""
+        }
+    }
+
+    func testCancelNewTask() async {
+        var state = JobDetailFeature.State(job: .mock())
+        state.isAddingTask = true
+        state.newTaskText = "partial"
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.cancelNewTask) {
+            $0.isAddingTask = false
+            $0.newTaskText = ""
+        }
+    }
+
+    func testAddSuggestedTask() async {
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock(status: .wishlist))) {
+            JobDetailFeature()
+        }
+        store.exhaustivity = .off
+
+        await store.send(.addSuggestedTask("Research the company"))
+        await store.receive(\.delegate.jobUpdated)
+
+        XCTAssertEqual(store.state.job.tasks.count, 1)
+        XCTAssertEqual(store.state.job.tasks[0].title, "Research the company")
+        XCTAssertFalse(store.state.job.tasks[0].isCompleted)
+        XCTAssertEqual(store.state.job.tasks[0].forStatus, .wishlist)
+    }
+
+    func testNewTaskTextChanged() async {
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
+            JobDetailFeature()
+        }
+
+        await store.send(.newTaskTextChanged("Schedule follow-up call")) {
+            $0.newTaskText = "Schedule follow-up call"
+        }
+    }
+
+    func testMoveJobRequestedWithCompletedTasksProceedsImmediately() async {
+        let task = SubTask(title: "Research the company", isCompleted: true, forStatus: .wishlist)
+        let job = JobApplication.mock(status: .wishlist, tasks: [task])
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+        store.exhaustivity = .off
+
+        await store.send(.moveJobRequested(.applied))
+        await store.receive(\.moveJob)
+
+        XCTAssertEqual(store.state.job.status, .applied)
+        XCTAssertFalse(store.state.showIncompleteTasksAlert)
+    }
 }
