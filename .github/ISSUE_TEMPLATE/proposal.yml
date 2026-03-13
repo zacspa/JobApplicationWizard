@@ -1,0 +1,53 @@
+name: Proposal
+description: Propose a significant change or new direction (start in Discussions first)
+labels: ["proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Before opening a proposal issue
+
+        Proposals should start as a [Discussion](https://github.com/zacspa/JobApplicationWizard/discussions/categories/proposals) so the community can weigh in. Open an issue here once the proposal has been discussed and accepted.
+  - type: input
+    id: discussion-link
+    attributes:
+      label: Discussion Link
+      description: Link to the original Discussion thread
+      placeholder: https://github.com/zacspa/JobApplicationWizard/discussions/...
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Brief description of the proposal and what was decided in the discussion
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this change needed? What problem does it solve?
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Design
+      description: How should this be implemented? Include key technical decisions.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope & Milestones
+      description: What are the concrete steps or PRs needed to complete this?
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Interested in contributing?
+      options:
+        - I'd like to implement this
+        - I can help with design/UX
+        - I can help test
+        - I'm just proposing
