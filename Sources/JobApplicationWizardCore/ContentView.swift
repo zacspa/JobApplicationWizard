@@ -57,6 +57,19 @@ public struct ContentView: View {
             )
             .frame(minWidth: 560, minHeight: 700)
         }
+        .alert("Incomplete Tasks", isPresented: Binding(
+            get: { store.showIncompleteTasksAlert },
+            set: { if !$0 { store.send(.moveJobAlertCancel) } }
+        )) {
+            Button("Continue Anyway", role: .destructive) { store.send(.moveJobAlertContinue) }
+            Button("Cancel", role: .cancel) { store.send(.moveJobAlertCancel) }
+        } message: {
+            if let id = store.pendingMoveJobID, let job = store.jobs[id: id] {
+                Text("\"\(job.displayTitle)\" has incomplete tasks. Move anyway?")
+            } else {
+                Text("You have incomplete tasks for this stage. Move anyway?")
+            }
+        }
         .onAppear { store.send(.onAppear) }
     }
 

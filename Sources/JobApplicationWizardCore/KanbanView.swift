@@ -26,7 +26,7 @@ public struct KanbanView: View {
                         jobs: jobsInColumn(status),
                         selectedJobID: store.selectedJobID,
                         onSelect: { store.send(.selectJob($0)) },
-                        onMove: { store.send(.moveJob($0, $1)) },
+                        onMove: { store.send(.moveJobRequested($0, $1)) },
                         onToggleFavorite: { store.send(.toggleFavorite($0)) },
                         onDelete: { store.send(.deleteJob($0)) }
                     )
@@ -146,6 +146,8 @@ struct JobCard: View {
     let onDelete: () -> Void
 
     @State private var isHovered = false
+    @State private var showTaskPopover = false
+    @State private var hoverDelayTask: Task<Void, Never>? = nil
 
     var body: some View {
         Button(action: onSelect) {
@@ -214,6 +216,15 @@ struct JobCard: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
+                    let currentTasks = job.tasks.filter { $0.forStatus == job.status }
+                    if !currentTasks.isEmpty {
+                        let done = currentTasks.filter { $0.isCompleted }.count
+                        let total = currentTasks.count
+                        let allDone = done == total
+                        Label("\(done)/\(total)", systemImage: allDone ? "checkmark.circle.fill" : "checklist")
+                            .font(.caption2)
+                            .foregroundColor(allDone ? .green : .secondary)
+                    }
                     if !job.contacts.isEmpty {
                         Label("\(job.contacts.count)", systemImage: "person.circle")
                             .font(.caption2)
@@ -239,7 +250,26 @@ struct JobCard: View {
             .shadow(color: .black.opacity(0.04), radius: 2, y: 1)
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .popover(isPresented: $showTaskPopover, arrowEdge: .bottom) {
+            TaskPopoverView(job: job)
+        }
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering {
+                hoverDelayTask = Task {
+                    try? await Task.sleep(for: .milliseconds(800))
+                    guard !Task.isCancelled else { return }
+                    let tasks = job.tasks.filter { $0.forStatus == job.status }
+                    if !tasks.isEmpty {
+                        showTaskPopover = true
+                    }
+                }
+            } else {
+                hoverDelayTask?.cancel()
+                hoverDelayTask = nil
+                showTaskPopover = false
+            }
+        }
         .contextMenu {
             Menu("Move to") {
                 ForEach(JobStatus.allCases) { s in
@@ -265,6 +295,36 @@ struct JobCard: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+}
+
+// MARK: - Task Popover
+
+struct TaskPopoverView: View {
+    let job: JobApplication
+
+    var body: some View {
+        let tasks = job.tasks.filter { $0.forStatus == job.status }
+        VStack(alignment: .leading, spacing: 6) {
+            Text("\(job.status.rawValue) Tasks")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+                .padding(.bottom, 2)
+            ForEach(tasks) { task in
+                HStack(spacing: 6) {
+                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .foregroundColor(task.isCompleted ? .green : .secondary)
+                        .font(.caption)
+                    Text(task.title)
+                        .font(.caption)
+                        .foregroundColor(task.isCompleted ? .secondary : .primary)
+                        .strikethrough(task.isCompleted)
+                }
+            }
+        }
+        .padding(12)
+        .frame(minWidth: 200)
     }
 }
 

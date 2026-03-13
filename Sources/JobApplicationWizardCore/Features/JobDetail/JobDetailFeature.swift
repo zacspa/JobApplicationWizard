@@ -25,6 +25,10 @@ public struct JobDetailFeature {
         // UI state
         public var selectedTab: Tab = .overview
         public var showDeleteConfirm: Bool = false
+        public var pendingStatusChange: JobStatus? = nil
+        public var showIncompleteTasksAlert: Bool = false
+        public var newTaskText: String = ""
+        public var isAddingTask: Bool = false
 
         // PDF state
         public var isGeneratingPDF: Bool = false
@@ -88,8 +92,19 @@ public struct JobDetailFeature {
         case selectTab(State.Tab)
         case setExcitement(Int)
         case toggleFavorite
+        case moveJobRequested(JobStatus)
+        case moveJobAlertContinue
+        case moveJobAlertCancel
         case moveJob(JobStatus)
         case markApplied
+        // Tasks
+        case toggleTask(UUID)
+        case deleteTask(UUID)
+        case addTaskTapped
+        case newTaskTextChanged(String)
+        case saveNewTask
+        case cancelNewTask
+        case addSuggestedTask(String)
         case deleteTapped
         case deleteConfirmed
         case deleteCancelled
@@ -148,6 +163,27 @@ public struct JobDetailFeature {
             case .toggleFavorite:
                 state.job.isFavorite.toggle()
                 return .send(.delegate(.jobUpdated(state.job)))
+
+            case .moveJobRequested(let status):
+                let incomplete = state.job.tasks.filter { $0.forStatus == state.job.status && !$0.isCompleted }
+                if incomplete.isEmpty {
+                    return .send(.moveJob(status))
+                } else {
+                    state.pendingStatusChange = status
+                    state.showIncompleteTasksAlert = true
+                    return .none
+                }
+
+            case .moveJobAlertContinue:
+                guard let status = state.pendingStatusChange else { return .none }
+                state.pendingStatusChange = nil
+                state.showIncompleteTasksAlert = false
+                return .send(.moveJob(status))
+
+            case .moveJobAlertCancel:
+                state.pendingStatusChange = nil
+                state.showIncompleteTasksAlert = false
+                return .none
 
             case .moveJob(let status):
                 state.job.status = status
@@ -329,6 +365,45 @@ public struct JobDetailFeature {
                 state.aiIsLoading = false
                 state.aiError = error.localizedDescription
                 return .none
+
+            case .toggleTask(let taskID):
+                if let idx = state.job.tasks.firstIndex(where: { $0.id == taskID }) {
+                    state.job.tasks[idx].isCompleted.toggle()
+                }
+                return .send(.delegate(.jobUpdated(state.job)))
+
+            case .deleteTask(let taskID):
+                state.job.tasks.removeAll { $0.id == taskID }
+                return .send(.delegate(.jobUpdated(state.job)))
+
+            case .addTaskTapped:
+                state.isAddingTask = true
+                return .none
+
+            case .newTaskTextChanged(let text):
+                state.newTaskText = text
+                return .none
+
+            case .saveNewTask:
+                let text = state.newTaskText.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else {
+                    state.isAddingTask = false
+                    state.newTaskText = ""
+                    return .none
+                }
+                state.job.tasks.append(SubTask(title: text, forStatus: state.job.status))
+                state.isAddingTask = false
+                state.newTaskText = ""
+                return .send(.delegate(.jobUpdated(state.job)))
+
+            case .cancelNewTask:
+                state.isAddingTask = false
+                state.newTaskText = ""
+                return .none
+
+            case .addSuggestedTask(let title):
+                state.job.tasks.append(SubTask(title: title, forStatus: state.job.status))
+                return .send(.delegate(.jobUpdated(state.job)))
 
             case .delegate:
                 return .none

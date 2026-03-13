@@ -368,6 +368,115 @@ final class AppFeatureTests: XCTestCase {
         }
     }
 
+    // MARK: - moveJobRequested
+
+    func testMoveJobRequestedWithNoIncompleteTasks() async {
+        let job = JobApplication.mock(status: .wishlist)
+        var state = AppFeature.State()
+        state.jobs = IdentifiedArray(uniqueElements: [job])
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.persistenceClient.saveJobs = { _ in }
+        }
+
+        store.exhaustivity = .off
+        await store.send(.moveJobRequested(job.id, .applied))
+        await store.receive(\.moveJob)
+
+        XCTAssertEqual(store.state.jobs[id: job.id]?.status, .applied)
+        XCTAssertFalse(store.state.showIncompleteTasksAlert)
+    }
+
+    func testMoveJobRequestedWithIncompleteTasksShowsAlert() async {
+        let taskID = UUID()
+        let task = SubTask(id: taskID, title: "Research company", isCompleted: false, forStatus: .wishlist)
+        let job = JobApplication.mock(status: .wishlist, tasks: [task])
+        var state = AppFeature.State()
+        state.jobs = IdentifiedArray(uniqueElements: [job])
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        }
+
+        await store.send(.moveJobRequested(job.id, .applied)) {
+            $0.pendingMoveJobID = job.id
+            $0.pendingMoveStatus = .applied
+            $0.showIncompleteTasksAlert = true
+        }
+
+        // Status unchanged
+        XCTAssertEqual(store.state.jobs[id: job.id]?.status, .wishlist)
+    }
+
+    func testMoveJobAlertContinueTransitionsStatus() async {
+        let task = SubTask(title: "Research company", isCompleted: false, forStatus: .wishlist)
+        let job = JobApplication.mock(status: .wishlist, tasks: [task])
+        var state = AppFeature.State()
+        state.jobs = IdentifiedArray(uniqueElements: [job])
+        state.pendingMoveJobID = job.id
+        state.pendingMoveStatus = .applied
+        state.showIncompleteTasksAlert = true
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.persistenceClient.saveJobs = { _ in }
+        }
+
+        store.exhaustivity = .off
+        await store.send(.moveJobAlertContinue)
+        await store.receive(\.moveJob)
+
+        XCTAssertEqual(store.state.jobs[id: job.id]?.status, .applied)
+        XCTAssertFalse(store.state.showIncompleteTasksAlert)
+        XCTAssertNil(store.state.pendingMoveJobID)
+        XCTAssertNil(store.state.pendingMoveStatus)
+    }
+
+    func testMoveJobAlertCancelLeavesStatusUnchanged() async {
+        let task = SubTask(title: "Research company", isCompleted: false, forStatus: .wishlist)
+        let job = JobApplication.mock(status: .wishlist, tasks: [task])
+        var state = AppFeature.State()
+        state.jobs = IdentifiedArray(uniqueElements: [job])
+        state.pendingMoveJobID = job.id
+        state.pendingMoveStatus = .applied
+        state.showIncompleteTasksAlert = true
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        }
+
+        await store.send(.moveJobAlertCancel) {
+            $0.pendingMoveJobID = nil
+            $0.pendingMoveStatus = nil
+            $0.showIncompleteTasksAlert = false
+        }
+
+        XCTAssertEqual(store.state.jobs[id: job.id]?.status, .wishlist)
+    }
+
+    func testMoveJobRequestedWithCompletedTasksProceedsImmediately() async {
+        let task = SubTask(title: "Research company", isCompleted: true, forStatus: .wishlist)
+        let job = JobApplication.mock(status: .wishlist, tasks: [task])
+        var state = AppFeature.State()
+        state.jobs = IdentifiedArray(uniqueElements: [job])
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.persistenceClient.saveJobs = { _ in }
+        }
+
+        store.exhaustivity = .off
+        await store.send(.moveJobRequested(job.id, .applied))
+        await store.receive(\.moveJob)
+
+        XCTAssertEqual(store.state.jobs[id: job.id]?.status, .applied)
+        XCTAssertFalse(store.state.showIncompleteTasksAlert)
+    }
+
     // MARK: - resetAllData
 
     func testResetAllDataClearsEverything() async {

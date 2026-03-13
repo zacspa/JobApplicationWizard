@@ -37,6 +37,17 @@ public enum JobStatus: String, Codable, CaseIterable, Identifiable, Equatable {
         case .withdrawn:   return "arrow.uturn.backward.circle.fill"
         }
     }
+
+    public var suggestedTaskTitles: [String] {
+        switch self {
+        case .wishlist:    return ["Research the company", "Check salary range", "Save job description"]
+        case .applied:     return ["Save application confirmation", "Follow up after 1 week"]
+        case .phoneScreen: return ["Research your interviewer", "Prepare elevator pitch", "Confirm call time and format"]
+        case .interview:   return ["Prepare STAR answers", "Research company culture", "Send thank-you note after"]
+        case .offer:       return ["Review offer details", "Research market salary", "Negotiate or accept"]
+        case .rejected, .withdrawn: return []
+        }
+    }
 }
 
 // MARK: - Label
@@ -114,6 +125,22 @@ public struct Contact: Codable, Identifiable, Equatable {
     }
 }
 
+// MARK: - SubTask
+
+public struct SubTask: Identifiable, Codable, Equatable {
+    public var id: UUID = UUID()
+    public var title: String
+    public var isCompleted: Bool = false
+    public var forStatus: JobStatus
+
+    public init(id: UUID = UUID(), title: String, isCompleted: Bool = false, forStatus: JobStatus) {
+        self.id = id
+        self.title = title
+        self.isCompleted = isCompleted
+        self.forStatus = forStatus
+    }
+}
+
 // MARK: - Interview Round
 
 public struct InterviewRound: Codable, Identifiable, Equatable {
@@ -159,6 +186,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
     public var excitement: Int = 3
     public var hasPDF: Bool = false
     public var pdfPath: String? = nil
+    public var tasks: [SubTask] = []
 
     public var displayTitle: String {
         title.isEmpty ? "Untitled Position" : title
@@ -176,7 +204,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         case id, company, title, url, status, dateAdded, dateApplied
         case salary, location, jobDescription, noteCards
         case resumeUsed, coverLetter, labels, contacts, interviews
-        case isFavorite, excitement, hasPDF, pdfPath
+        case isFavorite, excitement, hasPDF, pdfPath, tasks
         case legacyNotes = "notes"
     }
 
@@ -201,6 +229,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         excitement   = try c.decodeIfPresent(Int.self,             forKey: .excitement)   ?? 3
         hasPDF       = try c.decodeIfPresent(Bool.self,            forKey: .hasPDF)       ?? false
         pdfPath      = try c.decodeIfPresent(String.self,          forKey: .pdfPath)
+        tasks        = try c.decodeIfPresent([SubTask].self,        forKey: .tasks)        ?? []
 
         if let cards = try c.decodeIfPresent([Note].self, forKey: .noteCards) {
             noteCards = cards
@@ -233,6 +262,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         try c.encode(excitement,     forKey: .excitement)
         try c.encode(hasPDF,         forKey: .hasPDF)
         try c.encodeIfPresent(pdfPath, forKey: .pdfPath)
+        try c.encode(tasks,          forKey: .tasks)
     }
 }
 
