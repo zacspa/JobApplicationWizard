@@ -112,7 +112,7 @@ public enum AIError: LocalizedError {
 
 extension ClaudeClient: TestDependencyKey {
     public static let testValue = ClaudeClient(
-        chat: unimplemented("\(Self.self).chat")
+        chat: unimplemented("\(Self.self).chat", placeholder: ("", .zero))
     )
 }
 

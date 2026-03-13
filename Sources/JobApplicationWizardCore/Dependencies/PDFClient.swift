@@ -112,9 +112,9 @@ private func buildTextView(for job: JobApplication) -> NSTextView {
 
 extension PDFClient: TestDependencyKey {
     public static let testValue = PDFClient(
-        printJobDescription: unimplemented("\(Self.self).printJobDescription"),
-        generateAndSavePDF: unimplemented("\(Self.self).generateAndSavePDF"),
-        openPDF: unimplemented("\(Self.self).openPDF")
+        printJobDescription: unimplemented("\(Self.self).printJobDescription", placeholder: ()),
+        generateAndSavePDF: unimplemented("\(Self.self).generateAndSavePDF", placeholder: ""),
+        openPDF: unimplemented("\(Self.self).openPDF", placeholder: ())
     )
 }
 
