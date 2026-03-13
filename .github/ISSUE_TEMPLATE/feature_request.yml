@@ -1,0 +1,42 @@
+name: Feature Request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem does this solve, or what workflow does it improve?
+      placeholder: I'm always frustrated when ...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How would you like this to work?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any other approaches you've thought about?
+  - type: dropdown
+    id: who-benefits
+    attributes:
+      label: Who benefits?
+      options:
+        - Everyone
+        - Job seekers using the AI features
+        - Job seekers who don't use AI
+        - Power users tracking many applications
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Interested in contributing?
+      options:
+        - I'd like to implement this
+        - I can help with design/UX
+        - I can help test
+        - I'm just suggesting
