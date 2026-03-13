@@ -191,6 +191,24 @@ struct OverviewTab: View {
                             }
                         }
                         .padding(.vertical, 7).padding(.horizontal, 8)
+
+                        ForEach(store.job.interviews.sorted(by: { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) })) { interview in
+                            Divider()
+                            HStack {
+                                Label {
+                                    Text(interview.type.isEmpty ? "Round \(interview.round)" : "Round \(interview.round) · \(interview.type)")
+                                } icon: {
+                                    Image(systemName: interview.completed ? "checkmark.circle.fill" : "person.line.dotted.person")
+                                        .foregroundColor(interview.completed ? .green : .secondary)
+                                }
+                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
+                                if let date = interview.date {
+                                    Text(date.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 7).padding(.horizontal, 8)
+                        }
                     }
                 }
 
