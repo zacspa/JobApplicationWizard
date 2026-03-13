@@ -17,8 +17,8 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We're building
 ## Development Setup
 
 ### Prerequisites
-- macOS 14 (Sonoma) or later
-- Xcode 15+ (for Swift 5.9 and macOS SDK)
+- macOS 15 (Sequoia) or later
+- Xcode 26.2+ (for Swift 6.2 and macOS SDK)
 
 ### Getting started
 
@@ -74,7 +74,7 @@ Use the format `type: description` (lowercase, imperative mood):
 Examples:
 - `feat: add interview reminder notifications`
 - `fix: prevent crash when job description is empty`
-- `docs: clarify build instructions for Xcode 15`
+- `docs: clarify build instructions for Xcode 26`
 
 ## What to Expect
 
