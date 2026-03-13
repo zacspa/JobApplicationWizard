@@ -1,0 +1,49 @@
+name: Proposal Accepted
+
+on:
+  discussion:
+    types: [labeled]
+
+jobs:
+  create-issue:
+    if: github.event.label.name == 'accepted'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      discussions: write
+    steps:
+      - name: Create issue from proposal
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const discussion = context.payload.discussion;
+
+            const issueBody = [
+              `## Summary`,
+              ``,
+              discussion.body,
+              ``,
+              `---`,
+              ``,
+              `**Proposal Discussion:** ${discussion.html_url}`,
+              `**Proposed by:** @${discussion.user.login}`,
+            ].join('\n');
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: discussion.title,
+              body: issueBody,
+              labels: ['proposal'],
+            });
+
+            await github.graphql(`
+              mutation($discussionId: ID!, $body: String!) {
+                addDiscussionComment(input: { discussionId: $discussionId, body: $body }) {
+                  comment { id }
+                }
+              }
+            `, {
+              discussionId: discussion.node_id,
+              body: `This proposal has been accepted! Tracking issue: ${issue.data.html_url}`,
+            });
