@@ -755,11 +755,18 @@ struct InterviewsTab: View {
                                 }
                             }
                         ))
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                if let idx = store.interviews.firstIndex(where: { $0.id == round.id }) {
+                                    store.send(.deleteInterview(IndexSet(integer: idx)))
+                                }
+                            } label: {
+                                Label("Delete Round", systemImage: "trash")
+                            }
+                        }
                     }
                     .onDelete { indices in
-                        var copy = store.interviews
-                        copy.remove(atOffsets: indices)
-                        store.send(.binding(.set(\.interviews, copy)))
+                        store.send(.deleteInterview(indices))
                     }
                 }
                 .listStyle(.inset)
