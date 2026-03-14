@@ -4,13 +4,14 @@ import ComposableArchitecture
 public struct ContentView: View {
     @Bindable var store: StoreOf<AppFeature>
     @Environment(\.openWindow) private var openWindow
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     public init(store: StoreOf<AppFeature>) {
         self.store = store
     }
 
     public var body: some View {
-        NavigationSplitView(columnVisibility: .constant(.all)) {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(store: store)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } content: {
@@ -26,10 +27,11 @@ public struct ContentView: View {
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(min: 500, ideal: 1000)
+            .navigationSplitViewColumnWidth(min: 420, ideal: 540, max: 700)
         } detail: {
             if let detailStore = store.scope(state: \.jobDetail, action: \.jobDetail) {
                 JobDetailView(store: detailStore)
+                    .frame(minWidth: 300)
                     .id(store.selectedJobID)
             } else {
                 ContentUnavailableView(

@@ -38,7 +38,7 @@ struct JobApplicationWizardApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(store: store)
-                .frame(minWidth: 1000, minHeight: 600)
+                .frame(minWidth: 960, minHeight: 600)
         }
         .defaultSize(width: 1440, height: 900)
         .windowStyle(.titleBar)

@@ -23,7 +23,7 @@ public struct JobDetailView: View {
                     .tag(JobDetailFeature.State.Tab.overview)
 
                 DescriptionTab(store: store)
-                    .tabItem { Label("Description", systemImage: "doc.text") }
+                    .tabItem { Label("JD", systemImage: "doc.text") }
                     .tag(JobDetailFeature.State.Tab.description)
 
                 NotesTab(store: store)
@@ -60,8 +60,10 @@ public struct JobDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(store.job.displayCompany)
                         .font(.title3).fontWeight(.bold)
+                        .lineLimit(2)
                     Text(store.job.displayTitle)
                         .font(.subheadline).foregroundColor(.secondary)
+                        .lineLimit(2)
                 }
                 Spacer()
                 HStack(spacing: 8) {
@@ -103,10 +105,9 @@ public struct JobDetailView: View {
                     .foregroundColor(store.job.status.color)
                     .clipShape(Capsule())
 
-                Spacer()
+                Spacer(minLength: 8)
 
                 HStack(spacing: 4) {
-                    Text("Excitement:").font(.footnote).foregroundColor(.secondary)
                     ForEach(1...5, id: \.self) { i in
                         Image(systemName: i <= store.job.excitement ? "star.fill" : "star")
                             .font(.footnote).foregroundColor(.orange)
@@ -171,14 +172,14 @@ struct OverviewTab: View {
                     VStack(spacing: 0) {
                         HStack {
                             Label("Added", systemImage: "plus.circle")
-                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
+                                .font(.subheadline).foregroundColor(.secondary).frame(minWidth: 90, idealWidth: 120, maxWidth: 120, alignment: .leading)
                             Text(store.job.dateAdded.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
                         }
                         .padding(.vertical, 7).padding(.horizontal, 8)
                         Divider()
                         HStack {
                             Label("Applied", systemImage: "paperplane")
-                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
+                                .font(.subheadline).foregroundColor(.secondary).frame(minWidth: 90, idealWidth: 120, maxWidth: 120, alignment: .leading)
                             if let applied = store.job.dateApplied {
                                 Text(applied.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
                             } else {
@@ -201,7 +202,7 @@ struct OverviewTab: View {
                                     Image(systemName: interview.completed ? "checkmark.circle.fill" : "person.line.dotted.person")
                                         .foregroundColor(interview.completed ? .green : .secondary)
                                 }
-                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
+                                .font(.subheadline).foregroundColor(.secondary).frame(minWidth: 90, idealWidth: 120, maxWidth: 120, alignment: .leading)
                                 if let date = interview.date {
                                     Text(date.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
                                 }
@@ -245,7 +246,7 @@ struct DetailRow<Content: View>: View {
         HStack {
             Label(label, systemImage: icon)
                 .font(.subheadline).foregroundColor(.secondary)
-                .frame(width: 110, alignment: .leading)
+                .frame(minWidth: 80, idealWidth: 110, maxWidth: 110, alignment: .leading)
             content().font(.body)
         }
         .padding(.vertical, 7).padding(.horizontal, 8)
