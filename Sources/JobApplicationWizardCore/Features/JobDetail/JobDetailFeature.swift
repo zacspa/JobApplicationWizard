@@ -40,6 +40,7 @@ public struct JobDetailFeature {
         public var apiKey: String
         public var userProfile: UserProfile
         public var aiTokenUsage: AITokenUsage = .zero
+        @SharedReader(.inMemory("acpConnection")) public var acpConnection = ACPConnectionState()
 
         public enum Tab: String, CaseIterable, Equatable {
             case overview = "Overview"
@@ -65,6 +66,7 @@ public struct JobDetailFeature {
             self.interviews = job.interviews
             self.apiKey = apiKey
             self.userProfile = userProfile
+            // acpConnection is automatically shared — no passthrough needed
         }
 
         // Build updated job from current flat fields
@@ -124,6 +126,7 @@ public struct JobDetailFeature {
 
     @Dependency(\.pdfClient) var pdfClient
     @Dependency(\.claudeClient) var claudeClient
+    @Dependency(\.acpClient) var acpClient
 
     public init() {}
 
@@ -272,7 +275,6 @@ public struct JobDetailFeature {
                     state.aiSelectedAction = .chat
                 }
 
-                let key = state.apiKey
                 let job = state.job
                 let profile = state.userProfile
                 var profileSection = ""
@@ -302,12 +304,26 @@ public struct JobDetailFeature {
                 Help the user with their application. Be specific, actionable, and concise.
                 """
                 let messages = state.chatMessages
-                return .run { send in
-                    await send(.aiResponseReceived(Result {
-                        try await claudeClient.chat(key, systemPrompt, messages)
-                    } as Result<(String, AITokenUsage), Error>))
+
+                if state.acpConnection.aiProvider == .acpAgent && state.acpConnection.isConnected {
+                    // For ACP: include system prompt context in first message
+                    let contextPrefix = messages.count <= 1 ? systemPrompt + "\n\n" : ""
+                    let fullMessage = contextPrefix + userText
+                    return .run { send in
+                        await send(.aiResponseReceived(Result {
+                            try await acpClient.sendPrompt(fullMessage, messages)
+                        }))
+                    }
+                    .cancellable(id: CancelID.aiRequest, cancelInFlight: true)
+                } else {
+                    let key = state.apiKey
+                    return .run { send in
+                        await send(.aiResponseReceived(Result {
+                            try await claudeClient.chat(key, systemPrompt, messages)
+                        } as Result<(String, AITokenUsage), Error>))
+                    }
+                    .cancellable(id: CancelID.aiRequest, cancelInFlight: true)
                 }
-                .cancellable(id: CancelID.aiRequest, cancelInFlight: true)
 
             case .clearChat:
                 state.chatMessages = []

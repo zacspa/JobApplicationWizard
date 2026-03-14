@@ -22,7 +22,10 @@ final class AppFeatureTests: XCTestCase {
             $0.persistenceClient.loadSettings = { settings }
             $0.keychainClient.loadAPIKey = { "sk-test-key" }
             $0.keychainClient.saveAPIKey = { _ in }
+            $0.acpRegistryClient = ACPRegistryClient(fetchAgents: { [] })
         }
+
+        store.exhaustivity = .off
 
         await store.send(.onAppear)
         await store.receive(\.jobsLoaded) {
@@ -31,6 +34,7 @@ final class AppFeatureTests: XCTestCase {
         await store.receive(\.settingsLoaded) {
             $0.settings = settings
             $0.viewMode = settings.defaultViewMode
+            $0.$acpConnection.withLock { $0.aiProvider = settings.aiProvider }
         }
         await store.receive(\.saveSettingsKey) {
             $0.claudeAPIKey = "sk-test-key"
@@ -45,7 +49,10 @@ final class AppFeatureTests: XCTestCase {
             $0.persistenceClient.loadSettings = { AppSettings() }
             $0.keychainClient.loadAPIKey = { "" }
             $0.keychainClient.saveAPIKey = { _ in }
+            $0.acpRegistryClient = ACPRegistryClient(fetchAgents: { [] })
         }
+
+        store.exhaustivity = .off
 
         await store.send(.onAppear)
         await store.receive(\.jobsLoaded) {

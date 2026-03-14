@@ -277,23 +277,46 @@ public struct UserProfile: Codable, Equatable {
     }
 }
 
+// MARK: - AI Provider
+
+public enum AIProvider: String, Codable, CaseIterable, Equatable, Sendable {
+    case claudeAPI = "Claude API"
+    case acpAgent = "ACP Agent"
+}
+
+// MARK: - ACP Connection State (shared across features via @Shared)
+
+public struct ACPConnectionState: Equatable, Sendable {
+    public var aiProvider: AIProvider = .acpAgent
+    public var isConnecting: Bool = false
+    public var isConnected: Bool = false
+    public var connectedAgentName: String? = nil
+    public var error: String? = nil
+
+    public init() {}
+}
+
 // MARK: - App Settings
 
 public struct AppSettings: Codable, Equatable {
     // API key is stored in the system Keychain, not here.
     public var userProfile: UserProfile = UserProfile()
     public var defaultViewMode: ViewMode = .kanban
+    public var aiProvider: AIProvider = .acpAgent
+    public var selectedACPAgentId: String? = nil
 
     private enum CodingKeys: String, CodingKey {
-        case userProfile, defaultViewMode
+        case userProfile, defaultViewMode, aiProvider, selectedACPAgentId
     }
 
     public init() {}
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        userProfile     = try c.decodeIfPresent(UserProfile.self, forKey: .userProfile)     ?? UserProfile()
-        defaultViewMode = try c.decodeIfPresent(ViewMode.self,    forKey: .defaultViewMode) ?? .kanban
+        userProfile        = try c.decodeIfPresent(UserProfile.self, forKey: .userProfile)        ?? UserProfile()
+        defaultViewMode    = try c.decodeIfPresent(ViewMode.self,    forKey: .defaultViewMode)    ?? .kanban
+        aiProvider         = try c.decodeIfPresent(AIProvider.self,  forKey: .aiProvider)         ?? .claudeAPI
+        selectedACPAgentId = try c.decodeIfPresent(String.self,      forKey: .selectedACPAgentId)
     }
 }
 
