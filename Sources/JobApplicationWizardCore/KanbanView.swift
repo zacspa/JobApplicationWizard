@@ -71,7 +71,7 @@ struct KanbanRow: View {
                     .foregroundColor(status.color)
                     .clipShape(Capsule())
             }
-            .frame(width: 150, alignment: .leading)
+            .frame(minWidth: 100, idealWidth: 130, maxWidth: 150, alignment: .leading)
             .padding(.vertical, 12)
             .padding(.leading, 12)
 
@@ -92,7 +92,7 @@ struct KanbanRow: View {
                             onToggleFavorite: { onToggleFavorite(job.id) },
                             onDelete: { onDelete(job.id) }
                         )
-                        .frame(width: 260)
+                        .frame(width: 240)
                         .draggable(job.id.uuidString) {
                             JobCard(
                                 job: job,
@@ -102,13 +102,13 @@ struct KanbanRow: View {
                                 onToggleFavorite: {},
                                 onDelete: {}
                             )
-                            .frame(width: 260)
+                            .frame(width: 220)
                             .opacity(0.8)
                         }
                     }
                     if jobs.isEmpty {
                         EmptyColumnView(status: status)
-                            .frame(width: 240)
+                            .frame(width: 220)
                     }
                 }
                 .padding(.horizontal, 12)
