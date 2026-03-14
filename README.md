@@ -168,7 +168,10 @@ Sources/
     ├── JobDetailView.swift                   # Detail panel + all tab views + chat UI
     ├── AddJobView.swift                      # Add job form (separate window)
     ├── ProfileView.swift                     # User profile editor sheet
-    └── SettingsView.swift                    # 4-tab settings panel
+    ├── SettingsView.swift                    # 4-tab settings panel
+    └── Components/
+        ├── DebugMenu.swift                   # Debug panel (⇧⌘D, DEBUG builds)
+        └── ThinkingBubble.swift              # Animated AI thinking indicator
 ```
 
 **Key TCA patterns used:**
