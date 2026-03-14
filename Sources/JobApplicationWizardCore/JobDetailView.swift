@@ -866,8 +866,8 @@ struct AIAssistantTab: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Mode picker + token usage
-            HStack(spacing: 8) {
+            // Mode picker
+            VStack(spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 0) {
                         ForEach(AIAction.allCases, id: \.self) { action in
@@ -884,6 +884,7 @@ struct AIAssistantTab: View {
                         }
                     }
                 }
+                .padding(.horizontal, 8)
 
                 // Provider / token info bar
                 if store.acpConnection.aiProvider == .acpAgent, let name = store.acpConnection.connectedAgentName {
@@ -905,21 +906,7 @@ struct AIAssistantTab: View {
                     }
                     .padding(.horizontal, 16).padding(.bottom, 6)
                 }
-
-                #if DEBUG
-                HStack(spacing: 4) {
-                    Toggle(isOn: $store.aiMockMode) {
-                        Text("Mock AI")
-                            .font(.caption2).foregroundColor(.orange)
-                    }
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    Spacer()
-                }
-                .padding(.horizontal, 16).padding(.bottom, 6)
-                #endif
             }
-            .padding(.horizontal, 8).padding(.vertical, 0)
             .background(Color(NSColor.controlBackgroundColor))
 
             Divider()
@@ -1130,32 +1117,36 @@ struct ChatBubble: View {
     }
 
     var bubbleContent: some View {
-        VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-            Text(message.content)
-                .font(.body)
-                .textSelection(.enabled)
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(
-                    message.role == .user
-                        ? Color.accentColor.opacity(0.15)
-                        : Color(NSColor.controlBackgroundColor)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            if message.role == .assistant && isHovered {
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(message.content, forType: .string)
-                } label: {
-                    Label("Copy", systemImage: "doc.on.doc").font(.footnote)
+        Text(message.content)
+            .font(.body)
+            .textSelection(.enabled)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(
+                message.role == .user
+                    ? Color.accentColor.opacity(0.15)
+                    : Color(NSColor.controlBackgroundColor)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(alignment: .bottomTrailing) {
+                if message.role == .assistant && isHovered {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(message.content, forType: .string)
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                            .font(.footnote)
+                            .padding(6)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain).foregroundColor(.secondary)
+                    .offset(x: -6, y: -6)
                 }
-                .buttonStyle(.plain).foregroundColor(.secondary)
             }
-        }
-        .onHover { isHovered = $0 }
+            .onHover { isHovered = $0 }
     }
 }
 

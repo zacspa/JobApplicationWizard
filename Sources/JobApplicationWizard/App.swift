@@ -56,6 +56,9 @@ struct JobApplicationWizardApp: App {
                 Link("Claude API Documentation",
                      destination: URL(string: "https://docs.anthropic.com")!)
             }
+            #if DEBUG
+            DebugMenuCommands()
+            #endif
         }
 
         Window("New Job Application", id: "add-job") {
@@ -64,6 +67,14 @@ struct JobApplicationWizardApp: App {
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 560, height: 700)
+
+        #if DEBUG
+        Window("Debug", id: "debug") {
+            DebugPanel(store: store)
+        }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 320, height: 400)
+        #endif
 
         Settings {
             SettingsView(store: store)

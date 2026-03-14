@@ -212,7 +212,7 @@ struct ThinkingBubble: View {
                         ColorMixDot(seed: i)
                     }
                 }
-                .padding(.horizontal, 14).padding(.vertical, 12)
+                .padding(.horizontal, 12).padding(.vertical, 8)
                 .background(Color(NSColor.controlBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: cr))
                 .padding(inset)
