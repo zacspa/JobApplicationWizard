@@ -540,4 +540,41 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertEqual(JobDetailFeature.State.Tab.interviews.icon, "calendar.badge.clock")
         XCTAssertEqual(JobDetailFeature.State.Tab.ai.icon, "sparkles")
     }
+
+    // MARK: - System Prompt Builder
+
+    func testBuildSystemPromptIncludesJobContext() {
+        let job = JobApplication.mock(
+            company: "TestCo",
+            title: "Senior Dev",
+            jobDescription: "Build things"
+        )
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+
+        XCTAssertTrue(prompt.contains("Senior Dev"))
+        XCTAssertTrue(prompt.contains("TestCo"))
+        XCTAssertTrue(prompt.contains("Build things"))
+        XCTAssertTrue(prompt.contains("expert career coach"))
+    }
+
+    func testBuildSystemPromptIncludesUserProfile() {
+        let job = JobApplication.mock()
+        var profile = UserProfile()
+        profile.name = "Alice"
+        profile.skills = ["Swift", "Python"]
+        profile.resume = "10 years experience"
+
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: profile)
+
+        XCTAssertTrue(prompt.contains("Alice"))
+        XCTAssertTrue(prompt.contains("Swift, Python"))
+        XCTAssertTrue(prompt.contains("10 years experience"))
+    }
+
+    func testBuildSystemPromptOmitsEmptyProfile() {
+        let job = JobApplication.mock()
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+
+        XCTAssertFalse(prompt.contains("About the candidate"))
+    }
 }

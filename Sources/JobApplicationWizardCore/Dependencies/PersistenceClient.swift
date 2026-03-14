@@ -50,7 +50,7 @@ private func csvQuote(_ s: String) -> String {
 }
 
 private func jobToCSVRow(_ job: JobApplication) -> String {
-    let labelsJSON = (try? String(data: JSONEncoder().encode(job.labels.map { $0.name }), encoding: .utf8)) ?? "[]"
+    let labelsJSON = (try? String(data: JSONEncoder().encode(job.labels), encoding: .utf8)) ?? "[]"
     let noteCardsJSON = (try? String(data: JSONEncoder().encode(job.noteCards), encoding: .utf8)) ?? "[]"
     let contactsJSON = (try? String(data: JSONEncoder().encode(job.contacts), encoding: .utf8)) ?? "[]"
     let interviewsJSON = (try? String(data: JSONEncoder().encode(job.interviews), encoding: .utf8)) ?? "[]"
@@ -156,12 +156,15 @@ private func rowToJob(_ row: [String], headers: [String]) -> JobApplication? {
     let pdfPath = col("PDFPath")
     job.pdfPath = pdfPath.isEmpty ? nil : pdfPath
 
-    // Labels — stored as JSON array of names, match against presets
-    if let data = col("Labels").data(using: .utf8),
-       let names = try? JSONDecoder().decode([String].self, from: data) {
-        job.labels = names.compactMap { name in
-            JobLabel.presets.first { $0.name == name }
-            ?? (name.isEmpty ? nil : JobLabel(name: name, colorHex: "#8E8E93"))
+    // Labels — try decoding as full JobLabel objects first, fall back to legacy name-only format
+    if let data = col("Labels").data(using: .utf8) {
+        if let labels = try? JSONDecoder().decode([JobLabel].self, from: data) {
+            job.labels = labels
+        } else if let names = try? JSONDecoder().decode([String].self, from: data) {
+            job.labels = names.compactMap { name in
+                JobLabel.presets.first { $0.name == name }
+                ?? (name.isEmpty ? nil : JobLabel(name: name, colorHex: "#8E8E93"))
+            }
         }
     }
 
@@ -201,17 +204,38 @@ extension PersistenceClient: DependencyKey {
         let jobsURL = appSupport.appendingPathComponent("jobs.json")
         let settingsURL = appSupport.appendingPathComponent("settings.json")
 
+        let jobsBackupURL = appSupport.appendingPathComponent("jobs.backup.json")
+
         return PersistenceClient(
             loadJobs: {
-                guard let data = try? Data(contentsOf: jobsURL) else { return [] }
-                return try JSONDecoder().decode([JobApplication].self, from: data)
+                let fm = FileManager.default
+                guard fm.fileExists(atPath: jobsURL.path) else { return [] }
+                do {
+                    let data = try Data(contentsOf: jobsURL)
+                    return try JSONDecoder().decode([JobApplication].self, from: data)
+                } catch {
+                    // Primary file is corrupt; try the backup
+                    if fm.fileExists(atPath: jobsBackupURL.path),
+                       let backupData = try? Data(contentsOf: jobsBackupURL),
+                       let backupJobs = try? JSONDecoder().decode([JobApplication].self, from: backupData) {
+                        return backupJobs
+                    }
+                    throw error
+                }
             },
             saveJobs: { jobs in
+                // Create backup of existing file before overwriting
+                let fm = FileManager.default
+                if fm.fileExists(atPath: jobsURL.path) {
+                    try? fm.removeItem(at: jobsBackupURL)
+                    try? fm.copyItem(at: jobsURL, to: jobsBackupURL)
+                }
                 let data = try JSONEncoder().encode(jobs)
                 try data.write(to: jobsURL, options: .atomicWrite)
             },
             loadSettings: {
-                guard let data = try? Data(contentsOf: settingsURL) else { return AppSettings() }
+                guard FileManager.default.fileExists(atPath: settingsURL.path) else { return AppSettings() }
+                let data = try Data(contentsOf: settingsURL)
                 return try JSONDecoder().decode(AppSettings.self, from: data)
             },
             saveSettings: { settings in

@@ -313,38 +313,13 @@ public struct JobDetailFeature {
                 }
                 #endif
 
-                let job = state.job
-                let profile = state.userProfile
-                var profileSection = ""
-                if !profile.name.isEmpty || !profile.resume.isEmpty {
-                    profileSection = """
-
-                    About the candidate:
-                    \(profile.name.isEmpty ? "" : "Name: \(profile.name)\n")\
-                    \(profile.currentTitle.isEmpty ? "" : "Current Title: \(profile.currentTitle)\n")\
-                    \(profile.location.isEmpty ? "" : "Location: \(profile.location)\n")\
-                    \(profile.skills.isEmpty ? "" : "Skills: \(profile.skills.joined(separator: ", "))\n")\
-                    \(profile.targetRoles.isEmpty ? "" : "Target Roles: \(profile.targetRoles.joined(separator: ", "))\n")\
-                    \(profile.preferredSalary.isEmpty ? "" : "Preferred Salary: \(profile.preferredSalary)\n")\
-                    Work Preference: \(profile.workPreference.rawValue)
-                    \(profile.summary.isEmpty ? "" : "\nSummary: \(profile.summary)")
-                    \(profile.resume.isEmpty ? "" : "\nResume:\n\(profile.resume)")
-                    """
-                }
-                let systemPrompt = """
-                You are an expert career coach integrated into a job application tracker.
-                \(profileSection)
-                Target Job: \(job.displayTitle) at \(job.displayCompany)
-                Status: \(job.status.rawValue)
-                Job Description:
-                \(job.jobDescription.isEmpty ? "Not provided" : job.jobDescription)
-
-                Help the user with their application. Be specific, actionable, and concise.
-                """
+                let systemPrompt = Self.buildSystemPrompt(job: state.job, profile: state.userProfile)
                 let messages = state.chatMessages
 
                 if state.acpConnection.aiProvider == .acpAgent && state.acpConnection.isConnected {
-                    // For ACP: include system prompt context in first message
+                    // ACP sessions maintain conversation history server-side, so we only
+                    // need to send the current message. System prompt context is prepended
+                    // to the first message to establish job/profile context.
                     let contextPrefix = messages.count <= 1 ? systemPrompt + "\n\n" : ""
                     let fullMessage = contextPrefix + userText
                     return .run { send in
@@ -388,5 +363,35 @@ public struct JobDetailFeature {
                 return .none
             }
         }
+    }
+
+    /// Builds the system prompt for AI chat, incorporating the user profile and job context.
+    public static func buildSystemPrompt(job: JobApplication, profile: UserProfile) -> String {
+        var profileSection = ""
+        if !profile.name.isEmpty || !profile.resume.isEmpty {
+            profileSection = """
+
+            About the candidate:
+            \(profile.name.isEmpty ? "" : "Name: \(profile.name)\n")\
+            \(profile.currentTitle.isEmpty ? "" : "Current Title: \(profile.currentTitle)\n")\
+            \(profile.location.isEmpty ? "" : "Location: \(profile.location)\n")\
+            \(profile.skills.isEmpty ? "" : "Skills: \(profile.skills.joined(separator: ", "))\n")\
+            \(profile.targetRoles.isEmpty ? "" : "Target Roles: \(profile.targetRoles.joined(separator: ", "))\n")\
+            \(profile.preferredSalary.isEmpty ? "" : "Preferred Salary: \(profile.preferredSalary)\n")\
+            Work Preference: \(profile.workPreference.rawValue)
+            \(profile.summary.isEmpty ? "" : "\nSummary: \(profile.summary)")
+            \(profile.resume.isEmpty ? "" : "\nResume:\n\(profile.resume)")
+            """
+        }
+        return """
+        You are an expert career coach integrated into a job application tracker.
+        \(profileSection)
+        Target Job: \(job.displayTitle) at \(job.displayCompany)
+        Status: \(job.status.rawValue)
+        Job Description:
+        \(job.jobDescription.isEmpty ? "Not provided" : job.jobDescription)
+
+        Help the user with their application. Be specific, actionable, and concise.
+        """
     }
 }
