@@ -2,7 +2,6 @@ import Foundation
 import ComposableArchitecture
 import ACP
 import ACPModel
-import os
 import os.log
 
 private let acpLog = Logger(subsystem: "com.jobwizard.acp", category: "ACPClient")
@@ -33,21 +32,17 @@ public struct ACPClient {
 /// A non-blocking Transport that communicates with a subprocess over pipe FileHandles.
 /// Unlike StdioTransport, `start()` returns immediately and the read loop runs in a background task.
 /// Uses buffered reads (4KB chunks) instead of byte-by-byte for efficiency.
-private final class SubprocessTransport: Transport, @unchecked Sendable {
-    let state: AsyncStream<TransportState>
-    let messages: AsyncStream<JsonRpcMessage>
+private actor SubprocessTransport: Transport {
+    nonisolated let state: AsyncStream<TransportState>
+    nonisolated let messages: AsyncStream<JsonRpcMessage>
 
-    private let stateContinuation: AsyncStream<TransportState>.Continuation
-    private let messagesContinuation: AsyncStream<JsonRpcMessage>.Continuation
-    private let input: FileHandle   // reads agent stdout
-    private let output: FileHandle  // writes to agent stdin
+    private nonisolated let stateContinuation: AsyncStream<TransportState>.Continuation
+    private nonisolated let messagesContinuation: AsyncStream<JsonRpcMessage>.Continuation
+    private nonisolated let input: FileHandle   // reads agent stdout
+    private nonisolated let output: FileHandle  // writes to agent stdin
 
-    /// Protects mutable state: (readTask, didClose)
-    private struct MutableState {
-        var readTask: Task<Void, Never>?
-        var didClose = false
-    }
-    private let mutableState = OSAllocatedUnfairLock(initialState: MutableState())
+    private var readTask: Task<Void, Never>?
+    private var didClose = false
 
     init(input: FileHandle, output: FileHandle) {
         self.input = input
@@ -94,13 +89,13 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
             acpLog.info("transport: read loop ended after \(messageCount) messages")
             Task { await self.close() }
         }
-        mutableState.withLock { $0.readTask = task }
+        readTask = task
 
         stateContinuation.yield(.started)
         acpLog.info("transport: started")
     }
 
-    func send(_ message: JsonRpcMessage) async throws {
+    nonisolated func send(_ message: JsonRpcMessage) async throws {
         let encoder = JSONEncoder()
         let data = try encoder.encode(message)
         guard var json = String(data: data, encoding: .utf8) else { return }
@@ -110,15 +105,11 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
     }
 
     func close() async {
-        let task = mutableState.withLock { state -> Task<Void, Never>? in
-            guard !state.didClose else { return nil }
-            state.didClose = true
-            let t = state.readTask
-            state.readTask = nil
-            return t
-        }
-        guard let task else { return }
-        task.cancel()
+        guard !didClose else { return }
+        didClose = true
+        let task = readTask
+        readTask = nil
+        task?.cancel()
         // Close pipe handles to unblock any pending read()
         try? input.close()
         try? output.close()
@@ -128,7 +119,7 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
         stateContinuation.finish()
     }
 
-    private func readLine() throws -> String? {
+    nonisolated private func readLine() throws -> String? {
         var data = Data()
         while true {
             let byte = try input.read(upToCount: 1)
@@ -142,7 +133,7 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
         }
     }
 
-    private func parseMessage(_ line: String) throws -> JsonRpcMessage {
+    nonisolated private func parseMessage(_ line: String) throws -> JsonRpcMessage {
         guard let data = line.data(using: .utf8) else {
             throw ACPClientError.notConnected
         }
@@ -153,25 +144,25 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
 // MARK: - Simple Client conformance
 
 /// Minimal Client implementation that collects agent message chunks.
-private final class JobWizardACPClient: Client, @unchecked Sendable {
-    var capabilities: ClientCapabilities { ClientCapabilities() }
-    var info: Implementation? { Implementation(name: "JobApplicationWizard", version: "1.0.0") }
+private actor JobWizardACPClient: Client {
+    nonisolated var capabilities: ClientCapabilities { ClientCapabilities() }
+    nonisolated var info: Implementation? { Implementation(name: "JobApplicationWizard", version: "1.0.0") }
 
     /// Accumulated text from agent message chunks during a prompt turn.
-    private let collectedTextLock = OSAllocatedUnfairLock(initialState: "")
+    private var collectedText: String = ""
 
-    var collectedText: String {
-        collectedTextLock.withLock { $0 }
+    func getCollectedText() -> String {
+        collectedText
     }
 
     func resetCollectedText() {
-        collectedTextLock.withLock { $0 = "" }
+        collectedText = ""
     }
 
     func onSessionUpdate(_ update: SessionUpdate) async {
         if case .agentMessageChunk(let chunk) = update {
             if case .text(let textContent) = chunk.content {
-                collectedTextLock.withLock { $0 += textContent.text }
+                collectedText += textContent.text
             }
         }
     }
@@ -360,7 +351,7 @@ private actor ACPProcessManager {
         }
 
         // Reset collected text before sending
-        client.resetCollectedText()
+        await client.resetCollectedText()
 
         // Build prompt request with text content block
         let request = PromptRequest(
@@ -372,7 +363,7 @@ private actor ACPProcessManager {
         _ = try await conn.prompt(request: request)
 
         // Collect accumulated text from notifications
-        let responseText = client.collectedText
+        let responseText = await client.getCollectedText()
 
         // ACP doesn't expose token usage
         return (responseText, .zero)
