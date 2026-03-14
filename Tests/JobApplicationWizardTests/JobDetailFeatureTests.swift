@@ -520,4 +520,24 @@ final class JobDetailFeatureTests: XCTestCase {
         await store.send(.viewPDFTapped)
         // No effect, no crash
     }
+
+    // MARK: - Tab Enum Properties
+
+    func testTabLabels() {
+        XCTAssertEqual(JobDetailFeature.State.Tab.overview.label, "Overview")
+        XCTAssertEqual(JobDetailFeature.State.Tab.description.label, "JD")
+        XCTAssertEqual(JobDetailFeature.State.Tab.notes.label, "Notes")
+        XCTAssertEqual(JobDetailFeature.State.Tab.contacts.label, "Contacts")
+        XCTAssertEqual(JobDetailFeature.State.Tab.interviews.label, "Interviews")
+        XCTAssertEqual(JobDetailFeature.State.Tab.ai.label, "AI")
+    }
+
+    func testTabIcons() {
+        XCTAssertEqual(JobDetailFeature.State.Tab.overview.icon, "info.circle")
+        XCTAssertEqual(JobDetailFeature.State.Tab.description.icon, "doc.text")
+        XCTAssertEqual(JobDetailFeature.State.Tab.notes.icon, "note.text")
+        XCTAssertEqual(JobDetailFeature.State.Tab.contacts.icon, "person.2")
+        XCTAssertEqual(JobDetailFeature.State.Tab.interviews.icon, "calendar.badge.clock")
+        XCTAssertEqual(JobDetailFeature.State.Tab.ai.icon, "sparkles")
+    }
 }
