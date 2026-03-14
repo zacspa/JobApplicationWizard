@@ -3,3 +3,6 @@ contact_links:
   - name: Questions & Discussion
     url: https://github.com/zacspa/JobApplicationWizard/discussions
     about: Ask questions, share ideas, or start a conversation
+  - name: Start a Proposal
+    url: https://github.com/zacspa/JobApplicationWizard/discussions/categories/proposals
+    about: Propose a significant change — discuss with the community before opening an issue
