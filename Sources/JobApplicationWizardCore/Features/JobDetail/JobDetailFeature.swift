@@ -48,6 +48,24 @@ public struct JobDetailFeature {
             case contacts = "Contacts"
             case interviews = "Interviews"
             case ai = "AI"
+
+            public var label: String {
+                switch self {
+                case .description: return "JD"
+                default: return rawValue
+                }
+            }
+
+            public var icon: String {
+                switch self {
+                case .overview: return "info.circle"
+                case .description: return "doc.text"
+                case .notes: return "note.text"
+                case .contacts: return "person.2"
+                case .interviews: return "calendar.badge.clock"
+                case .ai: return "sparkles"
+                }
+            }
         }
 
         public init(job: JobApplication, apiKey: String = "", userProfile: UserProfile = UserProfile()) {
