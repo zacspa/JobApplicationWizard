@@ -28,15 +28,20 @@ struct JobApplicationWizardApp: App {
     private let updaterController: SPUStandardUpdaterController
 
     init() {
+        #if DEBUG
+        let startUpdater = false
+        #else
+        let startUpdater = true
+        #endif
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: true,
+            startingUpdater: startUpdater,
             updaterDelegate: nil,
             userDriverDelegate: nil
         )
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView(store: store)
                 .frame(minWidth: 960, minHeight: 600)
         }
