@@ -12,8 +12,8 @@ public struct SettingsView: View {
         TabView {
             GeneralSettingsTab(store: store)
                 .tabItem { Label("General", systemImage: "gearshape") }
-            ClaudeSettingsTab(store: store)
-                .tabItem { Label("Claude AI", systemImage: "sparkles") }
+            AIProviderSettingsTab(store: store)
+                .tabItem { Label("AI Provider", systemImage: "sparkles") }
             DataSettingsTab(store: store)
                 .tabItem { Label("Data", systemImage: "externaldrive") }
             AboutSettingsTab()
@@ -55,9 +55,9 @@ private struct GeneralSettingsTab: View {
     }
 }
 
-// MARK: - Claude AI Tab
+// MARK: - AI Provider Tab
 
-private struct ClaudeSettingsTab: View {
+private struct AIProviderSettingsTab: View {
     let store: StoreOf<AppFeature>
     @State private var apiKey = ""
     @State private var showKey = false
@@ -65,56 +65,172 @@ private struct ClaudeSettingsTab: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Spacer()
-                if saved {
-                    Label("Saved", systemImage: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .transition(.opacity)
-                }
-                Button("Save") {
-                    store.send(.saveSettingsKey(apiKey))
-                    withAnimation {
-                        saved = true
+            if store.acpConnection.aiProvider == .claudeAPI {
+                HStack {
+                    Spacer()
+                    if saved {
+                        Label("Saved", systemImage: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .transition(.opacity)
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        withAnimation { saved = false }
+                    Button("Save") {
+                        store.send(.saveSettingsKey(apiKey))
+                        withAnimation {
+                            saved = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            withAnimation { saved = false }
+                        }
                     }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
 
             Form {
-                Section("Claude AI") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Claude API Key")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Text("Used for resume tailoring, cover letters, and interview prep.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        HStack {
-                            Group {
-                                if showKey {
-                                    TextField("sk-ant-...", text: $apiKey)
-                                } else {
-                                    SecureField("sk-ant-...", text: $apiKey)
+                Section("Provider") {
+                    Picker("AI Provider", selection: Binding(
+                        get: { store.acpConnection.aiProvider },
+                        set: { store.send(.aiProviderChanged($0)) }
+                    )) {
+                        ForEach(AIProvider.allCases, id: \.self) { provider in
+                            Text(provider.rawValue).tag(provider)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                if store.acpConnection.aiProvider == .claudeAPI {
+                    Section("Claude API") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Claude API Key")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text("Used for resume tailoring, cover letters, and interview prep.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            HStack {
+                                Group {
+                                    if showKey {
+                                        TextField("sk-ant-...", text: $apiKey)
+                                    } else {
+                                        SecureField("sk-ant-...", text: $apiKey)
+                                    }
+                                }
+                                .textFieldStyle(.roundedBorder)
+                                Button {
+                                    showKey.toggle()
+                                } label: {
+                                    Image(systemName: showKey ? "eye.slash" : "eye")
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            Text("Your key is stored in the system Keychain — never written to disk.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } else {
+                    Section("ACP Agent") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Available Agents")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                if store.isLoadingAgents {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                }
+                                Button("Refresh") {
+                                    store.send(.fetchACPRegistry)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .disabled(store.isLoadingAgents)
+                            }
+
+                            if store.availableACPAgents.isEmpty && !store.isLoadingAgents {
+                                Text("No agents found. Click Refresh to load the registry.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Picker("Agent", selection: Binding(
+                                    get: { store.settings.selectedACPAgentId ?? "" },
+                                    set: { store.send(.selectACPAgent($0)) }
+                                )) {
+                                    Text("Select an agent...").tag("")
+                                    ForEach(store.availableACPAgents) { agent in
+                                        VStack(alignment: .leading) {
+                                            Text(agent.name)
+                                            Text(agent.description)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        .tag(agent.id)
+                                    }
                                 }
                             }
-                            .textFieldStyle(.roundedBorder)
-                            Button {
-                                showKey.toggle()
-                            } label: {
-                                Image(systemName: showKey ? "eye.slash" : "eye")
-                            }
-                            .buttonStyle(.plain)
                         }
-                        Text("Your key is stored in the system Keychain — never written to disk.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+
+                        // Connection status
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 6) {
+                                if store.acpConnection.isConnecting {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Connecting...")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Circle()
+                                        .fill(store.acpConnection.isConnected ? Color.green : Color.gray)
+                                        .frame(width: 8, height: 8)
+                                    if let name = store.acpConnection.connectedAgentName {
+                                        Text("Connected: \(name)")
+                                            .font(.subheadline)
+                                    } else {
+                                        Text("Disconnected")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+
+                            HStack {
+                                if store.acpConnection.isConnected {
+                                    Button("Disconnect") {
+                                        store.send(.disconnectACPAgent)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                } else {
+                                    Button("Connect") {
+                                        store.send(.connectACPAgent)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                                    .disabled(store.acpConnection.isConnecting || store.settings.selectedACPAgentId == nil || store.settings.selectedACPAgentId?.isEmpty == true)
+                                }
+                            }
+
+                            if let error = store.acpConnection.error {
+                                Text(error)
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                    .onTapGesture {
+                                        NSPasteboard.general.clearContents()
+                                        NSPasteboard.general.setString(error, forType: .string)
+                                    }
+                                    .help("Click to copy error")
+                            }
+
+                            Text("Some agents require Node.js (for npx) or are macOS-only binaries.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }
