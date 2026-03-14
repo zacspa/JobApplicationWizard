@@ -177,21 +177,36 @@ struct OverviewTab: View {
                 }
 
                 GroupBox("Timeline") {
+                    let allLabels: [String] = ["Added", "Applied"] + store.job.interviews.map {
+                        $0.type.isEmpty ? "Round \($0.round)" : "Round \($0.round) · \($0.type)"
+                    }
+                    let longestLabel = allLabels.max(by: { $0.count < $1.count }) ?? ""
+                    // Approximate width: ~7.5pt per character for subheadline
+                    let labelWidth = max(80, CGFloat(longestLabel.count) * 7.5 + 8)
+
                     VStack(spacing: 0) {
-                        HStack {
-                            Label("Added", systemImage: "plus.circle")
-                                .font(.subheadline).foregroundColor(.secondary).frame(minWidth: 90, idealWidth: 120, maxWidth: 120, alignment: .leading)
-                            Text(store.job.dateAdded.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
-                        }
-                        .padding(.vertical, 7).padding(.horizontal, 8)
+                        timelineRow(
+                            icon: "plus.circle",
+                            iconColor: .secondary,
+                            label: "Added",
+                            date: store.job.dateAdded.formatted(date: .abbreviated, time: .omitted),
+                            labelWidth: labelWidth
+                        )
                         Divider()
-                        HStack {
-                            Label("Applied", systemImage: "paperplane")
-                                .font(.subheadline).foregroundColor(.secondary).frame(minWidth: 90, idealWidth: 120, maxWidth: 120, alignment: .leading)
+                        HStack(spacing: 6) {
+                            Image(systemName: "paperplane")
+                                .foregroundColor(.secondary)
+                                .frame(width: 20)
+                            Text("Applied")
+                                .font(.subheadline).foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .frame(width: labelWidth, alignment: .leading)
                             if let applied = store.job.dateApplied {
-                                Text(applied.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
+                                Text(applied.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.subheadline)
                             } else {
-                                Text("Not yet applied").font(.subheadline).foregroundColor(.secondary)
+                                Text("Not yet applied")
+                                    .font(.subheadline).foregroundColor(.secondary)
                             }
                             Spacer()
                             if store.job.dateApplied == nil {
@@ -203,20 +218,15 @@ struct OverviewTab: View {
 
                         ForEach(store.job.interviews.sorted(by: { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) })) { interview in
                             Divider()
-                            HStack {
-                                Label {
-                                    Text(interview.type.isEmpty ? "Round \(interview.round)" : "Round \(interview.round) · \(interview.type)")
-                                } icon: {
-                                    Image(systemName: interview.completed ? "checkmark.circle.fill" : "person.line.dotted.person")
-                                        .foregroundColor(interview.completed ? .green : .secondary)
-                                }
-                                .font(.subheadline).foregroundColor(.secondary).frame(minWidth: 90, idealWidth: 120, maxWidth: 120, alignment: .leading)
-                                if let date = interview.date {
-                                    Text(date.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
-                                }
-                                Spacer()
-                            }
-                            .padding(.vertical, 7).padding(.horizontal, 8)
+                            timelineRow(
+                                icon: interview.completed ? "checkmark.circle.fill" : "person.line.dotted.person",
+                                iconColor: interview.completed ? .green : .secondary,
+                                label: interview.type.isEmpty
+                                    ? "Round \(interview.round)"
+                                    : "Round \(interview.round) · \(interview.type)",
+                                date: interview.date?.formatted(date: .abbreviated, time: .omitted),
+                                labelWidth: labelWidth
+                            )
                         }
                     }
                 }
@@ -240,6 +250,23 @@ struct OverviewTab: View {
             }
             .padding(16)
         }
+    }
+
+    private func timelineRow(icon: String, iconColor: Color, label: String, date: String?, labelWidth: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .foregroundColor(iconColor)
+                .frame(width: 20)
+            Text(label)
+                .font(.subheadline).foregroundColor(.secondary)
+                .lineLimit(1)
+                .frame(width: labelWidth, alignment: .leading)
+            if let date {
+                Text(date).font(.subheadline)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 7).padding(.horizontal, 8)
     }
 }
 
@@ -939,7 +966,7 @@ struct AIAssistantTab: View {
                             Text(inputPlaceholder)
                                 .foregroundColor(.secondary)
                                 .font(.body)
-                                .padding(.horizontal, 5)
+                                .padding(.horizontal, 9)
                                 .padding(.vertical, 8)
                                 .allowsHitTesting(false)
                         }
@@ -947,7 +974,9 @@ struct AIAssistantTab: View {
                             .scrollContentBackground(.hidden)
                             .background(Color.clear)
                             .font(.body)
-                            .frame(minHeight: 34, maxHeight: 100)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
+                            .frame(minHeight: 42, maxHeight: 100)
                             .focused($inputFocused)
                             .disabled(store.apiKey.isEmpty || store.aiIsLoading)
                             .onKeyPress(keys: [.return]) { press in

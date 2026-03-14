@@ -27,11 +27,11 @@ public struct ContentView: View {
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(min: 420, ideal: 540, max: 700)
+            .navigationSplitViewColumnWidth(min: 420, ideal: 540)
         } detail: {
             if let detailStore = store.scope(state: \.jobDetail, action: \.jobDetail) {
                 JobDetailView(store: detailStore)
-                    .frame(minWidth: 300)
+                    .navigationSplitViewColumnWidth(min: 300, ideal: 450)
                     .id(store.selectedJobID)
             } else {
                 ContentUnavailableView(
