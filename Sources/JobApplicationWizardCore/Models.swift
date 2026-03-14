@@ -196,6 +196,14 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         company.isEmpty ? "Unknown Company" : company
     }
 
+    public var currentTasks: [SubTask] {
+        tasks.filter { $0.forStatus == status }
+    }
+
+    public var hasIncompleteCurrentTasks: Bool {
+        tasks.contains { $0.forStatus == status && !$0.isCompleted }
+    }
+
     public init() {}
 
     // Custom decoder: tolerates missing keys (all default) and migrates

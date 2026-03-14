@@ -165,8 +165,7 @@ public struct JobDetailFeature {
                 return .send(.delegate(.jobUpdated(state.job)))
 
             case .moveJobRequested(let status):
-                let incomplete = state.job.tasks.filter { $0.forStatus == state.job.status && !$0.isCompleted }
-                if incomplete.isEmpty {
+                if !state.job.hasIncompleteCurrentTasks {
                     return .send(.moveJob(status))
                 } else {
                     state.pendingStatusChange = status

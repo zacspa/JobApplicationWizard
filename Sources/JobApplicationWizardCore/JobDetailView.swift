@@ -23,11 +23,11 @@ public struct JobDetailView: View {
                     .tag(JobDetailFeature.State.Tab.overview)
 
                 DescriptionTab(store: store)
-                    .tabItem { Label("Description", systemImage: "doc.text") }
+                    .tabItem { Label("JD", systemImage: "doc.text") }
                     .tag(JobDetailFeature.State.Tab.description)
 
                 NotesTab(store: store)
-                    .tabItem { Label("Notes", systemImage: "note.text") }
+                    .tabItem { Label("Notes & Tasks", systemImage: "checklist.unchecked") }
                     .tag(JobDetailFeature.State.Tab.notes)
 
                 ContactsTab(store: store)
@@ -69,8 +69,10 @@ public struct JobDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(store.job.displayCompany)
                         .font(.title3).fontWeight(.bold)
+                        .lineLimit(2)
                     Text(store.job.displayTitle)
                         .font(.subheadline).foregroundColor(.secondary)
+                        .lineLimit(2)
                 }
                 Spacer()
                 HStack(spacing: 8) {
@@ -112,10 +114,9 @@ public struct JobDetailView: View {
                     .foregroundColor(store.job.status.color)
                     .clipShape(Capsule())
 
-                Spacer()
+                Spacer(minLength: 8)
 
                 HStack(spacing: 4) {
-                    Text("Excitement:").font(.footnote).foregroundColor(.secondary)
                     ForEach(1...5, id: \.self) { i in
                         Image(systemName: i <= store.job.excitement ? "star.fill" : "star")
                             .font(.footnote).foregroundColor(.orange)
@@ -180,14 +181,14 @@ struct OverviewTab: View {
                     VStack(spacing: 0) {
                         HStack {
                             Label("Added", systemImage: "plus.circle")
-                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
+                                .font(.subheadline).foregroundColor(.secondary).frame(minWidth: 90, idealWidth: 120, maxWidth: 120, alignment: .leading)
                             Text(store.job.dateAdded.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
                         }
                         .padding(.vertical, 7).padding(.horizontal, 8)
                         Divider()
                         HStack {
                             Label("Applied", systemImage: "paperplane")
-                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
+                                .font(.subheadline).foregroundColor(.secondary).frame(minWidth: 90, idealWidth: 120, maxWidth: 120, alignment: .leading)
                             if let applied = store.job.dateApplied {
                                 Text(applied.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
                             } else {
@@ -210,7 +211,7 @@ struct OverviewTab: View {
                                     Image(systemName: interview.completed ? "checkmark.circle.fill" : "person.line.dotted.person")
                                         .foregroundColor(interview.completed ? .green : .secondary)
                                 }
-                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
+                                .font(.subheadline).foregroundColor(.secondary).frame(minWidth: 90, idealWidth: 120, maxWidth: 120, alignment: .leading)
                                 if let date = interview.date {
                                     Text(date.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
                                 }
@@ -236,89 +237,6 @@ struct OverviewTab: View {
 
                 GroupBox("Labels") {
                     LabelsEditor(labels: $store.labels).padding(4)
-                }
-
-                let currentTasks = store.job.tasks.filter { $0.forStatus == store.job.status }
-                let remainingCount = currentTasks.filter { !$0.isCompleted }.count
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 0) {
-                        if currentTasks.isEmpty && !store.isAddingTask {
-                            Text("No tasks — tap + to add")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding(.vertical, 8)
-                        } else {
-                            ForEach(currentTasks) { task in
-                                TaskRowView(
-                                    task: task,
-                                    onToggle: { store.send(.toggleTask(task.id)) },
-                                    onDelete: { store.send(.deleteTask(task.id)) }
-                                )
-                                if task.id != currentTasks.last?.id {
-                                    Divider()
-                                }
-                            }
-                        }
-
-                        if store.isAddingTask {
-                            if !currentTasks.isEmpty {
-                                Divider()
-                            }
-                            VStack(alignment: .leading, spacing: 8) {
-                                let suggestions = store.job.status.suggestedTaskTitles.filter { s in
-                                    !store.job.tasks.contains { $0.title == s && $0.forStatus == store.job.status }
-                                }
-                                if !suggestions.isEmpty {
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: 6) {
-                                            ForEach(suggestions, id: \.self) { suggestion in
-                                                Button { store.send(.addSuggestedTask(suggestion)) } label: {
-                                                    Text("+ \(suggestion)")
-                                                        .font(.footnote)
-                                                        .padding(.horizontal, 8)
-                                                        .padding(.vertical, 4)
-                                                        .background(Color.accentColor.opacity(0.1))
-                                                        .foregroundColor(.accentColor)
-                                                        .clipShape(Capsule())
-                                                }
-                                                .buttonStyle(.plain)
-                                            }
-                                        }
-                                    }
-                                }
-                                HStack {
-                                    TextField("Task title...", text: Binding(
-                                        get: { store.newTaskText },
-                                        set: { store.send(.newTaskTextChanged($0)) }
-                                    ))
-                                    .textFieldStyle(.roundedBorder)
-                                    .font(.subheadline)
-                                    .onSubmit { store.send(.saveNewTask) }
-                                    Button("Save") { store.send(.saveNewTask) }
-                                        .buttonStyle(.borderedProminent)
-                                        .controlSize(.small)
-                                        .disabled(store.newTaskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                                    Button("Cancel") { store.send(.cancelNewTask) }
-                                        .buttonStyle(.bordered)
-                                        .controlSize(.small)
-                                }
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
-                        }
-                    }
-                } label: {
-                    HStack {
-                        Text(remainingCount > 0 ? "Tasks (\(remainingCount) remaining)" : "Tasks")
-                        Spacer()
-                        if !store.isAddingTask {
-                            Button { store.send(.addTaskTapped) } label: {
-                                Image(systemName: "plus").font(.footnote)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
                 }
             }
             .padding(16)
@@ -372,7 +290,7 @@ struct DetailRow<Content: View>: View {
         HStack {
             Label(label, systemImage: icon)
                 .font(.subheadline).foregroundColor(.secondary)
-                .frame(width: 110, alignment: .leading)
+                .frame(minWidth: 80, idealWidth: 110, maxWidth: 110, alignment: .leading)
             content().font(.body)
         }
         .padding(.vertical, 7).padding(.horizontal, 8)
@@ -520,80 +438,220 @@ struct NotesTab: View {
     ]
 
     var body: some View {
-        if let noteID = selectedNoteID,
-           store.noteCards.contains(where: { $0.id == noteID }) {
-            NoteEditorView(
-                note: Binding(
-                    get: { store.noteCards.first(where: { $0.id == noteID }) ?? Note() },
-                    set: { new in
-                        var updated = new
-                        updated.updatedAt = Date()
-                        var copy = store.noteCards
-                        if let idx = copy.firstIndex(where: { $0.id == updated.id }) {
-                            copy[idx] = updated
-                            store.send(.binding(.set(\.noteCards, copy)))
-                        }
-                    }
-                ),
-                onBack: { selectedNoteID = nil },
-                onDelete: {
-                    store.send(.deleteNote(noteID))
-                    selectedNoteID = nil
-                }
-            )
-        } else {
-            NoteCardGridView(
-                store: store,
-                cardColors: NotesTab.cardColors,
-                onSelectNote: { selectedNoteID = $0 }
-            )
+        ScrollView {
+            VStack(spacing: 16) {
+                TasksSectionView(store: store)
+                NotesSectionView(
+                    store: store,
+                    cardColors: NotesTab.cardColors,
+                    selectedNoteID: $selectedNoteID
+                )
+            }
+            .padding(16)
         }
     }
 }
 
-// MARK: - Note Card Grid
+// MARK: - Tasks Section (grouped by status phase)
 
-struct NoteCardGridView: View {
+struct TasksSectionView: View {
     @Bindable var store: StoreOf<JobDetailFeature>
-    let cardColors: [Color]
-    let onSelectNote: (UUID) -> Void
+
+    /// Statuses that have tasks, with the current status always first
+    private var statusesWithTasks: [JobStatus] {
+        let current = store.job.status
+        var statuses = JobStatus.allCases.filter { status in
+            store.job.tasks.contains { $0.forStatus == status }
+        }
+        // Always include current status so user can add tasks even if none exist yet
+        if !statuses.contains(current) {
+            statuses.append(current)
+        }
+        // Sort: current status first, then by allCases order
+        statuses.sort { a, b in
+            if a == current { return true }
+            if b == current { return false }
+            return (JobStatus.allCases.firstIndex(of: a) ?? 0) < (JobStatus.allCases.firstIndex(of: b) ?? 0)
+        }
+        return statuses
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
             HStack {
-                Text("Notes about this application")
-                    .font(.footnote).foregroundColor(.secondary)
+                let totalRemaining = store.job.tasks.filter { !$0.isCompleted }.count
+                Text(totalRemaining > 0 ? "Tasks (\(totalRemaining) remaining)" : "Tasks")
+                    .font(.headline)
                 Spacer()
-                Button { store.send(.addNote) } label: {
-                    Label("New Note", systemImage: "plus").font(.footnote)
+                if !store.isAddingTask {
+                    Button { store.send(.addTaskTapped) } label: {
+                        Label("Add Task", systemImage: "plus").font(.footnote)
+                    }
+                    .buttonStyle(.bordered).controlSize(.mini)
                 }
-                .buttonStyle(.bordered).controlSize(.mini)
             }
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(.bottom, 10)
 
-            Divider()
-
-            if store.noteCards.isEmpty {
-                Spacer()
-                ContentUnavailableView(
-                    "No Notes Yet",
-                    systemImage: "note.text",
-                    description: Text("Add your first note to capture research, salary info, or anything relevant")
-                )
-                Spacer()
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 180))], spacing: 12) {
-                        ForEach(store.noteCards) { note in
-                            NoteCard(
-                                note: note,
-                                accentColor: cardColors[abs(note.id.hashValue) % cardColors.count],
-                                onTap: { onSelectNote(note.id) }
-                            )
+            // Add task UI (adds to current status)
+            if store.isAddingTask {
+                VStack(alignment: .leading, spacing: 8) {
+                    let suggestions = store.job.status.suggestedTaskTitles.filter { s in
+                        !store.job.tasks.contains { $0.title == s && $0.forStatus == store.job.status }
+                    }
+                    if !suggestions.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(suggestions, id: \.self) { suggestion in
+                                    Button { store.send(.addSuggestedTask(suggestion)) } label: {
+                                        Text("+ \(suggestion)")
+                                            .font(.footnote)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.accentColor.opacity(0.1))
+                                            .foregroundColor(.accentColor)
+                                            .clipShape(Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
                     }
-                    .padding(16)
+                    HStack {
+                        TextField("Task title...", text: Binding(
+                            get: { store.newTaskText },
+                            set: { store.send(.newTaskTextChanged($0)) }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .font(.subheadline)
+                        .onSubmit { store.send(.saveNewTask) }
+                        Button("Save") { store.send(.saveNewTask) }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .disabled(store.newTaskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Button("Cancel") { store.send(.cancelNewTask) }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color(NSColor.controlBackgroundColor)))
+                .padding(.bottom, 8)
+            }
+
+            // Grouped by status
+            ForEach(statusesWithTasks) { status in
+                let tasksForStatus = store.job.tasks.filter { $0.forStatus == status }
+                let isCurrent = status == store.job.status
+
+                VStack(alignment: .leading, spacing: 0) {
+                    // Status group header
+                    HStack(spacing: 6) {
+                        Image(systemName: status.icon)
+                            .font(.caption)
+                            .foregroundColor(status.color)
+                        Text(status.rawValue)
+                            .font(.subheadline).fontWeight(.medium)
+                            .foregroundColor(isCurrent ? .primary : .secondary)
+                        if isCurrent {
+                            Text("current")
+                                .font(.system(size: 9, weight: .medium))
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(status.color.opacity(0.15))
+                                .foregroundColor(status.color)
+                                .clipShape(Capsule())
+                        }
+                        Spacer()
+                        if !tasksForStatus.isEmpty {
+                            let done = tasksForStatus.filter { $0.isCompleted }.count
+                            Text("\(done)/\(tasksForStatus.count)")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 6).padding(.horizontal, 8)
+
+                    if tasksForStatus.isEmpty {
+                        Text("No tasks")
+                            .font(.caption).foregroundColor(.secondary)
+                            .padding(.horizontal, 8).padding(.bottom, 6)
+                    } else {
+                        ForEach(tasksForStatus) { task in
+                            TaskRowView(
+                                task: task,
+                                onToggle: { store.send(.toggleTask(task.id)) },
+                                onDelete: { store.send(.deleteTask(task.id)) }
+                            )
+                            if task.id != tasksForStatus.last?.id {
+                                Divider().padding(.leading, 32)
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 8).fill(
+                    isCurrent ? Color(NSColor.controlBackgroundColor) : Color.clear
+                ))
+            }
+        }
+    }
+}
+
+// MARK: - Notes Section
+
+struct NotesSectionView: View {
+    @Bindable var store: StoreOf<JobDetailFeature>
+    let cardColors: [Color]
+    @Binding var selectedNoteID: UUID?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if selectedNoteID == nil {
+                HStack {
+                    Text("Notes")
+                        .font(.headline)
+                    Spacer()
+                    Button { store.send(.addNote) } label: {
+                        Label("New Note", systemImage: "plus").font(.footnote)
+                    }
+                    .buttonStyle(.bordered).controlSize(.mini)
+                }
+            }
+
+            if let noteID = selectedNoteID,
+               store.noteCards.contains(where: { $0.id == noteID }) {
+                NoteEditorView(
+                    note: Binding(
+                        get: { store.noteCards.first(where: { $0.id == noteID }) ?? Note() },
+                        set: { new in
+                            var updated = new
+                            updated.updatedAt = Date()
+                            var copy = store.noteCards
+                            if let idx = copy.firstIndex(where: { $0.id == updated.id }) {
+                                copy[idx] = updated
+                                store.send(.binding(.set(\.noteCards, copy)))
+                            }
+                        }
+                    ),
+                    onBack: { selectedNoteID = nil },
+                    onDelete: {
+                        store.send(.deleteNote(noteID))
+                        selectedNoteID = nil
+                    }
+                )
+            } else if store.noteCards.isEmpty {
+                Text("No notes yet — add one to capture research, salary info, or anything relevant.")
+                    .font(.subheadline).foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 20)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180))], spacing: 12) {
+                    ForEach(store.noteCards) { note in
+                        NoteCard(
+                            note: note,
+                            accentColor: cardColors[abs(note.id.hashValue) % cardColors.count],
+                            onTap: { selectedNoteID = note.id }
+                        )
+                    }
                 }
             }
         }

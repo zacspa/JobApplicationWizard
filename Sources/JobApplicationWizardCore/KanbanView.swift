@@ -71,7 +71,7 @@ struct KanbanRow: View {
                     .foregroundColor(status.color)
                     .clipShape(Capsule())
             }
-            .frame(width: 150, alignment: .leading)
+            .frame(minWidth: 100, idealWidth: 130, maxWidth: 150, alignment: .leading)
             .padding(.vertical, 12)
             .padding(.leading, 12)
 
@@ -92,7 +92,7 @@ struct KanbanRow: View {
                             onToggleFavorite: { onToggleFavorite(job.id) },
                             onDelete: { onDelete(job.id) }
                         )
-                        .frame(width: 260)
+                        .frame(width: 240)
                         .draggable(job.id.uuidString) {
                             JobCard(
                                 job: job,
@@ -102,13 +102,13 @@ struct KanbanRow: View {
                                 onToggleFavorite: {},
                                 onDelete: {}
                             )
-                            .frame(width: 260)
+                            .frame(width: 220)
                             .opacity(0.8)
                         }
                     }
                     if jobs.isEmpty {
                         EmptyColumnView(status: status)
-                            .frame(width: 240)
+                            .frame(width: 220)
                     }
                 }
                 .padding(.horizontal, 12)
@@ -147,7 +147,7 @@ struct JobCard: View {
 
     @State private var isHovered = false
     @State private var showTaskPopover = false
-    @State private var hoverDelayTask: Task<Void, Never>? = nil
+    @State private var hoverTimer: Task<Void, Never>? = nil
 
     var body: some View {
         Button(action: onSelect) {
@@ -216,10 +216,9 @@ struct JobCard: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
-                    let currentTasks = job.tasks.filter { $0.forStatus == job.status }
-                    if !currentTasks.isEmpty {
-                        let done = currentTasks.filter { $0.isCompleted }.count
-                        let total = currentTasks.count
+                    if !job.currentTasks.isEmpty {
+                        let done = job.currentTasks.filter { $0.isCompleted }.count
+                        let total = job.currentTasks.count
                         let allDone = done == total
                         Label("\(done)/\(total)", systemImage: allDone ? "checkmark.circle.fill" : "checklist")
                             .font(.caption2)
@@ -256,17 +255,16 @@ struct JobCard: View {
         .onHover { hovering in
             isHovered = hovering
             if hovering {
-                hoverDelayTask = Task {
+                hoverTimer = Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(800))
                     guard !Task.isCancelled else { return }
-                    let tasks = job.tasks.filter { $0.forStatus == job.status }
-                    if !tasks.isEmpty {
+                    if !job.currentTasks.isEmpty {
                         showTaskPopover = true
                     }
                 }
             } else {
-                hoverDelayTask?.cancel()
-                hoverDelayTask = nil
+                hoverTimer?.cancel()
+                hoverTimer = nil
                 showTaskPopover = false
             }
         }
@@ -304,14 +302,13 @@ struct TaskPopoverView: View {
     let job: JobApplication
 
     var body: some View {
-        let tasks = job.tasks.filter { $0.forStatus == job.status }
         VStack(alignment: .leading, spacing: 6) {
             Text("\(job.status.rawValue) Tasks")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
                 .padding(.bottom, 2)
-            ForEach(tasks) { task in
+            ForEach(job.currentTasks) { task in
                 HStack(spacing: 6) {
                     Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                         .foregroundColor(task.isCompleted ? .green : .secondary)

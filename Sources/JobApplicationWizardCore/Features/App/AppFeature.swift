@@ -136,8 +136,7 @@ public struct AppFeature {
 
             case .moveJobRequested(let id, let status):
                 guard let job = state.jobs[id: id] else { return .none }
-                let incomplete = job.tasks.filter { $0.forStatus == job.status && !$0.isCompleted }
-                if incomplete.isEmpty {
+                if !job.hasIncompleteCurrentTasks {
                     return .send(.moveJob(id, status))
                 } else {
                     state.pendingMoveJobID = id
