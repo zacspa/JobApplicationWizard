@@ -14,34 +14,9 @@ public struct JobDetailView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            TabView(selection: Binding(
-                get: { store.selectedTab },
-                set: { store.send(.selectTab($0)) }
-            )) {
-                OverviewTab(store: store)
-                    .tabItem { Label("Overview", systemImage: "info.circle") }
-                    .tag(JobDetailFeature.State.Tab.overview)
-
-                DescriptionTab(store: store)
-                    .tabItem { Label("Description", systemImage: "doc.text") }
-                    .tag(JobDetailFeature.State.Tab.description)
-
-                NotesTab(store: store)
-                    .tabItem { Label("Notes", systemImage: "note.text") }
-                    .tag(JobDetailFeature.State.Tab.notes)
-
-                ContactsTab(store: store)
-                    .tabItem { Label("Contacts", systemImage: "person.2") }
-                    .tag(JobDetailFeature.State.Tab.contacts)
-
-                InterviewsTab(store: store)
-                    .tabItem { Label("Interviews", systemImage: "calendar.badge.clock") }
-                    .tag(JobDetailFeature.State.Tab.interviews)
-
-                AIAssistantTab(store: store)
-                    .tabItem { Label("AI", systemImage: "sparkles") }
-                    .tag(JobDetailFeature.State.Tab.ai)
-            }
+            tabBar
+            Divider()
+            tabContent
         }
         .alert("Delete Application", isPresented: Binding(
             get: { store.showDeleteConfirm },
@@ -54,14 +29,49 @@ public struct JobDetailView: View {
         }
     }
 
+    var tabBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 0) {
+                ForEach(JobDetailFeature.State.Tab.allCases, id: \.self) { tab in
+                    Button { store.send(.selectTab(tab)) } label: {
+                        Label(tab.label, systemImage: tab.icon)
+                            .font(.subheadline)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(store.selectedTab == tab ? Color.accentColor.opacity(0.12) : Color.clear)
+                            .foregroundColor(store.selectedTab == tab ? .accentColor : .secondary)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+
+    @ViewBuilder
+    var tabContent: some View {
+        switch store.selectedTab {
+        case .overview: OverviewTab(store: store)
+        case .description: DescriptionTab(store: store)
+        case .notes: NotesTab(store: store)
+        case .contacts: ContactsTab(store: store)
+        case .interviews: InterviewsTab(store: store)
+        case .ai: AIAssistantTab(store: store)
+        }
+    }
+
     var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(store.job.displayCompany)
                         .font(.title3).fontWeight(.bold)
+                        .lineLimit(2)
                     Text(store.job.displayTitle)
                         .font(.subheadline).foregroundColor(.secondary)
+                        .lineLimit(2)
                 }
                 Spacer()
                 HStack(spacing: 8) {
@@ -103,10 +113,9 @@ public struct JobDetailView: View {
                     .foregroundColor(store.job.status.color)
                     .clipShape(Capsule())
 
-                Spacer()
+                Spacer(minLength: 8)
 
                 HStack(spacing: 4) {
-                    Text("Excitement:").font(.footnote).foregroundColor(.secondary)
                     ForEach(1...5, id: \.self) { i in
                         Image(systemName: i <= store.job.excitement ? "star.fill" : "star")
                             .font(.footnote).foregroundColor(.orange)
@@ -168,21 +177,36 @@ struct OverviewTab: View {
                 }
 
                 GroupBox("Timeline") {
+                    let allLabels: [String] = ["Added", "Applied"] + store.job.interviews.map {
+                        $0.type.isEmpty ? "Round \($0.round)" : "Round \($0.round) · \($0.type)"
+                    }
+                    let longestLabel = allLabels.max(by: { $0.count < $1.count }) ?? ""
+                    // Approximate width: ~7.5pt per character for subheadline
+                    let labelWidth = max(80, CGFloat(longestLabel.count) * 7.5 + 8)
+
                     VStack(spacing: 0) {
-                        HStack {
-                            Label("Added", systemImage: "plus.circle")
-                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
-                            Text(store.job.dateAdded.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
-                        }
-                        .padding(.vertical, 7).padding(.horizontal, 8)
+                        timelineRow(
+                            icon: "plus.circle",
+                            iconColor: .secondary,
+                            label: "Added",
+                            date: store.job.dateAdded.formatted(date: .abbreviated, time: .omitted),
+                            labelWidth: labelWidth
+                        )
                         Divider()
-                        HStack {
-                            Label("Applied", systemImage: "paperplane")
-                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
+                        HStack(spacing: 6) {
+                            Image(systemName: "paperplane")
+                                .foregroundColor(.secondary)
+                                .frame(width: 20)
+                            Text("Applied")
+                                .font(.subheadline).foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .frame(width: labelWidth, alignment: .leading)
                             if let applied = store.job.dateApplied {
-                                Text(applied.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
+                                Text(applied.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.subheadline)
                             } else {
-                                Text("Not yet applied").font(.subheadline).foregroundColor(.secondary)
+                                Text("Not yet applied")
+                                    .font(.subheadline).foregroundColor(.secondary)
                             }
                             Spacer()
                             if store.job.dateApplied == nil {
@@ -194,20 +218,15 @@ struct OverviewTab: View {
 
                         ForEach(store.job.interviews.sorted(by: { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) })) { interview in
                             Divider()
-                            HStack {
-                                Label {
-                                    Text(interview.type.isEmpty ? "Round \(interview.round)" : "Round \(interview.round) · \(interview.type)")
-                                } icon: {
-                                    Image(systemName: interview.completed ? "checkmark.circle.fill" : "person.line.dotted.person")
-                                        .foregroundColor(interview.completed ? .green : .secondary)
-                                }
-                                .font(.subheadline).foregroundColor(.secondary).frame(width: 120, alignment: .leading)
-                                if let date = interview.date {
-                                    Text(date.formatted(date: .abbreviated, time: .omitted)).font(.subheadline)
-                                }
-                                Spacer()
-                            }
-                            .padding(.vertical, 7).padding(.horizontal, 8)
+                            timelineRow(
+                                icon: interview.completed ? "checkmark.circle.fill" : "person.line.dotted.person",
+                                iconColor: interview.completed ? .green : .secondary,
+                                label: interview.type.isEmpty
+                                    ? "Round \(interview.round)"
+                                    : "Round \(interview.round) · \(interview.type)",
+                                date: interview.date?.formatted(date: .abbreviated, time: .omitted),
+                                labelWidth: labelWidth
+                            )
                         }
                     }
                 }
@@ -232,6 +251,23 @@ struct OverviewTab: View {
             .padding(16)
         }
     }
+
+    private func timelineRow(icon: String, iconColor: Color, label: String, date: String?, labelWidth: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .foregroundColor(iconColor)
+                .frame(width: 20)
+            Text(label)
+                .font(.subheadline).foregroundColor(.secondary)
+                .lineLimit(1)
+                .frame(width: labelWidth, alignment: .leading)
+            if let date {
+                Text(date).font(.subheadline)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 7).padding(.horizontal, 8)
+    }
 }
 
 // MARK: - Detail Row helper
@@ -245,7 +281,7 @@ struct DetailRow<Content: View>: View {
         HStack {
             Label(label, systemImage: icon)
                 .font(.subheadline).foregroundColor(.secondary)
-                .frame(width: 110, alignment: .leading)
+                .frame(minWidth: 80, idealWidth: 110, maxWidth: 110, alignment: .leading)
             content().font(.body)
         }
         .padding(.vertical, 7).padding(.horizontal, 8)
@@ -831,13 +867,23 @@ struct AIAssistantTab: View {
     var body: some View {
         VStack(spacing: 0) {
             // Mode picker + token usage
-            HStack(spacing: 12) {
-                Picker("", selection: $store.aiSelectedAction) {
-                    ForEach(AIAction.allCases, id: \.self) { a in
-                        Text(a.rawValue).tag(a)
+            HStack(spacing: 8) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(AIAction.allCases, id: \.self) { action in
+                            Button { store.send(.binding(.set(\.aiSelectedAction, action))) } label: {
+                                Text(action.rawValue)
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(store.aiSelectedAction == action ? Color.accentColor.opacity(0.12) : Color.clear)
+                                    .foregroundColor(store.aiSelectedAction == action ? .accentColor : .secondary)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
 
                 if store.aiTokenUsage.totalTokens > 0 {
                     VStack(alignment: .trailing, spacing: 1) {
@@ -851,7 +897,7 @@ struct AIAssistantTab: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 8)
+            .padding(.horizontal, 8).padding(.vertical, 0)
             .background(Color(NSColor.controlBackgroundColor))
 
             Divider()
@@ -920,7 +966,7 @@ struct AIAssistantTab: View {
                             Text(inputPlaceholder)
                                 .foregroundColor(.secondary)
                                 .font(.body)
-                                .padding(.horizontal, 5)
+                                .padding(.horizontal, 9)
                                 .padding(.vertical, 8)
                                 .allowsHitTesting(false)
                         }
@@ -928,7 +974,9 @@ struct AIAssistantTab: View {
                             .scrollContentBackground(.hidden)
                             .background(Color.clear)
                             .font(.body)
-                            .frame(minHeight: 34, maxHeight: 100)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
+                            .frame(minHeight: 42, maxHeight: 100)
                             .focused($inputFocused)
                             .disabled(store.apiKey.isEmpty || store.aiIsLoading)
                             .onKeyPress(keys: [.return]) { press in

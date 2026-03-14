@@ -4,13 +4,14 @@ import ComposableArchitecture
 public struct ContentView: View {
     @Bindable var store: StoreOf<AppFeature>
     @Environment(\.openWindow) private var openWindow
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     public init(store: StoreOf<AppFeature>) {
         self.store = store
     }
 
     public var body: some View {
-        NavigationSplitView(columnVisibility: .constant(.all)) {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(store: store)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } content: {
@@ -26,10 +27,11 @@ public struct ContentView: View {
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(min: 500, ideal: 1000)
+            .navigationSplitViewColumnWidth(min: 420, ideal: 540)
         } detail: {
             if let detailStore = store.scope(state: \.jobDetail, action: \.jobDetail) {
                 JobDetailView(store: detailStore)
+                    .navigationSplitViewColumnWidth(min: 300, ideal: 450)
                     .id(store.selectedJobID)
             } else {
                 ContentUnavailableView(
@@ -40,6 +42,29 @@ public struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                if columnVisibility != .all {
+                    SettingsLink {
+                        Image(systemName: "gear").padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Settings")
+
+                    Button { store.send(.importCSV) } label: {
+                        Image(systemName: "square.and.arrow.down").padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Import from CSV")
+
+                    Button { store.send(.exportCSV) } label: {
+                        Image(systemName: "square.and.arrow.up").padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Export to CSV")
+                }
+            }
+        }
         .sheet(isPresented: Binding(
             get: { store.showOnboarding },
             set: { if !$0 { store.send(.dismissOnboarding) } }
