@@ -78,7 +78,8 @@ private struct AIProviderSettingsTab: View {
                         withAnimation {
                             saved = true
                         }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .seconds(2))
                             withAnimation { saved = false }
                         }
                     }
@@ -281,7 +282,7 @@ private struct DataSettingsTab: View {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(csvTemplateWithSample, forType: .string)
                             copiedTemplate = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copiedTemplate = false }
+                            Task { @MainActor in try? await Task.sleep(for: .seconds(2)); copiedTemplate = false }
                         }
                         .disabled(copiedTemplate)
 
@@ -289,7 +290,7 @@ private struct DataSettingsTab: View {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(csvConversionPrompt, forType: .string)
                             copiedPrompt = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copiedPrompt = false }
+                            Task { @MainActor in try? await Task.sleep(for: .seconds(2)); copiedPrompt = false }
                         }
                         .disabled(copiedPrompt)
                     }

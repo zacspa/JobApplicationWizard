@@ -51,6 +51,29 @@ final class CSVTests: XCTestCase {
         XCTAssertEqual(imported.first?.labels.first?.name, "Remote")
     }
 
+    func testRoundTripPreservesCustomLabelColor() {
+        let customLabel = JobLabel(name: "Custom Tag", colorHex: "#FF00FF")
+        let job = JobApplication.mock(labels: [customLabel])
+        let csv = export([job])
+        let imported = importCSV(csv)
+        XCTAssertEqual(imported.first?.labels.count, 1)
+        XCTAssertEqual(imported.first?.labels.first?.name, "Custom Tag")
+        XCTAssertEqual(imported.first?.labels.first?.colorHex, "#FF00FF")
+    }
+
+    func testImportLegacyNameOnlyLabels() {
+        // Simulate legacy CSV with labels as ["Remote","Startup"]
+        let header = "ID,Company,Title,URL,Status,DateAdded,DateApplied,Salary,Location,Excitement,IsFavorite,Labels,JobDescription,NoteCards,ResumeUsed,CoverLetter,Contacts,Interviews,HasPDF,PDFPath"
+        let row = "\"00000000-0000-0000-0000-000000000001\",\"Acme\",\"Dev\",\"\",\"Wishlist\",\"2001-01-01T00:00:00Z\",\"\",\"\",\"\",\"3\",\"false\",\"[\"\"Remote\"\",\"\"Startup\"\"]\",\"\",\"[]\",\"\",\"\",\"[]\",\"[]\",\"false\",\"\""
+        let csv = header + "\n" + row
+        let imported = importCSV(csv)
+        XCTAssertEqual(imported.count, 1)
+        XCTAssertEqual(imported.first?.labels.count, 2)
+        // Remote should match preset
+        XCTAssertEqual(imported.first?.labels.first?.name, "Remote")
+        XCTAssertEqual(imported.first?.labels.first?.colorHex, "#34C759")
+    }
+
     func testRoundTripWithContacts() {
         let contact = Contact(name: "Alice", title: "Recruiter", email: "a@b.com")
         let job = JobApplication.mock(contacts: [contact])

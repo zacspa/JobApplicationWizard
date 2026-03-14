@@ -83,6 +83,14 @@ public struct ContentView: View {
             .frame(minWidth: 560, minHeight: 700)
         }
         .onAppear { store.send(.onAppear) }
+        .alert("Data Error", isPresented: Binding(
+            get: { store.saveError != nil },
+            set: { if !$0 { store.send(.dismissSaveError) } }
+        )) {
+            Button("OK") { store.send(.dismissSaveError) }
+        } message: {
+            Text(store.saveError ?? "")
+        }
     }
 
     var toolbar: some View {

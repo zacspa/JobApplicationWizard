@@ -2,6 +2,7 @@ import Foundation
 import ComposableArchitecture
 import ACP
 import ACPModel
+import os
 import os.log
 
 private let acpLog = Logger(subsystem: "com.jobwizard.acp", category: "ACPClient")
@@ -40,8 +41,13 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
     private let messagesContinuation: AsyncStream<JsonRpcMessage>.Continuation
     private let input: FileHandle   // reads agent stdout
     private let output: FileHandle  // writes to agent stdin
-    private var readTask: Task<Void, Never>?
-    private var didClose = false
+
+    /// Protects mutable state: (readTask, didClose)
+    private struct MutableState {
+        var readTask: Task<Void, Never>?
+        var didClose = false
+    }
+    private let mutableState = OSAllocatedUnfairLock(initialState: MutableState())
 
     init(input: FileHandle, output: FileHandle) {
         self.input = input
@@ -62,8 +68,8 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
         stateContinuation.yield(.starting)
         acpLog.info("transport: starting read loop")
 
-        // Launch read loop in a background task — do NOT block here
-        readTask = Task { [weak self] in
+        // Launch read loop in a background task; do NOT block here
+        let task = Task { [weak self] in
             guard let self else { return }
             var messageCount = 0
             while !Task.isCancelled {
@@ -88,6 +94,7 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
             acpLog.info("transport: read loop ended after \(messageCount) messages")
             Task { await self.close() }
         }
+        mutableState.withLock { $0.readTask = task }
 
         stateContinuation.yield(.started)
         acpLog.info("transport: started")
@@ -103,10 +110,15 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
     }
 
     func close() async {
-        guard !didClose else { return }
-        didClose = true
-        readTask?.cancel()
-        readTask = nil
+        let task = mutableState.withLock { state -> Task<Void, Never>? in
+            guard !state.didClose else { return nil }
+            state.didClose = true
+            let t = state.readTask
+            state.readTask = nil
+            return t
+        }
+        guard let task else { return }
+        task.cancel()
         // Close pipe handles to unblock any pending read()
         try? input.close()
         try? output.close()
@@ -146,27 +158,20 @@ private final class JobWizardACPClient: Client, @unchecked Sendable {
     var info: Implementation? { Implementation(name: "JobApplicationWizard", version: "1.0.0") }
 
     /// Accumulated text from agent message chunks during a prompt turn.
-    private let lock = NSLock()
-    private var _collectedText: String = ""
+    private let collectedTextLock = OSAllocatedUnfairLock(initialState: "")
 
     var collectedText: String {
-        lock.lock()
-        defer { lock.unlock() }
-        return _collectedText
+        collectedTextLock.withLock { $0 }
     }
 
     func resetCollectedText() {
-        lock.lock()
-        defer { lock.unlock() }
-        _collectedText = ""
+        collectedTextLock.withLock { $0 = "" }
     }
 
     func onSessionUpdate(_ update: SessionUpdate) async {
         if case .agentMessageChunk(let chunk) = update {
             if case .text(let textContent) = chunk.content {
-                lock.lock()
-                _collectedText += textContent.text
-                lock.unlock()
+                collectedTextLock.withLock { $0 += textContent.text }
             }
         }
     }
