@@ -14,34 +14,9 @@ public struct JobDetailView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            TabView(selection: Binding(
-                get: { store.selectedTab },
-                set: { store.send(.selectTab($0)) }
-            )) {
-                OverviewTab(store: store)
-                    .tabItem { Label("Overview", systemImage: "info.circle") }
-                    .tag(JobDetailFeature.State.Tab.overview)
-
-                DescriptionTab(store: store)
-                    .tabItem { Label("JD", systemImage: "doc.text") }
-                    .tag(JobDetailFeature.State.Tab.description)
-
-                NotesTab(store: store)
-                    .tabItem { Label("Notes", systemImage: "note.text") }
-                    .tag(JobDetailFeature.State.Tab.notes)
-
-                ContactsTab(store: store)
-                    .tabItem { Label("Contacts", systemImage: "person.2") }
-                    .tag(JobDetailFeature.State.Tab.contacts)
-
-                InterviewsTab(store: store)
-                    .tabItem { Label("Interviews", systemImage: "calendar.badge.clock") }
-                    .tag(JobDetailFeature.State.Tab.interviews)
-
-                AIAssistantTab(store: store)
-                    .tabItem { Label("AI", systemImage: "sparkles") }
-                    .tag(JobDetailFeature.State.Tab.ai)
-            }
+            tabBar
+            Divider()
+            tabContent
         }
         .alert("Delete Application", isPresented: Binding(
             get: { store.showDeleteConfirm },
@@ -51,6 +26,39 @@ public struct JobDetailView: View {
             Button("Cancel", role: .cancel) { store.send(.deleteCancelled) }
         } message: {
             Text("Delete \(store.job.displayTitle) at \(store.job.displayCompany)? This cannot be undone.")
+        }
+    }
+
+    var tabBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 0) {
+                ForEach(JobDetailFeature.State.Tab.allCases, id: \.self) { tab in
+                    Button { store.send(.selectTab(tab)) } label: {
+                        Label(tab.label, systemImage: tab.icon)
+                            .font(.subheadline)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(store.selectedTab == tab ? Color.accentColor.opacity(0.12) : Color.clear)
+                            .foregroundColor(store.selectedTab == tab ? .accentColor : .secondary)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+
+    @ViewBuilder
+    var tabContent: some View {
+        switch store.selectedTab {
+        case .overview: OverviewTab(store: store)
+        case .description: DescriptionTab(store: store)
+        case .notes: NotesTab(store: store)
+        case .contacts: ContactsTab(store: store)
+        case .interviews: InterviewsTab(store: store)
+        case .ai: AIAssistantTab(store: store)
         }
     }
 
@@ -832,13 +840,23 @@ struct AIAssistantTab: View {
     var body: some View {
         VStack(spacing: 0) {
             // Mode picker + token usage
-            HStack(spacing: 12) {
-                Picker("", selection: $store.aiSelectedAction) {
-                    ForEach(AIAction.allCases, id: \.self) { a in
-                        Text(a.rawValue).tag(a)
+            HStack(spacing: 8) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(AIAction.allCases, id: \.self) { action in
+                            Button { store.send(.binding(.set(\.aiSelectedAction, action))) } label: {
+                                Text(action.rawValue)
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(store.aiSelectedAction == action ? Color.accentColor.opacity(0.12) : Color.clear)
+                                    .foregroundColor(store.aiSelectedAction == action ? .accentColor : .secondary)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
 
                 if store.aiTokenUsage.totalTokens > 0 {
                     VStack(alignment: .trailing, spacing: 1) {
@@ -852,7 +870,7 @@ struct AIAssistantTab: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 8)
+            .padding(.horizontal, 8).padding(.vertical, 0)
             .background(Color(NSColor.controlBackgroundColor))
 
             Divider()
