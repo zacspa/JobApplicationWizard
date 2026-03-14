@@ -860,6 +860,19 @@ struct AIAssistantTab: View {
                     }
                     .padding(.horizontal, 16).padding(.bottom, 6)
                 }
+
+                #if DEBUG
+                HStack(spacing: 4) {
+                    Toggle(isOn: $store.aiMockMode) {
+                        Text("Mock AI")
+                            .font(.caption2).foregroundColor(.orange)
+                    }
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    Spacer()
+                }
+                .padding(.horizontal, 16).padding(.bottom, 6)
+                #endif
             }
             .background(Color(NSColor.controlBackgroundColor))
 
@@ -1028,7 +1041,10 @@ struct AIAssistantTab: View {
     }
 
     var aiReady: Bool {
-        store.acpConnection.aiProvider == .claudeAPI ? !store.apiKey.isEmpty : store.acpConnection.isConnected
+        #if DEBUG
+        if store.aiMockMode { return true }
+        #endif
+        return store.acpConnection.aiProvider == .claudeAPI ? !store.apiKey.isEmpty : store.acpConnection.isConnected
     }
 
     var canSend: Bool {
@@ -1092,37 +1108,6 @@ struct ChatBubble: View {
             }
         }
         .onHover { isHovered = $0 }
-    }
-}
-
-// MARK: - Thinking Bubble
-
-struct ThinkingBubble: View {
-    @State private var phase: Int = 0
-
-    var body: some View {
-        HStack(alignment: .top) {
-            HStack(spacing: 5) {
-                ForEach(0..<3, id: \.self) { i in
-                    Circle()
-                        .fill(Color.secondary.opacity(phase == i ? 1.0 : 0.3))
-                        .frame(width: 7, height: 7)
-                }
-            }
-            .padding(.horizontal, 14).padding(.vertical, 12)
-            .background(Color(NSColor.controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-            )
-            Spacer()
-        }
-        .onAppear {
-            withAnimation(.linear(duration: 0.4).repeatForever(autoreverses: false)) {
-                phase = (phase + 1) % 3
-            }
-        }
     }
 }
 
