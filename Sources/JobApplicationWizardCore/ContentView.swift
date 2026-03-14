@@ -42,6 +42,29 @@ public struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                if columnVisibility != .all {
+                    SettingsLink {
+                        Image(systemName: "gear").padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Settings")
+
+                    Button { store.send(.importCSV) } label: {
+                        Image(systemName: "square.and.arrow.down").padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Import from CSV")
+
+                    Button { store.send(.exportCSV) } label: {
+                        Image(systemName: "square.and.arrow.up").padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Export to CSV")
+                }
+            }
+        }
         .sheet(isPresented: Binding(
             get: { store.showOnboarding },
             set: { if !$0 { store.send(.dismissOnboarding) } }
