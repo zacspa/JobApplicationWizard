@@ -15,6 +15,8 @@ public enum ViewMode: String, Codable, CaseIterable, Equatable {
 
 @Reducer
 public struct AppFeature {
+    private enum CancelID { case acpCrashMonitor }
+
     @ObservableState
     public struct State: Equatable {
         public var jobs: IdentifiedArrayOf<JobApplication> = []
@@ -28,6 +30,11 @@ public struct AppFeature {
         public var claudeAPIKey: String = ""   // runtime mirror of Keychain value; never persisted to disk
         public var addJob: AddJobFeature.State = AddJobFeature.State()
         public var jobDetail: JobDetailFeature.State? = nil
+
+        // ACP state — connection state is shared with JobDetailFeature via @Shared
+        @Shared(.inMemory("acpConnection")) public var acpConnection = ACPConnectionState()
+        public var availableACPAgents: [ACPAgentEntry] = []
+        public var isLoadingAgents: Bool = false
 
         public var filteredJobs: [JobApplication] {
             jobs.filter { job in
@@ -74,10 +81,22 @@ public struct AppFeature {
         case saveProfile(UserProfile)
         case defaultViewModeChanged(ViewMode)
         case resetAllData
+        // ACP
+        case aiProviderChanged(AIProvider)
+        case fetchACPRegistry
+        case acpRegistryLoaded(Result<[ACPAgentEntry], Error>)
+        case selectACPAgent(String)
+        case connectACPAgent
+        case acpConnected(Result<String, Error>)
+        case disconnectACPAgent
+        case acpDisconnected
+        case acpProcessCrashed
     }
 
     @Dependency(\.persistenceClient) var persistence
     @Dependency(\.keychainClient) var keychain
+    @Dependency(\.acpClient) var acpClient
+    @Dependency(\.acpRegistryClient) var acpRegistry
 
     public init() {}
 
@@ -105,6 +124,10 @@ public struct AppFeature {
             case .settingsLoaded(let settings):
                 state.settings = settings
                 state.viewMode = settings.defaultViewMode
+                state.$acpConnection.withLock { $0.aiProvider = settings.aiProvider }
+                if settings.aiProvider == .acpAgent {
+                    return .send(.fetchACPRegistry)
+                }
                 return .none
 
             case .searchQueryChanged(let q):
@@ -122,7 +145,9 @@ public struct AppFeature {
             case .selectJob(let id):
                 state.selectedJobID = id
                 if let id, let job = state.jobs[id: id] {
-                    state.jobDetail = JobDetailFeature.State(job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile)
+                    state.jobDetail = JobDetailFeature.State(
+                        job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                    )
                 } else {
                     state.jobDetail = nil
                 }
@@ -159,7 +184,9 @@ public struct AppFeature {
             case .addJob(.delegate(.save(let job))):
                 state.jobs.append(job)
                 state.selectedJobID = job.id
-                state.jobDetail = JobDetailFeature.State(job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile)
+                state.jobDetail = JobDetailFeature.State(
+                    job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                )
                 state.addJob = AddJobFeature.State()
                 return saveJobs(state.jobs)
 
@@ -239,6 +266,106 @@ public struct AppFeature {
                 state.jobDetail = nil
                 state.showOnboarding = true
                 return .run { _ in try? await persistence.saveJobs([]) }
+
+            // MARK: - ACP Actions
+
+            case .aiProviderChanged(let provider):
+                state.$acpConnection.withLock {
+                    $0.aiProvider = provider
+                    $0.error = nil
+                }
+                state.settings.aiProvider = provider
+                var effects: [Effect<Action>] = [saveSettings(state.settings)]
+                if provider == .acpAgent && state.availableACPAgents.isEmpty {
+                    effects.append(.send(.fetchACPRegistry))
+                }
+                return .merge(effects)
+
+            case .fetchACPRegistry:
+                state.isLoadingAgents = true
+                state.$acpConnection.withLock { $0.error = nil }
+                return .run { send in
+                    await send(.acpRegistryLoaded(Result { try await acpRegistry.fetchAgents() }))
+                }
+
+            case .acpRegistryLoaded(.success(let agents)):
+                state.isLoadingAgents = false
+                state.availableACPAgents = agents
+                // Auto-connect if we have a saved agent selection and aren't already connected
+                if !state.acpConnection.isConnected && !state.acpConnection.isConnecting,
+                   let savedId = state.settings.selectedACPAgentId,
+                   agents.contains(where: { $0.id == savedId }) {
+                    return .send(.connectACPAgent)
+                }
+                return .none
+
+            case .acpRegistryLoaded(.failure(let error)):
+                state.isLoadingAgents = false
+                state.$acpConnection.withLock { $0.error = error.localizedDescription }
+                return .none
+
+            case .selectACPAgent(let agentId):
+                state.settings.selectedACPAgentId = agentId
+                return saveSettings(state.settings)
+
+            case .connectACPAgent:
+                guard let agentId = state.settings.selectedACPAgentId,
+                      let entry = state.availableACPAgents.first(where: { $0.id == agentId }) else {
+                    state.$acpConnection.withLock { $0.error = "No agent selected." }
+                    return .none
+                }
+                state.$acpConnection.withLock {
+                    $0.error = nil
+                    $0.isConnecting = true
+                }
+                return .run { send in
+                    await send(.acpConnected(Result { try await acpClient.connect(entry) }))
+                }
+
+            case .acpConnected(.success(let name)):
+                state.$acpConnection.withLock {
+                    $0.isConnecting = false
+                    $0.isConnected = true
+                    $0.connectedAgentName = name
+                    $0.error = nil
+                }
+                return .run { send in
+                    for await _ in acpClient.onUnexpectedDisconnect() {
+                        await send(.acpProcessCrashed)
+                    }
+                }
+                .cancellable(id: CancelID.acpCrashMonitor, cancelInFlight: true)
+
+            case .acpConnected(.failure(let error)):
+                state.$acpConnection.withLock {
+                    $0.isConnecting = false
+                    $0.isConnected = false
+                    $0.connectedAgentName = nil
+                    $0.error = error.localizedDescription
+                }
+                return .none
+
+            case .disconnectACPAgent:
+                return .run { send in
+                    await acpClient.disconnect()
+                    await send(.acpDisconnected)
+                }
+
+            case .acpDisconnected:
+                state.$acpConnection.withLock {
+                    $0.isConnected = false
+                    $0.connectedAgentName = nil
+                }
+                return .cancel(id: CancelID.acpCrashMonitor)
+
+            case .acpProcessCrashed:
+                state.$acpConnection.withLock {
+                    $0.isConnected = false
+                    $0.isConnecting = false
+                    $0.connectedAgentName = nil
+                    $0.error = "Agent process terminated unexpectedly."
+                }
+                return .none
             }
         }
         .ifLet(\.jobDetail, action: \.jobDetail) {

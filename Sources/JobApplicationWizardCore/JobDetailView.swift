@@ -866,8 +866,8 @@ struct AIAssistantTab: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Mode picker + token usage
-            HStack(spacing: 8) {
+            // Mode picker
+            VStack(spacing: 0) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 0) {
                         ForEach(AIAction.allCases, id: \.self) { action in
@@ -884,48 +884,103 @@ struct AIAssistantTab: View {
                         }
                     }
                 }
+                .padding(.horizontal, 8)
 
-                if store.aiTokenUsage.totalTokens > 0 {
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text("\(store.aiTokenUsage.totalTokens.formatted()) tok")
-                            .font(.footnote).fontWeight(.medium).foregroundColor(.secondary)
-                        Text(String(format: "~$%.4f", store.aiTokenUsage.estimatedCost))
-                            .font(.footnote).foregroundColor(.secondary)
+                // Provider / token info bar
+                if store.acpConnection.aiProvider == .acpAgent, let name = store.acpConnection.connectedAgentName {
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.green).frame(width: 6, height: 6)
+                        Text(name)
+                            .font(.caption2).foregroundColor(.secondary)
+                        Spacer()
                     }
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(Color.secondary.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .padding(.horizontal, 16).padding(.bottom, 6)
+                } else if store.acpConnection.aiProvider == .claudeAPI && store.aiTokenUsage.totalTokens > 0 {
+                    HStack {
+                        Spacer()
+                        Text("\(store.aiTokenUsage.totalTokens.formatted()) tok")
+                            .font(.caption2).foregroundColor(.secondary)
+                        Text("·").foregroundColor(.secondary)
+                        Text(String(format: "~$%.4f", store.aiTokenUsage.estimatedCost))
+                            .font(.caption2).foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 16).padding(.bottom, 6)
                 }
             }
-            .padding(.horizontal, 8).padding(.vertical, 0)
             .background(Color(NSColor.controlBackgroundColor))
 
             Divider()
 
-            if store.apiKey.isEmpty {
-                HStack {
-                    Image(systemName: "key.fill").foregroundColor(.orange)
-                    Text("Add your Claude API key in Settings to use AI features.").font(.subheadline)
+            if store.acpConnection.isConnecting {
+                VStack(spacing: 12) {
+                    Spacer()
+                    ProgressView()
+                        .controlSize(.regular)
+                    Text("Connecting to AI agent...")
+                        .font(.subheadline).foregroundColor(.secondary)
+                    Spacer()
                 }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.1))
-                Spacer()
+                .frame(maxWidth: .infinity)
+            } else if !aiReady {
+                VStack(spacing: 16) {
+                    Spacer()
+                    Image(systemName: store.acpConnection.aiProvider == .claudeAPI ? "key.fill" : "cpu")
+                        .font(.system(size: 32))
+                        .foregroundColor(.secondary)
+
+                    if store.acpConnection.aiProvider == .acpAgent {
+                        Text("Connect an AI Agent")
+                            .font(.headline)
+                        Text("ACP (Agent Client Protocol) lets you use any compatible AI agent — Claude, Goose, Copilot, and more — for resume tailoring, interview prep, and job fit analysis.")
+                            .font(.subheadline).foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 360)
+                    } else {
+                        Text("Add Your API Key")
+                            .font(.headline)
+                        Text("Enter your Claude API key to get AI-powered resume tailoring, cover letter drafting, interview prep, and job fit analysis.")
+                            .font(.subheadline).foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 360)
+                    }
+
+                    Button {
+                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    } label: {
+                        Label("Set Up AI Provider", systemImage: "gearshape")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 32)
             }
 
             // Message history
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 12) {
                         if store.chatMessages.isEmpty {
-                            VStack(spacing: 8) {
+                            VStack(spacing: 12) {
                                 Text("✦").font(.system(size: 28))
-                                Text("Ask Claude anything about this application,\nor choose a quick action above.")
-                                    .font(.subheadline).foregroundColor(.secondary)
+
+                                if store.acpConnection.aiProvider == .acpAgent, let name = store.acpConnection.connectedAgentName {
+                                    Text("Connected to \(name)")
+                                        .font(.subheadline).fontWeight(.medium)
+                                } else {
+                                    Text("AI Assistant")
+                                        .font(.subheadline).fontWeight(.medium)
+                                }
+
+                                Text("Ask anything about this application, or use the quick actions above to tailor your resume, draft a cover letter, prep for interviews, or analyze your fit.")
+                                    .font(.caption).foregroundColor(.secondary)
                                     .multilineTextAlignment(.center)
+                                    .frame(maxWidth: 320)
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.top, 60)
+                            .padding(.top, 48)
                         } else {
                             ForEach(store.chatMessages) { msg in
                                 ChatBubble(message: msg)
@@ -936,17 +991,21 @@ struct AIAssistantTab: View {
                                     .id("thinking")
                             }
                         }
+                        // Invisible anchor at the very bottom
+                        Color.clear.frame(height: 1).id("bottom")
                     }
                     .padding(16)
                 }
                 .onChange(of: store.chatMessages.count) { _, _ in
-                    if let last = store.chatMessages.last {
-                        withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                    Task { @MainActor in
+                        // Small delay to let layout settle for long messages
+                        try? await Task.sleep(nanoseconds: 50_000_000)
+                        withAnimation { proxy.scrollTo("bottom") }
                     }
                 }
                 .onChange(of: store.aiIsLoading) { _, loading in
                     if loading {
-                        withAnimation { proxy.scrollTo("thinking", anchor: .bottom) }
+                        withAnimation { proxy.scrollTo("bottom") }
                     }
                 }
             }
@@ -978,7 +1037,7 @@ struct AIAssistantTab: View {
                             .padding(.vertical, 4)
                             .frame(minHeight: 42, maxHeight: 100)
                             .focused($inputFocused)
-                            .disabled(store.apiKey.isEmpty || store.aiIsLoading)
+                            .disabled(!aiReady || store.aiIsLoading)
                             .onKeyPress(keys: [.return]) { press in
                                 if press.modifiers.contains(.shift) {
                                     return .ignored  // insert newline
@@ -1016,8 +1075,15 @@ struct AIAssistantTab: View {
         }
     }
 
+    var aiReady: Bool {
+        #if DEBUG
+        if store.aiMockMode { return true }
+        #endif
+        return store.acpConnection.aiProvider == .claudeAPI ? !store.apiKey.isEmpty : store.acpConnection.isConnected
+    }
+
     var canSend: Bool {
-        !store.aiIsLoading && !store.apiKey.isEmpty
+        !store.aiIsLoading && aiReady
             && !store.aiInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -1051,63 +1117,36 @@ struct ChatBubble: View {
     }
 
     var bubbleContent: some View {
-        VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-            Text(message.content)
-                .font(.body)
-                .textSelection(.enabled)
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(
-                    message.role == .user
-                        ? Color.accentColor.opacity(0.15)
-                        : Color(NSColor.controlBackgroundColor)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            if message.role == .assistant && isHovered {
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(message.content, forType: .string)
-                } label: {
-                    Label("Copy", systemImage: "doc.on.doc").font(.footnote)
-                }
-                .buttonStyle(.plain).foregroundColor(.secondary)
-            }
-        }
-        .onHover { isHovered = $0 }
-    }
-}
-
-// MARK: - Thinking Bubble
-
-struct ThinkingBubble: View {
-    @State private var phase: Int = 0
-
-    var body: some View {
-        HStack(alignment: .top) {
-            HStack(spacing: 5) {
-                ForEach(0..<3, id: \.self) { i in
-                    Circle()
-                        .fill(Color.secondary.opacity(phase == i ? 1.0 : 0.3))
-                        .frame(width: 7, height: 7)
-                }
-            }
-            .padding(.horizontal, 14).padding(.vertical, 12)
-            .background(Color(NSColor.controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+        Text(message.content)
+            .font(.body)
+            .textSelection(.enabled)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(
+                message.role == .user
+                    ? Color.accentColor.opacity(0.15)
+                    : Color(NSColor.controlBackgroundColor)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
             )
-            Spacer()
-        }
-        .onAppear {
-            withAnimation(.linear(duration: 0.4).repeatForever(autoreverses: false)) {
-                phase = (phase + 1) % 3
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(alignment: .bottomTrailing) {
+                if message.role == .assistant && isHovered {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(message.content, forType: .string)
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                            .font(.footnote)
+                            .padding(6)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain).foregroundColor(.secondary)
+                    .offset(x: -6, y: -6)
+                }
             }
-        }
+            .onHover { isHovered = $0 }
     }
 }
 

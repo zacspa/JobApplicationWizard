@@ -12,6 +12,10 @@ let package = Package(
         .package(
             url: "https://github.com/sparkle-project/Sparkle",
             from: "2.0.0"
+        ),
+        .package(
+            url: "https://github.com/aptove/swift-sdk",
+            from: "0.1.16"
         )
     ],
     targets: [
@@ -19,7 +23,9 @@ let package = Package(
             name: "JobApplicationWizardCore",
             dependencies: [
                 .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
-                .product(name: "Sparkle", package: "Sparkle")
+                .product(name: "Sparkle", package: "Sparkle"),
+                .product(name: "ACP", package: "swift-sdk"),
+                .product(name: "ACPModel", package: "swift-sdk")
             ],
             path: "Sources/JobApplicationWizardCore",
             resources: [.process("Resources")]

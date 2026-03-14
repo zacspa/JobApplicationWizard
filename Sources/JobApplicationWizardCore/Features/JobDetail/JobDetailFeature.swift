@@ -40,6 +40,10 @@ public struct JobDetailFeature {
         public var apiKey: String
         public var userProfile: UserProfile
         public var aiTokenUsage: AITokenUsage = .zero
+        #if DEBUG
+        public var aiMockMode: Bool = false
+        #endif
+        @SharedReader(.inMemory("acpConnection")) public var acpConnection = ACPConnectionState()
 
         public enum Tab: String, CaseIterable, Equatable {
             case overview = "Overview"
@@ -83,6 +87,7 @@ public struct JobDetailFeature {
             self.interviews = job.interviews
             self.apiKey = apiKey
             self.userProfile = userProfile
+            // acpConnection is automatically shared — no passthrough needed
         }
 
         // Build updated job from current flat fields
@@ -142,6 +147,7 @@ public struct JobDetailFeature {
 
     @Dependency(\.pdfClient) var pdfClient
     @Dependency(\.claudeClient) var claudeClient
+    @Dependency(\.acpClient) var acpClient
 
     public init() {}
 
@@ -290,7 +296,23 @@ public struct JobDetailFeature {
                     state.aiSelectedAction = .chat
                 }
 
-                let key = state.apiKey
+                #if DEBUG
+                if state.aiMockMode {
+                    return .run { send in
+                        try await Task.sleep(nanoseconds: UInt64.random(in: 3_000_000_000...6_000_000_000))
+                        let mockResponses = [
+                            "That's a great question! Based on the job description, I'd recommend highlighting your experience with cross-functional collaboration and any metrics-driven results.",
+                            "Here are a few talking points you could use:\n\n1. Your background aligns well with the role requirements\n2. Consider emphasizing relevant project outcomes\n3. The company culture seems like a strong fit",
+                            "I've reviewed the details. This looks like a solid opportunity. Would you like me to help you draft a tailored response?",
+                            "Good thinking. Let me break this down:\n\n- **Strengths**: Your skills match several key requirements\n- **Gaps**: Consider brushing up on any unfamiliar tools listed\n- **Next step**: Prepare 2-3 stories using the STAR framework",
+                        ]
+                        let reply = mockResponses[Int.random(in: 0..<mockResponses.count)]
+                        await send(.aiResponseReceived(.success((reply, .zero))))
+                    }
+                    .cancellable(id: CancelID.aiRequest, cancelInFlight: true)
+                }
+                #endif
+
                 let job = state.job
                 let profile = state.userProfile
                 var profileSection = ""
@@ -320,12 +342,26 @@ public struct JobDetailFeature {
                 Help the user with their application. Be specific, actionable, and concise.
                 """
                 let messages = state.chatMessages
-                return .run { send in
-                    await send(.aiResponseReceived(Result {
-                        try await claudeClient.chat(key, systemPrompt, messages)
-                    } as Result<(String, AITokenUsage), Error>))
+
+                if state.acpConnection.aiProvider == .acpAgent && state.acpConnection.isConnected {
+                    // For ACP: include system prompt context in first message
+                    let contextPrefix = messages.count <= 1 ? systemPrompt + "\n\n" : ""
+                    let fullMessage = contextPrefix + userText
+                    return .run { send in
+                        await send(.aiResponseReceived(Result {
+                            try await acpClient.sendPrompt(fullMessage, messages)
+                        }))
+                    }
+                    .cancellable(id: CancelID.aiRequest, cancelInFlight: true)
+                } else {
+                    let key = state.apiKey
+                    return .run { send in
+                        await send(.aiResponseReceived(Result {
+                            try await claudeClient.chat(key, systemPrompt, messages)
+                        } as Result<(String, AITokenUsage), Error>))
+                    }
+                    .cancellable(id: CancelID.aiRequest, cancelInFlight: true)
                 }
-                .cancellable(id: CancelID.aiRequest, cancelInFlight: true)
 
             case .clearChat:
                 state.chatMessages = []
