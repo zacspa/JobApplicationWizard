@@ -101,7 +101,7 @@ final class ACPClientTests: XCTestCase {
         """.data(using: .utf8)!
 
         let settings = try JSONDecoder().decode(AppSettings.self, from: json)
-        XCTAssertEqual(settings.aiProvider, .claudeAPI)
+        XCTAssertEqual(settings.aiProvider, .acpAgent)
         XCTAssertNil(settings.selectedACPAgentId)
     }
 
@@ -235,7 +235,8 @@ final class ACPClientTests: XCTestCase {
             $0.acpClient = ACPClient(
                 connect: { _ in "Claude Agent" },
                 disconnect: {},
-                sendPrompt: { _, _ in ("", .zero) }
+                sendPrompt: { _, _ in ("", .zero) },
+                onUnexpectedDisconnect: { AsyncStream { $0.finish() } }
             )
         }
 
@@ -274,7 +275,8 @@ final class ACPClientTests: XCTestCase {
             $0.acpClient = ACPClient(
                 connect: { _ in throw ACPClientError.launchFailed("Bad Agent", "exit code 127") },
                 disconnect: {},
-                sendPrompt: { _, _ in ("", .zero) }
+                sendPrompt: { _, _ in ("", .zero) },
+                onUnexpectedDisconnect: { AsyncStream { $0.finish() } }
             )
         }
 
@@ -325,7 +327,8 @@ final class ACPClientTests: XCTestCase {
             $0.acpClient = ACPClient(
                 connect: { _ in "Claude Agent" },
                 disconnect: {},
-                sendPrompt: { _, _ in ("", .zero) }
+                sendPrompt: { _, _ in ("", .zero) },
+                onUnexpectedDisconnect: { AsyncStream { $0.finish() } }
             )
         }
 
@@ -369,7 +372,8 @@ final class ACPClientTests: XCTestCase {
             $0.acpClient = ACPClient(
                 connect: { _ in "" },
                 disconnect: {},
-                sendPrompt: { _, _ in ("", .zero) }
+                sendPrompt: { _, _ in ("", .zero) },
+                onUnexpectedDisconnect: { AsyncStream { $0.finish() } }
             )
         }
 

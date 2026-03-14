@@ -315,7 +315,7 @@ public struct AppSettings: Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         userProfile        = try c.decodeIfPresent(UserProfile.self, forKey: .userProfile)        ?? UserProfile()
         defaultViewMode    = try c.decodeIfPresent(ViewMode.self,    forKey: .defaultViewMode)    ?? .kanban
-        aiProvider         = try c.decodeIfPresent(AIProvider.self,  forKey: .aiProvider)         ?? .claudeAPI
+        aiProvider         = try c.decodeIfPresent(AIProvider.self,  forKey: .aiProvider)         ?? .acpAgent
         selectedACPAgentId = try c.decodeIfPresent(String.self,      forKey: .selectedACPAgentId)
     }
 }

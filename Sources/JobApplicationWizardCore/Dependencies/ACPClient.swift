@@ -12,15 +12,18 @@ public struct ACPClient {
     public var connect: @Sendable (ACPAgentEntry) async throws -> String
     public var disconnect: @Sendable () async -> Void
     public var sendPrompt: @Sendable (String, [ChatMessage]) async throws -> (String, AITokenUsage)
+    public var onUnexpectedDisconnect: @Sendable () -> AsyncStream<Void>
 
     public init(
         connect: @escaping @Sendable (ACPAgentEntry) async throws -> String,
         disconnect: @escaping @Sendable () async -> Void,
-        sendPrompt: @escaping @Sendable (String, [ChatMessage]) async throws -> (String, AITokenUsage)
+        sendPrompt: @escaping @Sendable (String, [ChatMessage]) async throws -> (String, AITokenUsage),
+        onUnexpectedDisconnect: @escaping @Sendable () -> AsyncStream<Void>
     ) {
         self.connect = connect
         self.disconnect = disconnect
         self.sendPrompt = sendPrompt
+        self.onUnexpectedDisconnect = onUnexpectedDisconnect
     }
 }
 
@@ -38,6 +41,7 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
     private let input: FileHandle   // reads agent stdout
     private let output: FileHandle  // writes to agent stdin
     private var readTask: Task<Void, Never>?
+    private var didClose = false
 
     init(input: FileHandle, output: FileHandle) {
         self.input = input
@@ -99,6 +103,8 @@ private final class SubprocessTransport: Transport, @unchecked Sendable {
     }
 
     func close() async {
+        guard !didClose else { return }
+        didClose = true
         readTask?.cancel()
         readTask = nil
         // Close pipe handles to unblock any pending read()
@@ -180,6 +186,10 @@ private actor ACPProcessManager {
     private var agentName: String?
     private var clientDelegate: JobWizardACPClient?
 
+    /// Stream that fires when the subprocess terminates unexpectedly.
+    private let (crashStream, crashContinuation) = AsyncStream<Void>.makeStream()
+
+    var unexpectedDisconnects: AsyncStream<Void> { crashStream }
     var connected: Bool { process != nil && connection != nil && sessionId != nil }
     var currentAgentName: String? { agentName }
 
@@ -335,6 +345,8 @@ private actor ACPProcessManager {
         sessionId = nil
         agentName = nil
         clientDelegate = nil
+        // Notify observers so the UI can update
+        crashContinuation.yield()
     }
 
     func sendPrompt(text: String, history: [ChatMessage]) async throws -> (String, AITokenUsage) {
@@ -405,6 +417,17 @@ extension ACPClient: DependencyKey {
             },
             sendPrompt: { text, history in
                 try await manager.sendPrompt(text: text, history: history)
+            },
+            onUnexpectedDisconnect: {
+                AsyncStream { continuation in
+                    let task = Task {
+                        for await _ in await manager.unexpectedDisconnects {
+                            continuation.yield()
+                        }
+                        continuation.finish()
+                    }
+                    continuation.onTermination = { _ in task.cancel() }
+                }
             }
         )
     }
@@ -414,7 +437,8 @@ extension ACPClient: TestDependencyKey {
     public static let testValue = ACPClient(
         connect: unimplemented("\(Self.self).connect", placeholder: ""),
         disconnect: unimplemented("\(Self.self).disconnect"),
-        sendPrompt: unimplemented("\(Self.self).sendPrompt", placeholder: ("", .zero))
+        sendPrompt: unimplemented("\(Self.self).sendPrompt", placeholder: ("", .zero)),
+        onUnexpectedDisconnect: { AsyncStream { $0.finish() } }
     )
 }
 

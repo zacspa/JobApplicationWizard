@@ -15,6 +15,8 @@ public enum ViewMode: String, Codable, CaseIterable, Equatable {
 
 @Reducer
 public struct AppFeature {
+    private enum CancelID { case acpCrashMonitor }
+
     @ObservableState
     public struct State: Equatable {
         public var jobs: IdentifiedArrayOf<JobApplication> = []
@@ -88,6 +90,7 @@ public struct AppFeature {
         case acpConnected(Result<String, Error>)
         case disconnectACPAgent
         case acpDisconnected
+        case acpProcessCrashed
     }
 
     @Dependency(\.persistenceClient) var persistence
@@ -326,7 +329,12 @@ public struct AppFeature {
                     $0.connectedAgentName = name
                     $0.error = nil
                 }
-                return .none
+                return .run { send in
+                    for await _ in acpClient.onUnexpectedDisconnect() {
+                        await send(.acpProcessCrashed)
+                    }
+                }
+                .cancellable(id: CancelID.acpCrashMonitor, cancelInFlight: true)
 
             case .acpConnected(.failure(let error)):
                 state.$acpConnection.withLock {
@@ -347,6 +355,15 @@ public struct AppFeature {
                 state.$acpConnection.withLock {
                     $0.isConnected = false
                     $0.connectedAgentName = nil
+                }
+                return .cancel(id: CancelID.acpCrashMonitor)
+
+            case .acpProcessCrashed:
+                state.$acpConnection.withLock {
+                    $0.isConnected = false
+                    $0.isConnecting = false
+                    $0.connectedAgentName = nil
+                    $0.error = "Agent process terminated unexpectedly."
                 }
                 return .none
             }
