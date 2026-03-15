@@ -16,6 +16,11 @@ VOL_NAME="Job Application Wizard"
 SIGN_IDENTITY="${SIGN_IDENTITY:?Need to set SIGN_IDENTITY}"
 NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-JobApplicationWizard}"
 
+# ── 0. Sync repo Info.plist so dev builds show the correct version ───────────
+echo "▶ Updating Info.plist to $VERSION..."
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" Info.plist
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Info.plist
+
 # ── 1. Build ──────────────────────────────────────────────────────────────────
 echo "▶ Building release binary..."
 swift build -c release
@@ -232,7 +237,7 @@ xcrun stapler staple "$DMG_FINAL"
 
 # ── 9. Sign DMG for Sparkle and update appcast.xml ───────────────────────────
 echo "▶ Signing DMG for Sparkle..."
-SPARKLE_SIGN=".build/checkouts/Sparkle/bin/sign_update"
+SPARKLE_SIGN="${SPARKLE_SIGN:-$(find .build/artifacts -name sign_update -not -path '*/old_dsa_scripts/*' -print -quit 2>/dev/null || echo .build/checkouts/Sparkle/bin/sign_update)}"
 SIG=$("$SPARKLE_SIGN" "$DMG_FINAL" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
 SIZE=$(stat -f%z "$DMG_FINAL")
 PUBDATE=$(date -u +"%a, %d %b %Y %H:%M:%S +0000")
