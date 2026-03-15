@@ -896,6 +896,12 @@ struct InterviewRoundRow: View {
 struct AISidePanel: View {
     @Bindable var store: StoreOf<JobDetailFeature>
     @FocusState private var inputFocused: Bool
+    @State private var thinkingAmplitude: Double = 0.01
+    @State private var showThinking: Bool = false
+
+    private static let minAmplitude: Double = 0.01
+    private static let maxAmplitude: Double = 0.08
+    private static let collapseAmplitude: Double = 0.005
 
     var body: some View {
         VStack(spacing: 0) {
@@ -972,9 +978,13 @@ struct AISidePanel: View {
                                 ChatBubble(message: msg)
                                     .id(msg.id)
                             }
-                            if store.aiIsLoading {
-                                ThinkingBubble()
-                                    .id("thinking")
+                            if showThinking {
+                                HStack {
+                                    JitterCircle(amplitudeFrac: thinkingAmplitude)
+                                        .frame(width: 40, height: 40)
+                                    Spacer()
+                                }
+                                .id("thinking")
                             }
                         }
                         Color.clear.frame(height: 1).id("bottom")
@@ -989,7 +999,17 @@ struct AISidePanel: View {
                 }
                 .onChange(of: store.aiIsLoading) { _, loading in
                     if loading {
+                        // Start small, ease up to full amplitude
+                        thinkingAmplitude = Self.minAmplitude
+                        showThinking = true
                         withAnimation { proxy.scrollTo("bottom") }
+                        withAnimation(.easeIn(duration: 2.0)) {
+                            thinkingAmplitude = Self.maxAmplitude
+                        }
+                    } else {
+                        // Hide immediately so it doesn't linger below the response
+                        showThinking = false
+                        thinkingAmplitude = Self.minAmplitude
                     }
                 }
             }
@@ -1253,7 +1273,7 @@ struct JitterCircle: View {
     @Environment(\.colorScheme) private var colorScheme
 
     // Wave params; amplitude is expressed as fraction of bodyRadius
-    private static let amplitudeFrac: Double = 0.08
+    var amplitudeFrac: Double = 0.08
     private static let frequency: Double = 1.1
     private static let wavelength: Double = 0.46
     private static let waveSpeed: Double = -0.7
@@ -1287,7 +1307,7 @@ struct JitterCircle: View {
                 let cx = size.width * 0.5
                 let cy = size.height * 0.5
                 let bodyRadius = Double(min(size.width, size.height)) * 0.38
-                let amplitude = bodyRadius * Self.amplitudeFrac
+                let amplitude = bodyRadius * amplitudeFrac
                 let totalSegments = 200
                 let numWaves = max(1, (1.0 / Self.wavelength).rounded())
                 let k = 2 * Double.pi * numWaves
