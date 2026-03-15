@@ -407,11 +407,12 @@ public struct AppSettings: Codable, Equatable {
     public var statusChatHistories: [String: [ChatMessage]] = [:]
     public var agentActionMode: AgentActionMode = .applyImmediately
     public var autoProcessDocuments: Bool = false
+    public var hasCuttleOnboardingCompleted: Bool = false
 
     private enum CodingKeys: String, CodingKey {
         case userProfile, defaultViewMode, aiProvider, selectedACPAgentId
         case cuttleContext, globalChatHistory, statusChatHistories
-        case agentActionMode, autoProcessDocuments
+        case agentActionMode, autoProcessDocuments, hasCuttleOnboardingCompleted
     }
 
     public init() {}
@@ -427,6 +428,7 @@ public struct AppSettings: Codable, Equatable {
         statusChatHistories  = try c.decodeIfPresent([String: [ChatMessage]].self, forKey: .statusChatHistories) ?? [:]
         agentActionMode      = try c.decodeIfPresent(AgentActionMode.self,        forKey: .agentActionMode)      ?? .applyImmediately
         autoProcessDocuments = try c.decodeIfPresent(Bool.self,                    forKey: .autoProcessDocuments) ?? false
+        hasCuttleOnboardingCompleted = try c.decodeIfPresent(Bool.self,            forKey: .hasCuttleOnboardingCompleted) ?? false
     }
 }
 

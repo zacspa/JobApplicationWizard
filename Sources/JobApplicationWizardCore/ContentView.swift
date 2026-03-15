@@ -83,6 +83,16 @@ public struct ContentView: View {
                         store.send(.cuttle(.windowSizeChanged(geo.size)))
                     }
             }
+
+            // Cuttle onboarding overlay
+            if store.cuttleOnboarding.isActive {
+                CuttleOnboardingOverlay(
+                    store: store.scope(state: \.cuttleOnboarding, action: \.cuttleOnboarding),
+                    cuttlePosition: store.cuttle.position,
+                    cuttleIsExpanded: store.cuttle.isExpanded,
+                    windowSize: store.cuttle.windowSize
+                )
+            }
         }
         .coordinateSpace(name: "cuttle-window")
         .onPreferenceChange(DropZonePreferenceKey.self) { zones in
