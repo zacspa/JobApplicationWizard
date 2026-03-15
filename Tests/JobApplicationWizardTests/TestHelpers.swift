@@ -24,6 +24,7 @@ extension JobApplication {
         hasPDF: Bool = false,
         pdfPath: String? = nil,
         chatHistory: [ChatMessage] = [],
+        chatThreadStore: CuttleThreadStore? = nil,
         documents: [JobDocument] = []
     ) -> JobApplication {
         var job = JobApplication()
@@ -47,7 +48,12 @@ extension JobApplication {
         job.excitement = excitement
         job.hasPDF = hasPDF
         job.pdfPath = pdfPath
-        job.chatHistory = chatHistory
+        if let store = chatThreadStore {
+            job.chatThreadStore = store
+        } else if !chatHistory.isEmpty {
+            let thread = CuttleThread(messages: chatHistory)
+            job.chatThreadStore = CuttleThreadStore(threads: [thread], activeThreadId: thread.id)
+        }
         job.documents = documents
         return job
     }

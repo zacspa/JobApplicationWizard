@@ -189,8 +189,23 @@ public struct JobApplication: Codable, Identifiable, Equatable {
     public var excitement: Int = 3
     public var hasPDF: Bool = false
     public var pdfPath: String? = nil
-    public var chatHistory: [ChatMessage] = []
+    public var chatThreadStore: CuttleThreadStore = CuttleThreadStore()
     public var documents: [JobDocument] = []
+
+    /// Convenience accessor: messages from the active thread (backward compat).
+    public var chatHistory: [ChatMessage] {
+        get { chatThreadStore.activeThread?.messages ?? [] }
+        set {
+            if let idx = chatThreadStore.activeThreadIndex {
+                chatThreadStore.threads[idx].messages = newValue
+                chatThreadStore.threads[idx].updatedAt = Date()
+            } else if !newValue.isEmpty {
+                let thread = CuttleThread(messages: newValue)
+                chatThreadStore.threads.append(thread)
+                chatThreadStore.activeThreadId = thread.id
+            }
+        }
+    }
 
     public var displayTitle: String {
         title.isEmpty ? "Untitled Position" : title
@@ -208,7 +223,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         case id, company, title, url, status, dateAdded, dateApplied
         case salary, location, jobDescription, noteCards
         case resumeUsed, coverLetter, labels, contacts, interviews
-        case isFavorite, excitement, hasPDF, pdfPath, chatHistory, documents
+        case isFavorite, excitement, hasPDF, pdfPath, chatThreadStore, chatHistory, documents
         case legacyNotes = "notes"
     }
 
@@ -233,7 +248,17 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         excitement   = try c.decodeIfPresent(Int.self,             forKey: .excitement)   ?? 3
         hasPDF       = try c.decodeIfPresent(Bool.self,            forKey: .hasPDF)       ?? false
         pdfPath      = try c.decodeIfPresent(String.self,          forKey: .pdfPath)
-        chatHistory  = try c.decodeIfPresent([ChatMessage].self,   forKey: .chatHistory)  ?? []
+        if let store = try c.decodeIfPresent(CuttleThreadStore.self, forKey: .chatThreadStore) {
+            chatThreadStore = store
+        } else {
+            let legacy = try c.decodeIfPresent([ChatMessage].self, forKey: .chatHistory) ?? []
+            if !legacy.isEmpty {
+                let thread = CuttleThread(messages: legacy)
+                chatThreadStore = CuttleThreadStore(threads: [thread], activeThreadId: thread.id)
+            } else {
+                chatThreadStore = CuttleThreadStore()
+            }
+        }
         documents    = try c.decodeIfPresent([JobDocument].self,  forKey: .documents)    ?? []
 
         if let cards = try c.decodeIfPresent([Note].self, forKey: .noteCards) {
@@ -267,8 +292,12 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         try c.encode(excitement,     forKey: .excitement)
         try c.encode(hasPDF,         forKey: .hasPDF)
         try c.encodeIfPresent(pdfPath, forKey: .pdfPath)
-        if !chatHistory.isEmpty {
-            try c.encode(chatHistory, forKey: .chatHistory)
+        if !chatThreadStore.threads.isEmpty {
+            try c.encode(chatThreadStore, forKey: .chatThreadStore)
+            let activeMessages = chatThreadStore.activeThread?.messages ?? []
+            if !activeMessages.isEmpty {
+                try c.encode(activeMessages, forKey: .chatHistory)
+            }
         }
         if !documents.isEmpty {
             try c.encode(documents, forKey: .documents)
@@ -345,14 +374,15 @@ public struct AppSettings: Codable, Equatable {
     public var aiProvider: AIProvider = .acpAgent
     public var selectedACPAgentId: String? = nil
     public var cuttleContext: CuttleContext? = nil
-    public var globalChatHistory: [ChatMessage] = []
-    public var statusChatHistories: [String: [ChatMessage]] = [:]
+    public var globalThreadStore: CuttleThreadStore = CuttleThreadStore()
+    public var statusThreadStores: [String: CuttleThreadStore] = [:]
     public var agentActionMode: AgentActionMode = .applyImmediately
     public var autoProcessDocuments: Bool = false
 
     private enum CodingKeys: String, CodingKey {
         case userProfile, defaultViewMode, aiProvider, selectedACPAgentId
-        case cuttleContext, globalChatHistory, statusChatHistories
+        case cuttleContext, globalThreadStore, statusThreadStores
+        case globalChatHistory, statusChatHistories // legacy keys for migration
         case agentActionMode, autoProcessDocuments
     }
 
@@ -365,10 +395,43 @@ public struct AppSettings: Codable, Equatable {
         aiProvider           = try c.decodeIfPresent(AIProvider.self,             forKey: .aiProvider)           ?? .acpAgent
         selectedACPAgentId   = try c.decodeIfPresent(String.self,                 forKey: .selectedACPAgentId)
         cuttleContext        = try c.decodeIfPresent(CuttleContext.self,          forKey: .cuttleContext)
-        globalChatHistory    = try c.decodeIfPresent([ChatMessage].self,          forKey: .globalChatHistory)    ?? []
-        statusChatHistories  = try c.decodeIfPresent([String: [ChatMessage]].self, forKey: .statusChatHistories) ?? [:]
+        if let store = try c.decodeIfPresent(CuttleThreadStore.self, forKey: .globalThreadStore) {
+            globalThreadStore = store
+        } else {
+            let legacy = try c.decodeIfPresent([ChatMessage].self, forKey: .globalChatHistory) ?? []
+            if !legacy.isEmpty {
+                let thread = CuttleThread(messages: legacy)
+                globalThreadStore = CuttleThreadStore(threads: [thread], activeThreadId: thread.id)
+            } else {
+                globalThreadStore = CuttleThreadStore()
+            }
+        }
+        if let stores = try c.decodeIfPresent([String: CuttleThreadStore].self, forKey: .statusThreadStores) {
+            statusThreadStores = stores
+        } else {
+            let legacy = try c.decodeIfPresent([String: [ChatMessage]].self, forKey: .statusChatHistories) ?? [:]
+            for (key, messages) in legacy where !messages.isEmpty {
+                let thread = CuttleThread(messages: messages)
+                statusThreadStores[key] = CuttleThreadStore(threads: [thread], activeThreadId: thread.id)
+            }
+        }
         agentActionMode      = try c.decodeIfPresent(AgentActionMode.self,        forKey: .agentActionMode)      ?? .applyImmediately
         autoProcessDocuments = try c.decodeIfPresent(Bool.self,                    forKey: .autoProcessDocuments) ?? false
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(userProfile,          forKey: .userProfile)
+        try c.encode(defaultViewMode,      forKey: .defaultViewMode)
+        try c.encode(aiProvider,           forKey: .aiProvider)
+        try c.encodeIfPresent(selectedACPAgentId, forKey: .selectedACPAgentId)
+        try c.encodeIfPresent(cuttleContext, forKey: .cuttleContext)
+        try c.encode(globalThreadStore,    forKey: .globalThreadStore)
+        if !statusThreadStores.isEmpty {
+            try c.encode(statusThreadStores, forKey: .statusThreadStores)
+        }
+        try c.encode(agentActionMode,      forKey: .agentActionMode)
+        try c.encode(autoProcessDocuments,  forKey: .autoProcessDocuments)
     }
 }
 
@@ -395,6 +458,65 @@ public enum AIAction: String, CaseIterable, Equatable {
     case coverLetter = "Cover Letter"
     case interviewPrep = "Interview Prep"
     case analyzeFit = "Analyze Fit"
+}
+
+// MARK: - Cuttle Thread
+
+public struct CuttleThread: Codable, Identifiable, Equatable {
+    public var id: UUID = UUID()
+    public var name: String? = nil
+    public var messages: [ChatMessage] = []
+    public var createdAt: Date = Date()
+    public var updatedAt: Date = Date()
+
+    public var displayName: String {
+        if let name { return name }
+        if let first = messages.first(where: { $0.role == .user }) {
+            return String(first.content.prefix(40)) + (first.content.count > 40 ? "..." : "")
+        }
+        return "New Thread"
+    }
+
+    public init(id: UUID = UUID(), name: String? = nil, messages: [ChatMessage] = [], createdAt: Date = Date(), updatedAt: Date = Date()) {
+        self.id = id
+        self.name = name
+        self.messages = messages
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+// MARK: - Cuttle Thread Store
+
+public struct CuttleThreadStore: Codable, Equatable {
+    public var threads: [CuttleThread] = []
+    public var activeThreadId: UUID? = nil
+
+    public var activeThread: CuttleThread? {
+        guard let id = activeThreadId else { return threads.first }
+        return threads.first(where: { $0.id == id })
+    }
+
+    public var activeThreadIndex: Int? {
+        guard let id = activeThreadId else { return threads.isEmpty ? nil : 0 }
+        return threads.firstIndex(where: { $0.id == id })
+    }
+
+    @discardableResult
+    public mutating func ensureActiveThread() -> UUID {
+        if let idx = activeThreadIndex {
+            return threads[idx].id
+        }
+        let thread = CuttleThread()
+        threads.append(thread)
+        activeThreadId = thread.id
+        return thread.id
+    }
+
+    public init(threads: [CuttleThread] = [], activeThreadId: UUID? = nil) {
+        self.threads = threads
+        self.activeThreadId = activeThreadId
+    }
 }
 
 // MARK: - Chat Message

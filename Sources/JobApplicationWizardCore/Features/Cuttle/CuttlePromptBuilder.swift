@@ -74,6 +74,7 @@ public enum CuttlePromptBuilder {
         sections.append("Stats: \(jobs.count) total, \(active) active, \(offers) offers")
 
         appendChatHistory(to: &sections, chatHistory: chatHistory)
+        appendThreadNamingInstruction(to: &sections)
         sections.append("Help the user with their overall job search strategy. Be specific, actionable, and concise.\nDo not emit action blocks or use the apply_actions tool in this context.")
 
         return sections.joined(separator: "\n\n")
@@ -148,6 +149,7 @@ public enum CuttlePromptBuilder {
         }
 
         appendChatHistory(to: &sections, chatHistory: chatHistory)
+        appendThreadNamingInstruction(to: &sections)
 
         let statusHints: [JobStatus: String] = [
             .wishlist: "Help the user evaluate and prioritize these prospects.",
@@ -250,6 +252,7 @@ public enum CuttlePromptBuilder {
         sections.append("Recent Activity:\n\(timeline.joined(separator: "\n"))")
 
         appendChatHistory(to: &sections, chatHistory: chatHistory)
+        appendThreadNamingInstruction(to: &sections)
 
         // Documents section
         appendDocumentsSection(to: &sections, documents: job.documents)
@@ -278,6 +281,10 @@ public enum CuttlePromptBuilder {
             if !profile.resume.isEmpty { lines.append("Resume:\n\(profile.resume)") }
             sections.append(lines.joined(separator: "\n"))
         }
+    }
+
+    static func appendThreadNamingInstruction(to sections: inout [String]) {
+        sections.append("If this is the start of a new conversation, include a short title for this thread (5 words max) on the first line: [THREAD_NAME: <title>]")
     }
 
     private static func appendChatHistory(to sections: inout [String], chatHistory: [ChatMessage]) {

@@ -187,8 +187,8 @@ public struct AppFeature {
                 return .merge(
                     .send(.cuttle(.restoreFromSettings(
                         context,
-                        settings.globalChatHistory,
-                        settings.statusChatHistories
+                        settings.globalThreadStore,
+                        settings.statusThreadStores
                     ))),
                     settings.aiProvider == .acpAgent ? .send(.fetchACPRegistry) : .none
                 )
@@ -265,7 +265,7 @@ public struct AppFeature {
                 state.cuttle.jobs = Array(state.jobs)
                 if case .job(let cuttleJobId) = state.cuttle.currentContext, cuttleJobId == id {
                     state.cuttle.currentContext = .global
-                    state.cuttle.chatMessages = state.cuttle.globalChatHistory
+                    state.cuttle.chatMessages = state.cuttle.globalThreadStore.activeThread?.messages ?? []
                     state.cuttle.tokenUsage = .zero
                     state.cuttle.error = nil
                     state.cuttle.acpSentSystemPrompt = false
@@ -347,7 +347,7 @@ public struct AppFeature {
                 state.cuttle.jobs = Array(state.jobs)
                 if case .job(let cuttleJobId) = state.cuttle.currentContext, cuttleJobId == id {
                     state.cuttle.currentContext = .global
-                    state.cuttle.chatMessages = state.cuttle.globalChatHistory
+                    state.cuttle.chatMessages = state.cuttle.globalThreadStore.activeThread?.messages ?? []
                     state.cuttle.tokenUsage = .zero
                     state.cuttle.error = nil
                     state.cuttle.acpSentSystemPrompt = false
@@ -371,8 +371,8 @@ public struct AppFeature {
 
             // MARK: - Cuttle
 
-            case .cuttle(.delegate(.jobChatUpdated(let jobId, let messages))):
-                state.jobs[id: jobId]?.chatHistory = messages
+            case .cuttle(.delegate(.jobThreadsUpdated(let jobId, let threadStore))):
+                state.jobs[id: jobId]?.chatThreadStore = threadStore
                 state.cuttle.jobs = Array(state.jobs)
                 return .merge(
                     saveJobs(state.jobs),
@@ -412,7 +412,12 @@ public struct AppFeature {
             case .cuttle(.aiResponseReceived),
                  .cuttle(.clearChat),
                  .cuttle(.contextTransitionConfirmed),
-                 .cuttle(.switchContext):
+                 .cuttle(.switchContext),
+                 .cuttle(.createThread),
+                 .cuttle(.createThreadForDocument),
+                 .cuttle(.deleteThread),
+                 .cuttle(.selectThread),
+                 .cuttle(.renameThread):
                 return .send(.saveCuttleState)
 
             case .cuttle:
@@ -420,8 +425,8 @@ public struct AppFeature {
 
             case .saveCuttleState:
                 state.settings.cuttleContext = state.cuttle.currentContext
-                state.settings.globalChatHistory = state.cuttle.globalChatHistory
-                state.settings.statusChatHistories = state.cuttle.statusChatHistories
+                state.settings.globalThreadStore = state.cuttle.globalThreadStore
+                state.settings.statusThreadStores = state.cuttle.statusThreadStores
                 return saveSettings(state.settings)
 
             // MARK: - History
@@ -654,13 +659,14 @@ public struct AppFeature {
                     source: .user,
                     command: .addDocument(jobId: jobId, documentId: doc.id)
                 )
-                // Switch Cuttle context to the target job, expand chat, then process with AI
+                // Switch Cuttle context to the target job, create a thread for the document, then process with AI
                 state.cuttle.isExpanded = true
                 let historyEffect = recordEvent(event, state: &state)
                 return .merge(
                     saveJobs(state.jobs),
                     historyEffect,
                     .send(.cuttle(.switchContext(.job(jobId)))),
+                    .send(.cuttle(.createThreadForDocument(doc.filename))),
                     .send(.processDocumentWithAI(jobId: jobId, documentId: doc.id))
                 )
 

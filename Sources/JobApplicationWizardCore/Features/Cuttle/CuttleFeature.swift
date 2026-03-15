@@ -26,6 +26,9 @@ public struct CuttleFeature {
         // Expansion
         public var isExpanded: Bool = false
 
+        // Thread drawer
+        public var isDrawerOpen: Bool = false
+
         // Chat state
         public var chatInput: String = ""
         public var chatMessages: [ChatMessage] = []
@@ -45,9 +48,9 @@ public struct CuttleFeature {
         public var userProfile: UserProfile = UserProfile()
         public var jobs: [JobApplication] = []
 
-        // Persisted chat histories (global and per-status)
-        public var globalChatHistory: [ChatMessage] = []
-        public var statusChatHistories: [String: [ChatMessage]] = [:]
+        // Persisted thread stores (global and per-status)
+        public var globalThreadStore: CuttleThreadStore = CuttleThreadStore()
+        public var statusThreadStores: [String: CuttleThreadStore] = [:]
 
         // ACP connection (shared)
         @SharedReader(.inMemory("acpConnection")) public var acpConnection = ACPConnectionState()
@@ -71,25 +74,33 @@ public struct CuttleFeature {
         // Expand/collapse
         case toggleExpanded
         case collapse
+        // Thread drawer
+        case toggleDrawer
         // Context transition
         case contextTransitionConfirmed(carry: Bool)
         case cancelContextTransition
         case switchContext(CuttleContext)
+        // Thread management
+        case selectThread(UUID)
+        case createThread
+        case createThreadForDocument(String)
+        case renameThread(UUID, String)
+        case deleteThread(UUID)
         // Chat
         case sendMessage(String)
         case aiResponseReceived(Result<(String, AITokenUsage, AgentActionBlock?), Error>)
         case clearChat
         case applySuggestion(String)
         // Lifecycle
-        case restoreFromSettings(CuttleContext, [ChatMessage], [String: [ChatMessage]])
+        case restoreFromSettings(CuttleContext, CuttleThreadStore, [String: CuttleThreadStore])
         case positionAtDropZone
         // Delegate (parent actions)
         case delegate(Delegate)
 
         @CasePathable
         public enum Delegate: Equatable {
-            /// Job-context chat was updated; parent should persist to the job model.
-            case jobChatUpdated(UUID, [ChatMessage])
+            /// Job-context threads were updated; parent should persist to the job model.
+            case jobThreadsUpdated(UUID, CuttleThreadStore)
             /// Cuttle docked on a job; parent should select it in the detail pane.
             case contextChanged(CuttleContext)
             /// Agent proposed actions to apply to a job.
@@ -196,7 +207,119 @@ public struct CuttleFeature {
 
             case .collapse:
                 state.isExpanded = false
+                state.isDrawerOpen = false
                 return .none
+
+            // MARK: - Thread Drawer
+
+            case .toggleDrawer:
+                state.isDrawerOpen.toggle()
+                return .none
+
+            // MARK: - Thread Management
+
+            case .selectThread(let threadId):
+                saveActiveThread(state: &state)
+                switch state.currentContext {
+                case .global:
+                    state.globalThreadStore.activeThreadId = threadId
+                case .status(let status):
+                    state.statusThreadStores[status.rawValue, default: CuttleThreadStore()].activeThreadId = threadId
+                case .job(let id):
+                    if let idx = state.jobs.firstIndex(where: { $0.id == id }) {
+                        state.jobs[idx].chatThreadStore.activeThreadId = threadId
+                    }
+                }
+                loadChatHistory(state: &state)
+                return notifyJobThreadsIfNeeded(state: state)
+
+            case .createThread:
+                saveActiveThread(state: &state)
+                let thread = CuttleThread()
+                switch state.currentContext {
+                case .global:
+                    state.globalThreadStore.threads.append(thread)
+                    state.globalThreadStore.activeThreadId = thread.id
+                case .status(let status):
+                    state.statusThreadStores[status.rawValue, default: CuttleThreadStore()].threads.append(thread)
+                    state.statusThreadStores[status.rawValue]?.activeThreadId = thread.id
+                case .job(let id):
+                    if let idx = state.jobs.firstIndex(where: { $0.id == id }) {
+                        state.jobs[idx].chatThreadStore.threads.append(thread)
+                        state.jobs[idx].chatThreadStore.activeThreadId = thread.id
+                    }
+                }
+                state.chatMessages = []
+                state.chatInput = ""
+                state.error = nil
+                state.tokenUsage = .zero
+                state.acpSentSystemPrompt = false
+                return notifyJobThreadsIfNeeded(state: state)
+
+            case .createThreadForDocument(let filename):
+                saveActiveThread(state: &state)
+                let thread = CuttleThread(name: filename)
+                switch state.currentContext {
+                case .global:
+                    state.globalThreadStore.threads.append(thread)
+                    state.globalThreadStore.activeThreadId = thread.id
+                case .status(let status):
+                    state.statusThreadStores[status.rawValue, default: CuttleThreadStore()].threads.append(thread)
+                    state.statusThreadStores[status.rawValue]?.activeThreadId = thread.id
+                case .job(let id):
+                    if let idx = state.jobs.firstIndex(where: { $0.id == id }) {
+                        state.jobs[idx].chatThreadStore.threads.append(thread)
+                        state.jobs[idx].chatThreadStore.activeThreadId = thread.id
+                    }
+                }
+                state.chatMessages = []
+                state.chatInput = ""
+                state.error = nil
+                state.tokenUsage = .zero
+                state.acpSentSystemPrompt = false
+                return notifyJobThreadsIfNeeded(state: state)
+
+            case .renameThread(let threadId, let name):
+                switch state.currentContext {
+                case .global:
+                    if let idx = state.globalThreadStore.threads.firstIndex(where: { $0.id == threadId }) {
+                        state.globalThreadStore.threads[idx].name = name
+                    }
+                case .status(let status):
+                    if let idx = state.statusThreadStores[status.rawValue]?.threads.firstIndex(where: { $0.id == threadId }) {
+                        state.statusThreadStores[status.rawValue]?.threads[idx].name = name
+                    }
+                case .job(let id):
+                    if let jobIdx = state.jobs.firstIndex(where: { $0.id == id }),
+                       let idx = state.jobs[jobIdx].chatThreadStore.threads.firstIndex(where: { $0.id == threadId }) {
+                        state.jobs[jobIdx].chatThreadStore.threads[idx].name = name
+                    }
+                }
+                return .none
+
+            case .deleteThread(let threadId):
+                switch state.currentContext {
+                case .global:
+                    state.globalThreadStore.threads.removeAll { $0.id == threadId }
+                    if state.globalThreadStore.activeThreadId == threadId {
+                        state.globalThreadStore.activeThreadId = state.globalThreadStore.threads.first?.id
+                    }
+                case .status(let status):
+                    state.statusThreadStores[status.rawValue]?.threads.removeAll { $0.id == threadId }
+                    if state.statusThreadStores[status.rawValue]?.activeThreadId == threadId {
+                        let firstId = state.statusThreadStores[status.rawValue]?.threads.first?.id
+                        state.statusThreadStores[status.rawValue]?.activeThreadId = firstId
+                    }
+                case .job(let id):
+                    if let idx = state.jobs.firstIndex(where: { $0.id == id }) {
+                        state.jobs[idx].chatThreadStore.threads.removeAll { $0.id == threadId }
+                        if state.jobs[idx].chatThreadStore.activeThreadId == threadId {
+                            state.jobs[idx].chatThreadStore.activeThreadId = state.jobs[idx].chatThreadStore.threads.first?.id
+                        }
+                    }
+                }
+                loadChatHistory(state: &state)
+                return notifyJobThreadsIfNeeded(state: state)
 
             // MARK: - Context Transition
 
@@ -294,8 +417,28 @@ public struct CuttleFeature {
             case .aiResponseReceived(.success(let (text, usage, actionBlock))):
                 state.isLoading = false
                 state.mood = .idle
+                var cleanText = text
+                var renameEffect: Effect<Action> = .none
+
+                // Parse thread name from first AI response
                 if !text.isEmpty {
-                    state.chatMessages.append(ChatMessage(role: .assistant, content: text))
+                    let threadStore = currentThreadStore(state: &state)
+                    let activeThread = threadStore.activeThread
+                    let isFirstResponse = activeThread?.name == nil
+                        && (activeThread?.messages.allSatisfy { $0.role == .user } ?? true)
+
+                    if isFirstResponse, let range = text.range(of: #"\[THREAD_NAME:\s*(.+?)\]"#, options: .regularExpression) {
+                        let match = text[range]
+                        if let nameRange = match.range(of: #"(?<=THREAD_NAME:\s).*?(?=\])"#, options: .regularExpression) {
+                            let name = String(match[nameRange]).trimmingCharacters(in: .whitespaces)
+                            if let threadId = activeThread?.id, !name.isEmpty {
+                                renameEffect = .send(.renameThread(threadId, name))
+                            }
+                        }
+                        cleanText = text.replacingCharacters(in: range, with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+
+                    state.chatMessages.append(ChatMessage(role: .assistant, content: cleanText))
                 }
                 state.tokenUsage = AITokenUsage(
                     inputTokens: state.tokenUsage.inputTokens + usage.inputTokens,
@@ -308,10 +451,11 @@ public struct CuttleFeature {
                    case .job = state.currentContext {
                     return .merge(
                         saveEffect,
+                        renameEffect,
                         .send(.delegate(.agentActionsReceived(block.actions, block.summary)))
                     )
                 }
-                return saveEffect
+                return .merge(saveEffect, renameEffect)
 
             case .aiResponseReceived(.failure(let error)):
                 state.isLoading = false
@@ -326,7 +470,9 @@ public struct CuttleFeature {
                 state.error = nil
                 state.tokenUsage = .zero
                 state.acpSentSystemPrompt = false
-                return saveChatHistory(state: &state)
+                // Remove the now-empty active thread to avoid ghost threads
+                removeActiveThread(state: &state)
+                return notifyJobThreadsIfNeeded(state: state)
 
             case .applySuggestion(let prompt):
                 state.chatInput = prompt
@@ -334,10 +480,10 @@ public struct CuttleFeature {
 
             // MARK: - Lifecycle
 
-            case .restoreFromSettings(let context, let globalHistory, let statusHistories):
+            case .restoreFromSettings(let context, let globalStore, let statusStores):
                 state.currentContext = context
-                state.globalChatHistory = globalHistory
-                state.statusChatHistories = statusHistories
+                state.globalThreadStore = globalStore
+                state.statusThreadStores = statusStores
                 loadChatHistory(state: &state)
                 return .none
 
@@ -402,33 +548,115 @@ public struct CuttleFeature {
         }
     }
 
-    /// Saves chat messages to the appropriate history store, with pruning.
-    /// Returns a delegate effect for job-context so AppFeature can persist to the job model.
-    private func saveChatHistory(state: inout State) -> Effect<Action> {
+    /// Returns the current context's thread store (read-only reference for inspection).
+    private func currentThreadStore(state: inout State) -> CuttleThreadStore {
+        switch state.currentContext {
+        case .global:
+            return state.globalThreadStore
+        case .status(let status):
+            return state.statusThreadStores[status.rawValue] ?? CuttleThreadStore()
+        case .job(let id):
+            return state.jobs.first(where: { $0.id == id })?.chatThreadStore ?? CuttleThreadStore()
+        }
+    }
+
+    /// Saves chat messages to the active thread in the appropriate store, with pruning.
+    /// State-only; does not emit effects. Call `notifyJobThreadsIfNeeded` afterward
+    /// to send the delegate with the final store snapshot.
+    private func saveActiveThread(state: inout State) {
         let pruned = Array(state.chatMessages.suffix(Self.maxHistoryMessages))
 
         switch state.currentContext {
         case .global:
-            state.globalChatHistory = pruned
-            return .none
+            if let idx = state.globalThreadStore.activeThreadIndex {
+                state.globalThreadStore.threads[idx].messages = pruned
+                state.globalThreadStore.threads[idx].updatedAt = Date()
+            } else if !pruned.isEmpty {
+                let thread = CuttleThread(messages: pruned)
+                state.globalThreadStore.threads.append(thread)
+                state.globalThreadStore.activeThreadId = thread.id
+            }
         case .status(let status):
-            state.statusChatHistories[status.rawValue] = pruned
-            return .none
+            var store = state.statusThreadStores[status.rawValue] ?? CuttleThreadStore()
+            if let idx = store.activeThreadIndex {
+                store.threads[idx].messages = pruned
+                store.threads[idx].updatedAt = Date()
+            } else if !pruned.isEmpty {
+                let thread = CuttleThread(messages: pruned)
+                store.threads.append(thread)
+                store.activeThreadId = thread.id
+            }
+            state.statusThreadStores[status.rawValue] = store
         case .job(let id):
-            // Notify AppFeature to write chat back to the job model
-            return .send(.delegate(.jobChatUpdated(id, pruned)))
+            if let jobIdx = state.jobs.firstIndex(where: { $0.id == id }) {
+                var store = state.jobs[jobIdx].chatThreadStore
+                if let idx = store.activeThreadIndex {
+                    store.threads[idx].messages = pruned
+                    store.threads[idx].updatedAt = Date()
+                } else if !pruned.isEmpty {
+                    let thread = CuttleThread(messages: pruned)
+                    store.threads.append(thread)
+                    store.activeThreadId = thread.id
+                }
+                state.jobs[jobIdx].chatThreadStore = store
+            }
         }
+    }
+
+    /// Emits a delegate effect for job-context so AppFeature can persist the current
+    /// thread store. Always call this AFTER all state mutations are complete.
+    private func notifyJobThreadsIfNeeded(state: State) -> Effect<Action> {
+        if case .job(let id) = state.currentContext,
+           let job = state.jobs.first(where: { $0.id == id }) {
+            return .send(.delegate(.jobThreadsUpdated(id, job.chatThreadStore)))
+        }
+        return .none
+    }
+
+    /// Removes the active thread from the current context's store.
+    private func removeActiveThread(state: inout State) {
+        switch state.currentContext {
+        case .global:
+            if let id = state.globalThreadStore.activeThreadId ?? state.globalThreadStore.threads.first?.id {
+                state.globalThreadStore.threads.removeAll { $0.id == id }
+                state.globalThreadStore.activeThreadId = state.globalThreadStore.threads.first?.id
+            }
+        case .status(let status):
+            if var store = state.statusThreadStores[status.rawValue] {
+                if let id = store.activeThreadId ?? store.threads.first?.id {
+                    store.threads.removeAll { $0.id == id }
+                    store.activeThreadId = store.threads.first?.id
+                }
+                state.statusThreadStores[status.rawValue] = store
+            }
+        case .job(let id):
+            if let jobIdx = state.jobs.firstIndex(where: { $0.id == id }) {
+                var store = state.jobs[jobIdx].chatThreadStore
+                if let threadId = store.activeThreadId ?? store.threads.first?.id {
+                    store.threads.removeAll { $0.id == threadId }
+                    store.activeThreadId = store.threads.first?.id
+                }
+                state.jobs[jobIdx].chatThreadStore = store
+            }
+        }
+    }
+
+    /// Convenience: saves the active thread and emits the job delegate in one call.
+    /// Safe when no further state mutations follow.
+    private func saveChatHistory(state: inout State) -> Effect<Action> {
+        saveActiveThread(state: &state)
+        return notifyJobThreadsIfNeeded(state: state)
     }
 
     private func loadChatHistory(state: inout State) {
         switch state.currentContext {
         case .global:
-            state.chatMessages = state.globalChatHistory
+            state.chatMessages = state.globalThreadStore.activeThread?.messages ?? []
         case .status(let status):
-            state.chatMessages = state.statusChatHistories[status.rawValue] ?? []
+            state.chatMessages = state.statusThreadStores[status.rawValue]?.activeThread?.messages ?? []
         case .job(let id):
             if let job = state.jobs.first(where: { $0.id == id }) {
-                state.chatMessages = job.chatHistory
+                state.chatMessages = job.chatThreadStore.activeThread?.messages ?? []
             } else {
                 state.chatMessages = []
             }

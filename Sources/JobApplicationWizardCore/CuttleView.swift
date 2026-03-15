@@ -189,14 +189,37 @@ public struct CuttleView: View {
 
     // MARK: - Expanded Chat View
 
+    /// Returns the thread store for the current context.
+    private var currentThreadStore: CuttleThreadStore {
+        switch store.currentContext {
+        case .global:
+            return store.globalThreadStore
+        case .status(let status):
+            return store.statusThreadStores[status.rawValue] ?? CuttleThreadStore()
+        case .job(let id):
+            return store.jobs.first(where: { $0.id == id })?.chatThreadStore ?? CuttleThreadStore()
+        }
+    }
+
+    /// Threads for the active context only, newest first by creation time.
+    private var currentThreads: [CuttleThread] {
+        let threadStore = currentThreadStore
+        var threads = threadStore.threads
+        if let activeIdx = threadStore.activeThreadIndex, !store.chatMessages.isEmpty {
+            threads[activeIdx].messages = store.chatMessages
+        }
+        return threads.sorted { $0.createdAt > $1.createdAt }
+    }
+
     private var expandedView: some View {
-        VStack(spacing: 0) {
-            // Header with provider info
-            headerBar
+        ZStack(alignment: .leading) {
+            VStack(spacing: 0) {
+                // Header with provider info
+                headerBar
 
-            Divider()
+                Divider()
 
-            if store.acpConnection.isConnecting {
+                if store.acpConnection.isConnecting {
                 VStack(spacing: 12) {
                     Spacer()
                     ProgressView().controlSize(.regular)
@@ -259,6 +282,21 @@ public struct CuttleView: View {
                 )
             }
         }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if store.isDrawerOpen {
+                    store.send(.toggleDrawer)
+                }
+            }
+
+            // Thread drawer overlay
+            if store.isDrawerOpen {
+                threadDrawer
+                    .onTapGesture { } // absorb taps so they don't close the drawer
+                    .transition(.move(edge: .leading))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: store.isDrawerOpen)
         .frame(width: chatSize.width, height: chatSize.height)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -303,10 +341,123 @@ public struct CuttleView: View {
             .padding(6)
     }
 
+    // MARK: - Thread Drawer
+
+    private var threadDrawer: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Threads")
+                    .font(.caption).fontWeight(.semibold)
+                Spacer()
+                Button {
+                    store.send(.createThread)
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("New Thread")
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+
+            Divider()
+
+            ScrollView {
+                VStack(spacing: 2) {
+                    ForEach(currentThreads) { thread in
+                        threadRow(thread: thread)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .frame(width: 220)
+        .frame(maxHeight: .infinity)
+        .background(.ultraThinMaterial)
+        .contentShape(Rectangle())
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+        )
+        .padding(4)
+    }
+
+    private func threadRow(thread: CuttleThread) -> some View {
+        let activeId = currentThreadStore.activeThreadId ?? currentThreadStore.threads.first?.id
+        let isActive = thread.id == activeId
+        return Button {
+            store.send(.selectThread(thread.id))
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "bubble.left")
+                    .font(.system(size: 12))
+                    .foregroundColor(isActive ? .white : .secondary)
+                    .frame(width: 16)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(thread.displayName)
+                        .font(.caption).fontWeight(.medium)
+                        .foregroundColor(isActive ? .white : .primary)
+                        .lineLimit(1)
+
+                    if let lastMessage = thread.messages.last {
+                        Text(lastMessage.content)
+                            .font(.caption2)
+                            .foregroundColor(isActive ? .white.opacity(0.8) : .secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+
+                if !thread.messages.isEmpty {
+                    Text("\(thread.messages.count)")
+                        .font(.caption2).fontWeight(.medium)
+                        .foregroundColor(isActive ? .white.opacity(0.8) : .secondary)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(isActive ? Color.white.opacity(0.2) : Color.secondary.opacity(0.1))
+                        )
+                }
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isActive ? Color.accentColor : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button(role: .destructive) {
+                store.send(.deleteThread(thread.id))
+            } label: {
+                Label("Delete Thread", systemImage: "trash")
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
     // MARK: - Header Bar
 
     private var headerBar: some View {
         HStack(spacing: 6) {
+            Button {
+                store.send(.toggleDrawer)
+            } label: {
+                Image(systemName: "list.bullet")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Thread drawer")
+
             Text(store.currentContext.displayLabel(jobs: store.jobs))
                 .font(.caption).fontWeight(.semibold)
                 .lineLimit(1)

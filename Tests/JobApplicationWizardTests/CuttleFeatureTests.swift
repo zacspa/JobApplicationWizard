@@ -16,6 +16,12 @@ final class CuttleFeatureTests: XCTestCase {
         company: "Beta", title: "Manager", status: .rejected
     )
 
+    /// Helper to build a thread store with one thread containing the given messages.
+    private static func storeWith(_ messages: [ChatMessage], name: String? = nil) -> CuttleThreadStore {
+        let thread = CuttleThread(name: name, messages: messages)
+        return CuttleThreadStore(threads: [thread], activeThreadId: thread.id)
+    }
+
     // MARK: - Toggle Expanded / Collapse
 
     func testToggleExpanded() async {
@@ -63,14 +69,12 @@ final class CuttleFeatureTests: XCTestCase {
     func testDragChangedPrefersSpecificDropZone() async {
         let jobId = Self.jobA.id
         var state = CuttleFeature.State()
-        // Overlapping zones: a status zone and a job zone inside it
         state.dropZones = [
             DropZone(id: "status-Interview", frame: CGRect(x: 0, y: 0, width: 300, height: 200), context: .status(.interview)),
             DropZone(id: "job-A", frame: CGRect(x: 50, y: 50, width: 100, height: 60), context: .job(jobId)),
         ]
         let store = TestStore(initialState: state) { CuttleFeature() }
 
-        // Drag into the overlapping area; job should win over status
         await store.send(.dragChanged(CGPoint(x: 80, y: 70))) {
             $0.isDragging = true
             $0.mood = .listening
@@ -156,7 +160,7 @@ final class CuttleFeatureTests: XCTestCase {
         await store.send(.dragEnded(CGPoint(x: 900, y: 700))) {
             $0.isDragging = false
             $0.mood = .idle
-            $0.position = CGPoint(x: 776, y: 576)  // clamped: 800 - 24, 600 - 24
+            $0.position = CGPoint(x: 776, y: 576)
         }
     }
 
@@ -178,28 +182,29 @@ final class CuttleFeatureTests: XCTestCase {
         XCTAssertFalse(store.state.showContextTransitionAlert)
         XCTAssertNil(store.state.alertPendingContext)
         XCTAssertFalse(store.state.isLoading)
-        // Messages carried over
         XCTAssertEqual(store.state.chatMessages.count, 1)
         XCTAssertEqual(store.state.chatMessages[0].content, "Hello")
     }
 
     func testContextTransitionFreshLoadsNewHistory() async {
+        let interviewMsg = ChatMessage(role: .user, content: "Prev interview chat")
+        let interviewStore = Self.storeWith([interviewMsg])
+
         var state = CuttleFeature.State()
         state.alertPendingContext = .status(.interview)
         state.showContextTransitionAlert = true
         state.currentContext = .global
         state.chatMessages = [ChatMessage(role: .user, content: "Old message")]
-        state.globalChatHistory = []
-        state.statusChatHistories = ["Interview": [ChatMessage(role: .user, content: "Prev interview chat")]]
+        state.globalThreadStore = CuttleThreadStore()
+        state.statusThreadStores = ["Interview": interviewStore]
         let store = TestStore(initialState: state) { CuttleFeature() }
         store.exhaustivity = .off
 
         await store.send(.contextTransitionConfirmed(carry: false))
 
         XCTAssertEqual(store.state.currentContext, .status(.interview))
-        // Old message was saved to global, new history loaded
-        XCTAssertEqual(store.state.globalChatHistory.count, 1)
-        XCTAssertEqual(store.state.globalChatHistory[0].content, "Old message")
+        XCTAssertEqual(store.state.globalThreadStore.activeThread?.messages.count, 1)
+        XCTAssertEqual(store.state.globalThreadStore.activeThread?.messages.first?.content, "Old message")
         XCTAssertEqual(store.state.chatMessages.count, 1)
         XCTAssertEqual(store.state.chatMessages[0].content, "Prev interview chat")
     }
@@ -218,26 +223,27 @@ final class CuttleFeatureTests: XCTestCase {
             $0.showContextTransitionAlert = false
             $0.alertPendingContext = nil
             $0.mood = .idle
-            $0.position = CGPoint(x: 100, y: 70)  // snapped to global zone center
+            $0.position = CGPoint(x: 100, y: 70)
         }
     }
 
     // MARK: - Switch Context (silent)
 
     func testSwitchContextSavesAndLoadsHistory() async {
+        let interviewMsg = ChatMessage(role: .assistant, content: "Interview msg")
+        let interviewStore = Self.storeWith([interviewMsg])
+
         var state = CuttleFeature.State()
         state.currentContext = .global
         state.chatMessages = [ChatMessage(role: .user, content: "Global msg")]
-        state.statusChatHistories = ["Interview": [ChatMessage(role: .assistant, content: "Interview msg")]]
+        state.statusThreadStores = ["Interview": interviewStore]
         let store = TestStore(initialState: state) { CuttleFeature() }
         store.exhaustivity = .off
 
         await store.send(.switchContext(.status(.interview)))
 
-        // Old messages saved to global
-        XCTAssertEqual(store.state.globalChatHistory.count, 1)
-        XCTAssertEqual(store.state.globalChatHistory[0].content, "Global msg")
-        // New messages loaded from interview
+        XCTAssertEqual(store.state.globalThreadStore.activeThread?.messages.count, 1)
+        XCTAssertEqual(store.state.globalThreadStore.activeThread?.messages.first?.content, "Global msg")
         XCTAssertEqual(store.state.chatMessages.count, 1)
         XCTAssertEqual(store.state.chatMessages[0].content, "Interview msg")
         XCTAssertEqual(store.state.currentContext, .status(.interview))
@@ -323,8 +329,7 @@ final class CuttleFeatureTests: XCTestCase {
 
         XCTAssertFalse(store.state.isLoading)
         XCTAssertNotNil(store.state.error)
-        // User message preserved in global history (via saveChatHistory on failure)
-        XCTAssertEqual(store.state.globalChatHistory.count, 1)
+        XCTAssertEqual(store.state.globalThreadStore.activeThread?.messages.count, 1)
     }
 
     // MARK: - AI Response with Job Context (delegate)
@@ -346,8 +351,7 @@ final class CuttleFeatureTests: XCTestCase {
 
         await store.send(.sendMessage("Analyze my fit"))
         await store.receive(\.aiResponseReceived)
-        // Should receive a delegate to persist job chat
-        await store.receive(\.delegate.jobChatUpdated)
+        await store.receive(\.delegate.jobThreadsUpdated)
 
         XCTAssertEqual(store.state.chatMessages.count, 2)
     }
@@ -363,15 +367,15 @@ final class CuttleFeatureTests: XCTestCase {
         state.tokenUsage = AITokenUsage(inputTokens: 100, outputTokens: 200)
         state.acpSentSystemPrompt = true
         let store = TestStore(initialState: state) { CuttleFeature() }
+        store.exhaustivity = .off
 
-        await store.send(.clearChat) {
-            $0.chatMessages = []
-            $0.chatInput = ""
-            $0.error = nil
-            $0.tokenUsage = .zero
-            $0.acpSentSystemPrompt = false
-            $0.globalChatHistory = []
-        }
+        await store.send(.clearChat)
+
+        XCTAssertEqual(store.state.chatMessages, [])
+        XCTAssertEqual(store.state.chatInput, "")
+        XCTAssertNil(store.state.error)
+        XCTAssertEqual(store.state.tokenUsage, .zero)
+        XCTAssertFalse(store.state.acpSentSystemPrompt)
     }
 
     // MARK: - Apply Suggestion
@@ -389,7 +393,6 @@ final class CuttleFeatureTests: XCTestCase {
         store.exhaustivity = .off
 
         await store.send(.applySuggestion("Analyze my fit"))
-        // applySuggestion dispatches sendMessage, which we need to receive
         await store.receive(\.sendMessage)
         await store.receive(\.aiResponseReceived)
 
@@ -401,14 +404,14 @@ final class CuttleFeatureTests: XCTestCase {
 
     func testRestoreFromSettings() async {
         let interviewMsg = ChatMessage(role: .assistant, content: "Interview chat")
-        let globalHistory = [ChatMessage(role: .user, content: "Saved")]
-        let statusHistories = ["Interview": [interviewMsg]]
+        let globalStore = Self.storeWith([ChatMessage(role: .user, content: "Saved")])
+        let statusStores = ["Interview": Self.storeWith([interviewMsg])]
         let store = TestStore(initialState: CuttleFeature.State()) { CuttleFeature() }
 
-        await store.send(.restoreFromSettings(.status(.interview), globalHistory, statusHistories)) {
+        await store.send(.restoreFromSettings(.status(.interview), globalStore, statusStores)) {
             $0.currentContext = .status(.interview)
-            $0.globalChatHistory = globalHistory
-            $0.statusChatHistories = statusHistories
+            $0.globalThreadStore = globalStore
+            $0.statusThreadStores = statusStores
             $0.chatMessages = [interviewMsg]
             $0.tokenUsage = .zero
             $0.error = nil
@@ -416,13 +419,14 @@ final class CuttleFeatureTests: XCTestCase {
     }
 
     func testRestoreGlobalContext() async {
-        let globalHistory = [ChatMessage(role: .user, content: "Global msg")]
+        let globalMsg = ChatMessage(role: .user, content: "Global msg")
+        let globalStore = Self.storeWith([globalMsg])
         let store = TestStore(initialState: CuttleFeature.State()) { CuttleFeature() }
 
-        await store.send(.restoreFromSettings(.global, globalHistory, [:])) {
+        await store.send(.restoreFromSettings(.global, globalStore, [:])) {
             $0.currentContext = .global
-            $0.globalChatHistory = globalHistory
-            $0.chatMessages = globalHistory
+            $0.globalThreadStore = globalStore
+            $0.chatMessages = [globalMsg]
             $0.tokenUsage = .zero
             $0.error = nil
         }
@@ -439,7 +443,7 @@ final class CuttleFeatureTests: XCTestCase {
         let store = TestStore(initialState: state) { CuttleFeature() }
 
         await store.send(.positionAtDropZone) {
-            $0.position = CGPoint(x: 140, y: 65)  // center of the drop zone
+            $0.position = CGPoint(x: 140, y: 65)
         }
     }
 
@@ -453,7 +457,6 @@ final class CuttleFeatureTests: XCTestCase {
 
         await store.send(.dropZonesUpdated(zones)) {
             $0.dropZones = zones
-            // Snaps to the docked zone (global) center
             $0.position = CGPoint(x: 50, y: 20)
         }
     }
@@ -473,29 +476,6 @@ final class CuttleFeatureTests: XCTestCase {
 
     // MARK: - Chat History Pruning
 
-    func testSaveChatHistoryPrunesAt100Messages() async {
-        var state = CuttleFeature.State()
-        state.currentContext = .global
-        // Create 110 messages
-        state.chatMessages = (0..<110).map { i in
-            ChatMessage(role: .user, content: "Message \(i)")
-        }
-        let store = TestStore(initialState: state) { CuttleFeature() }
-
-        await store.send(.clearChat) {
-            $0.chatMessages = []
-            $0.chatInput = ""
-            $0.error = nil
-            $0.tokenUsage = .zero
-            $0.acpSentSystemPrompt = false
-            $0.globalChatHistory = []
-        }
-
-        // Verify pruning works by sending messages and checking saved history
-        // The clearChat above saves [] to globalChatHistory (pruned from 0).
-        // For a more direct test, let's switch context after filling messages.
-    }
-
     func testSavePrunesOnContextSwitch() async {
         var state = CuttleFeature.State()
         state.currentContext = .global
@@ -507,10 +487,193 @@ final class CuttleFeatureTests: XCTestCase {
 
         await store.send(.switchContext(.status(.interview)))
 
-        // Global history should be pruned to last 100
-        XCTAssertEqual(store.state.globalChatHistory.count, 100)
-        XCTAssertEqual(store.state.globalChatHistory.first?.content, "Message 10")
-        XCTAssertEqual(store.state.globalChatHistory.last?.content, "Message 109")
+        let globalMessages = store.state.globalThreadStore.activeThread?.messages ?? []
+        XCTAssertEqual(globalMessages.count, 100)
+        XCTAssertEqual(globalMessages.first?.content, "Message 10")
+        XCTAssertEqual(globalMessages.last?.content, "Message 109")
+    }
+
+    // MARK: - Thread Drawer
+
+    func testToggleDrawer() async {
+        let store = TestStore(initialState: CuttleFeature.State()) { CuttleFeature() }
+
+        await store.send(.toggleDrawer) { $0.isDrawerOpen = true }
+        await store.send(.toggleDrawer) { $0.isDrawerOpen = false }
+    }
+
+    func testSelectThreadLoadsCorrectMessages() async {
+        let thread1 = CuttleThread(name: "Thread 1", messages: [ChatMessage(role: .user, content: "First")])
+        let thread2 = CuttleThread(name: "Thread 2", messages: [ChatMessage(role: .user, content: "Second")])
+        let threadStore = CuttleThreadStore(threads: [thread1, thread2], activeThreadId: thread1.id)
+
+        var state = CuttleFeature.State()
+        state.currentContext = .global
+        state.globalThreadStore = threadStore
+        state.chatMessages = thread1.messages
+        state.isDrawerOpen = true
+        let store = TestStore(initialState: state) { CuttleFeature() }
+        store.exhaustivity = .off
+
+        await store.send(.selectThread(thread2.id))
+
+        XCTAssertEqual(store.state.globalThreadStore.activeThreadId, thread2.id)
+        XCTAssertEqual(store.state.chatMessages.count, 1)
+        XCTAssertEqual(store.state.chatMessages[0].content, "Second")
+    }
+
+    // MARK: - Create Thread
+
+    func testCreateThreadAddsToStore() async {
+        var state = CuttleFeature.State()
+        state.currentContext = .global
+        state.chatMessages = [ChatMessage(role: .user, content: "existing")]
+        let store = TestStore(initialState: state) { CuttleFeature() }
+        store.exhaustivity = .off
+
+        await store.send(.createThread)
+
+        XCTAssertEqual(store.state.chatMessages, [])
+        XCTAssertGreaterThanOrEqual(store.state.globalThreadStore.threads.count, 1)
+        let hasOldMsg = store.state.globalThreadStore.threads.contains { $0.messages.contains { $0.content == "existing" } }
+        XCTAssertTrue(hasOldMsg)
+    }
+
+    func testCreateThreadForDocumentSetsName() async {
+        var state = CuttleFeature.State()
+        state.currentContext = .global
+        let store = TestStore(initialState: state) { CuttleFeature() }
+        store.exhaustivity = .off
+
+        await store.send(.createThreadForDocument("resume.pdf"))
+
+        let activeThread = store.state.globalThreadStore.activeThread
+        XCTAssertEqual(activeThread?.name, "resume.pdf")
+        XCTAssertEqual(store.state.chatMessages, [])
+    }
+
+    // MARK: - Rename Thread
+
+    func testRenameThread() async {
+        let thread = CuttleThread(name: nil, messages: [])
+        let threadStore = CuttleThreadStore(threads: [thread], activeThreadId: thread.id)
+
+        var state = CuttleFeature.State()
+        state.currentContext = .global
+        state.globalThreadStore = threadStore
+        let store = TestStore(initialState: state) { CuttleFeature() }
+
+        await store.send(.renameThread(thread.id, "New Name")) {
+            $0.globalThreadStore.threads[0].name = "New Name"
+        }
+    }
+
+    // MARK: - Delete Thread
+
+    func testDeleteThread() async {
+        let thread1 = CuttleThread(name: "Keep", messages: [ChatMessage(role: .user, content: "keep")])
+        let thread2 = CuttleThread(name: "Delete", messages: [ChatMessage(role: .user, content: "delete")])
+        let threadStore = CuttleThreadStore(threads: [thread1, thread2], activeThreadId: thread2.id)
+
+        var state = CuttleFeature.State()
+        state.currentContext = .global
+        state.globalThreadStore = threadStore
+        state.chatMessages = thread2.messages
+        let store = TestStore(initialState: state) { CuttleFeature() }
+        store.exhaustivity = .off
+
+        await store.send(.deleteThread(thread2.id))
+
+        XCTAssertEqual(store.state.globalThreadStore.threads.count, 1)
+        XCTAssertEqual(store.state.globalThreadStore.threads[0].name, "Keep")
+        XCTAssertEqual(store.state.chatMessages.count, 1)
+        XCTAssertEqual(store.state.chatMessages[0].content, "keep")
+    }
+
+    // MARK: - Thread Name Parsed from AI Response
+
+    func testThreadNameParsedFromAIResponse() async {
+        let thread = CuttleThread(messages: [])
+        let threadStore = CuttleThreadStore(threads: [thread], activeThreadId: thread.id)
+
+        var state = CuttleFeature.State()
+        state.currentContext = .global
+        state.globalThreadStore = threadStore
+        state.chatMessages = [ChatMessage(role: .user, content: "Hello")]
+        state.apiKey = "test-key"
+        let store = TestStore(initialState: state) {
+            CuttleFeature()
+        } withDependencies: {
+            $0.claudeClient.chat = { _, _, _, _ in
+                ("[THREAD_NAME: Career Strategy]\nHere's my advice...", AITokenUsage(inputTokens: 10, outputTokens: 20), nil)
+            }
+        }
+        store.exhaustivity = .off
+
+        await store.send(.sendMessage("Help me"))
+        await store.receive(\.aiResponseReceived)
+        await store.receive(\.renameThread)
+
+        XCTAssertEqual(store.state.globalThreadStore.threads[0].name, "Career Strategy")
+        let lastMsg = store.state.chatMessages.last
+        XCTAssertFalse(lastMsg?.content.contains("[THREAD_NAME:") ?? true)
+        XCTAssertTrue(lastMsg?.content.contains("Here's my advice") ?? false)
+    }
+
+    // MARK: - CuttleThreadStore Codable Round Trip
+
+    func testCuttleThreadStoreCodableRoundTrip() throws {
+        let msg = ChatMessage(role: .user, content: "Hello")
+        let thread = CuttleThread(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!, name: "Test", messages: [msg])
+        let store = CuttleThreadStore(threads: [thread], activeThreadId: thread.id)
+
+        let data = try JSONEncoder().encode(store)
+        let decoded = try JSONDecoder().decode(CuttleThreadStore.self, from: data)
+
+        XCTAssertEqual(decoded, store)
+        XCTAssertEqual(decoded.activeThread?.name, "Test")
+        XCTAssertEqual(decoded.activeThread?.messages.count, 1)
+    }
+
+    // MARK: - Migration from Flat History
+
+    func testMigrationFromFlatHistory() throws {
+        let json = """
+        {
+            "id": "00000000-0000-0000-0000-00000000000A",
+            "company": "Acme",
+            "title": "Dev",
+            "status": "Wishlist",
+            "dateAdded": 0,
+            "chatHistory": [
+                {"id": "00000000-0000-0000-0000-000000000001", "role": "user", "content": "Hello", "timestamp": 0}
+            ]
+        }
+        """
+        let data = json.data(using: .utf8)!
+        let job = try JSONDecoder().decode(JobApplication.self, from: data)
+
+        XCTAssertEqual(job.chatThreadStore.threads.count, 1)
+        XCTAssertEqual(job.chatThreadStore.activeThread?.messages.count, 1)
+        XCTAssertEqual(job.chatThreadStore.activeThread?.messages.first?.content, "Hello")
+        XCTAssertEqual(job.chatHistory.count, 1)
+    }
+
+    func testMigrationEmptyHistoryNoPhantomThreads() throws {
+        let json = """
+        {
+            "id": "00000000-0000-0000-0000-00000000000A",
+            "company": "Acme",
+            "title": "Dev",
+            "status": "Wishlist",
+            "dateAdded": 0
+        }
+        """
+        let data = json.data(using: .utf8)!
+        let job = try JSONDecoder().decode(JobApplication.self, from: data)
+
+        XCTAssertEqual(job.chatThreadStore.threads.count, 0)
+        XCTAssertNil(job.chatThreadStore.activeThread)
     }
 
     // MARK: - CuttleContext Properties
@@ -531,7 +694,6 @@ final class CuttleFeatureTests: XCTestCase {
         XCTAssertEqual(CuttleContext.status(.rejected).displayLabel(jobs: jobs), "Rejected (1)")
         XCTAssertEqual(CuttleContext.status(.wishlist).displayLabel(jobs: jobs), "Wishlist (0)")
         XCTAssertEqual(CuttleContext.job(job.id).displayLabel(jobs: jobs), "Alpha \u{2014} Engineer")
-        // Job not found falls back
         XCTAssertEqual(CuttleContext.job(UUID()).displayLabel(jobs: jobs), "Job")
     }
 
@@ -568,13 +730,12 @@ final class CuttleFeatureTests: XCTestCase {
         let prompt = CuttlePromptBuilder.buildPrompt(
             context: .job(bogusId), jobs: [job], profile: UserProfile(), chatHistory: []
         )
-        // Should fall back to global prompt
         XCTAssertTrue(prompt.contains("full job search dashboard"))
         XCTAssertTrue(prompt.contains("Alpha"))
     }
 
     func testStatusPromptForRejectedIncludesPatternHint() {
-        let job = Self.jobB  // status: .rejected
+        let job = Self.jobB
         let prompt = CuttlePromptBuilder.buildPrompt(
             context: .status(.rejected), jobs: [job], profile: UserProfile(), chatHistory: []
         )
@@ -615,8 +776,14 @@ final class CuttleFeatureTests: XCTestCase {
         let prompt = CuttlePromptBuilder.buildPrompt(
             context: .global, jobs: [], profile: UserProfile(), chatHistory: history
         )
-        // Should contain truncated version (300 chars + "...")
         XCTAssertTrue(prompt.contains("..."))
         XCTAssertFalse(prompt.contains(longMessage))
+    }
+
+    func testPromptIncludesThreadNamingInstruction() {
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .global, jobs: [], profile: UserProfile(), chatHistory: []
+        )
+        XCTAssertTrue(prompt.contains("[THREAD_NAME:"))
     }
 }
