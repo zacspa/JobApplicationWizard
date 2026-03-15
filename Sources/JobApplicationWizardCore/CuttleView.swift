@@ -157,6 +157,12 @@ public struct CuttleView: View {
         let w = chatSize.width
         let h = chatSize.height
 
+        // Space needed above the chat for the blob + label + gap
+        let blobOverhead = Self.collapsedSize / 2 + 4
+        // Minimum Y for the chat center so the blob stays below the title bar (52pt)
+        let topInset: CGFloat = 52
+        let minChatCenterY = topInset + blobOverhead + h / 2
+
         // Default: chat container below and to the right of the blob
         var x = blobPos.x + w / 2 - Self.collapsedSize / 2
         var y = blobPos.y + h / 2 + Self.collapsedSize
@@ -173,8 +179,9 @@ public struct CuttleView: View {
             // Show above the blob instead
             y = blobPos.y - h / 2 - Self.collapsedSize
         }
-        if y - h / 2 < margin {
-            y = margin + h / 2
+        // Ensure the blob above the chat doesn't go into the title bar
+        if y < minChatCenterY {
+            y = minChatCenterY
         }
 
         return CGPoint(x: x, y: y)

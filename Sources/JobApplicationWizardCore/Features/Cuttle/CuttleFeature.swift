@@ -109,7 +109,8 @@ public struct CuttleFeature {
             case .dragChanged(let location):
                 state.isDragging = true
                 state.mood = .listening
-                state.position = location
+                // Clamp Y to stay below the title bar drag area
+                state.position = CGPoint(x: location.x, y: max(location.y, Self.topInset))
 
                 // Check drop zone proximity using cursor position.
                 // Prefer more specific contexts (job > status > global) when zones overlap.
@@ -346,13 +347,16 @@ public struct CuttleFeature {
         }
     }
 
+    /// Minimum Y to keep Cuttle below the title bar / toolbar drag area.
+    private static let topInset: CGFloat = 52
+
     private func clampPosition(state: inout State) {
         let margin: CGFloat = 24
         if state.windowSize.width > 0 {
             state.position.x = max(margin, min(state.position.x, state.windowSize.width - margin))
         }
         if state.windowSize.height > 0 {
-            state.position.y = max(margin, min(state.position.y, state.windowSize.height - margin))
+            state.position.y = max(Self.topInset, min(state.position.y, state.windowSize.height - margin))
         }
     }
 
