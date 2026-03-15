@@ -325,6 +325,21 @@ public struct AppSettings: Codable, Equatable {
     }
 }
 
+// MARK: - App Data Export
+
+public struct AppDataExport: Codable, Equatable {
+    public static let currentVersion = 1
+    public var version: Int = Self.currentVersion
+    public var exportedAt: Date = Date()
+    public var jobs: [JobApplication]
+    public var settings: AppSettings
+
+    public init(jobs: [JobApplication], settings: AppSettings) {
+        self.jobs = jobs
+        self.settings = settings
+    }
+}
+
 // MARK: - AI Action
 
 public enum AIAction: String, CaseIterable, Equatable {

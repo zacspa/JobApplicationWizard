@@ -14,6 +14,10 @@ public struct PersistenceClient {
     public var showCSVSavePanel: @Sendable (String) async -> Void
     public var showCSVOpenPanel: @Sendable () async -> String?   // returns CSV string if user picked a file
     public var importCSV: @Sendable (String) -> [JobApplication]
+    public var exportAllData: @Sendable ([JobApplication], AppSettings) -> Data
+    public var importAllData: @Sendable (Data) throws -> AppDataExport
+    public var showJSONSavePanel: @Sendable (Data) async -> Void
+    public var showJSONOpenPanel: @Sendable () async -> Data?
 
     public init(
         loadJobs: @escaping @Sendable () async throws -> [JobApplication],
@@ -23,7 +27,11 @@ public struct PersistenceClient {
         exportCSV: @escaping @Sendable ([JobApplication]) -> String,
         showCSVSavePanel: @escaping @Sendable (String) async -> Void,
         showCSVOpenPanel: @escaping @Sendable () async -> String?,
-        importCSV: @escaping @Sendable (String) -> [JobApplication]
+        importCSV: @escaping @Sendable (String) -> [JobApplication],
+        exportAllData: @escaping @Sendable ([JobApplication], AppSettings) -> Data,
+        importAllData: @escaping @Sendable (Data) throws -> AppDataExport,
+        showJSONSavePanel: @escaping @Sendable (Data) async -> Void,
+        showJSONOpenPanel: @escaping @Sendable () async -> Data?
     ) {
         self.loadJobs = loadJobs
         self.saveJobs = saveJobs
@@ -33,6 +41,10 @@ public struct PersistenceClient {
         self.showCSVSavePanel = showCSVSavePanel
         self.showCSVOpenPanel = showCSVOpenPanel
         self.importCSV = importCSV
+        self.exportAllData = exportAllData
+        self.importAllData = importAllData
+        self.showJSONSavePanel = showJSONSavePanel
+        self.showJSONOpenPanel = showJSONOpenPanel
     }
 }
 
@@ -287,6 +299,55 @@ extension PersistenceClient: DependencyKey {
                 guard let headerRow = rows.first else { return [] }
                 let headers = headerRow.map { $0.trimmingCharacters(in: .whitespaces) }
                 return rows.dropFirst().compactMap { rowToJob($0, headers: headers) }
+            },
+            exportAllData: { jobs, settings in
+                let envelope = AppDataExport(jobs: jobs, settings: settings)
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                return (try? encoder.encode(envelope)) ?? Data()
+            },
+            importAllData: { data in
+                let export = try JSONDecoder().decode(AppDataExport.self, from: data)
+                guard export.version <= AppDataExport.currentVersion else {
+                    throw NSError(
+                        domain: "JobApplicationWizard",
+                        code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: "This backup was created by a newer version of the app (v\(export.version)). Please update Job Application Wizard to restore it."]
+                    )
+                }
+                return export
+            },
+            showJSONSavePanel: { data in
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async {
+                        let panel = NSSavePanel()
+                        panel.nameFieldStringValue = "job_wizard_backup.json"
+                        panel.allowedContentTypes = [UTType.json]
+                        panel.begin { response in
+                            if response == .OK, let url = panel.url {
+                                try? data.write(to: url, options: .atomicWrite)
+                            }
+                            continuation.resume()
+                        }
+                    }
+                }
+            },
+            showJSONOpenPanel: {
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async {
+                        let panel = NSOpenPanel()
+                        panel.allowedContentTypes = [UTType.json]
+                        panel.allowsMultipleSelection = false
+                        panel.message = "Select a Job Application Wizard backup file to restore"
+                        panel.begin { response in
+                            guard response == .OK, let url = panel.url else {
+                                continuation.resume(returning: nil)
+                                return
+                            }
+                            continuation.resume(returning: try? Data(contentsOf: url))
+                        }
+                    }
+                }
             }
         )
     }
@@ -301,7 +362,11 @@ extension PersistenceClient: TestDependencyKey {
         exportCSV: unimplemented("\(Self.self).exportCSV", placeholder: ""),
         showCSVSavePanel: unimplemented("\(Self.self).showCSVSavePanel", placeholder: ()),
         showCSVOpenPanel: unimplemented("\(Self.self).showCSVOpenPanel", placeholder: nil),
-        importCSV: unimplemented("\(Self.self).importCSV", placeholder: [])
+        importCSV: unimplemented("\(Self.self).importCSV", placeholder: []),
+        exportAllData: unimplemented("\(Self.self).exportAllData", placeholder: Data()),
+        importAllData: unimplemented("\(Self.self).importAllData", placeholder: AppDataExport(jobs: [], settings: AppSettings())),
+        showJSONSavePanel: unimplemented("\(Self.self).showJSONSavePanel", placeholder: ()),
+        showJSONOpenPanel: unimplemented("\(Self.self).showJSONOpenPanel", placeholder: nil)
     )
 }
 

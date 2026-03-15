@@ -259,6 +259,20 @@ private struct DataSettingsTab: View {
                 Button("Import from CSV") {
                     store.send(.importCSV)
                 }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Button("Export Full Backup") {
+                        store.send(.exportAll)
+                    }
+                    Button("Restore from Backup") {
+                        store.send(.importAll)
+                    }
+                    Text("Includes all jobs, chat history, contacts, notes, profile, and settings. API keys are never included.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
 
             Section("CSV Format") {
@@ -320,6 +334,22 @@ private struct DataSettingsTab: View {
         .formStyle(.grouped)
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
+        .alert(
+            "Replace All Data?",
+            isPresented: Binding(
+                get: { store.showImportAllConfirm },
+                set: { if !$0 { store.send(.cancelImportAll) } }
+            )
+        ) {
+            Button("Replace", role: .destructive) {
+                store.send(.confirmImportAll)
+            }
+            Button("Cancel", role: .cancel) {
+                store.send(.cancelImportAll)
+            }
+        } message: {
+            Text("This will replace all current data with the contents of the backup file. This cannot be undone.")
+        }
     }
 }
 

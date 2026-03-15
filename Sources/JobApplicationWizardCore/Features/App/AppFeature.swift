@@ -31,6 +31,8 @@ public struct AppFeature {
         public var addJob: AddJobFeature.State = AddJobFeature.State()
         public var jobDetail: JobDetailFeature.State? = nil
         public var saveError: String? = nil
+        public var showImportAllConfirm: Bool = false
+        public var pendingImportAll: AppDataExport? = nil
 
         // ACP state — connection state is shared with JobDetailFeature via @Shared
         @Shared(.inMemory("acpConnection")) public var acpConnection = ACPConnectionState()
@@ -84,6 +86,11 @@ public struct AppFeature {
         case saveProfile(UserProfile)
         case defaultViewModeChanged(ViewMode)
         case resetAllData
+        case exportAll
+        case importAll
+        case importAllLoaded(Result<AppDataExport, Error>)
+        case confirmImportAll
+        case cancelImportAll
         // ACP
         case aiProviderChanged(AIProvider)
         case fetchACPRegistry
@@ -297,6 +304,47 @@ public struct AppFeature {
                 state.jobDetail = nil
                 state.showOnboarding = true
                 return saveJobs(state.jobs)
+
+            case .exportAll:
+                let data = persistence.exportAllData(Array(state.jobs), state.settings)
+                return .run { _ in
+                    await persistence.showJSONSavePanel(data)
+                }
+
+            case .importAll:
+                return .run { send in
+                    guard let data = await persistence.showJSONOpenPanel() else { return }
+                    await send(.importAllLoaded(Result { try persistence.importAllData(data) }))
+                }
+
+            case .importAllLoaded(.success(let export)):
+                state.pendingImportAll = export
+                state.showImportAllConfirm = true
+                return .none
+
+            case .importAllLoaded(.failure(let error)):
+                state.saveError = "Failed to read backup: \(error.localizedDescription)"
+                return .none
+
+            case .confirmImportAll:
+                guard let export = state.pendingImportAll else { return .none }
+                state.jobs = IdentifiedArray(uniqueElements: export.jobs)
+                state.settings = export.settings
+                state.viewMode = export.settings.defaultViewMode
+                state.$acpConnection.withLock { $0.aiProvider = export.settings.aiProvider }
+                state.selectedJobID = nil
+                state.jobDetail = nil
+                state.pendingImportAll = nil
+                state.showImportAllConfirm = false
+                return .merge(
+                    saveJobs(state.jobs),
+                    saveSettings(state.settings)
+                )
+
+            case .cancelImportAll:
+                state.pendingImportAll = nil
+                state.showImportAllConfirm = false
+                return .none
 
             // MARK: - ACP Actions
 
