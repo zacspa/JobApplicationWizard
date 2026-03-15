@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From Sine Waves to Cuttlefish to Logo with Claude: Building a Bioluminescent Logo in SwiftUI</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a; color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.7; padding: 2rem 1rem;
+  }
+  .container { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 2rem; color: #fff; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; color: #7fdbca; margin-top: 2.5rem; margin-bottom: 0.8rem; }
+  p { margin-bottom: 1rem; }
+  code {
+    background: #1a1a2e; padding: 2px 6px; border-radius: 4px;
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.9em; color: #c3e88d;
+  }
+  pre {
+    background: #1a1a2e; padding: 1rem; border-radius: 8px;
+    overflow-x: auto; margin-bottom: 1rem;
+  }
+  pre code { background: none; padding: 0; }
+  .canvas-wrap {
+    display: flex; justify-content: center; margin: 1.5rem 0;
+  }
+  canvas {
+    border-radius: 12px; background: #000;
+  }
+  .subtitle { color: #888; font-size: 1rem; margin-bottom: 2rem; }
+  .caption { text-align: center; color: #666; font-size: 0.85rem; margin-top: 0.3rem; margin-bottom: 1.5rem; }
+  blockquote {
+    border-left: 3px solid #4a9eff;
+    background: rgba(74, 158, 255, 0.08);
+    padding: 0.6rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 8px 8px 0;
+    font-style: italic;
+    color: #b0c4de;
+  }
+  blockquote .label {
+    font-style: normal;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #4a9eff;
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="canvas-wrap" style="margin-bottom:0.5rem"><canvas id="c0" width="80" height="80"></canvas></div>
+<h1>From Sine Waves to Cuttlefish to Logo with Claude</h1>
+<p class="subtitle">Building a bioluminescent logo in SwiftUI, one iteration at a time.</p>
+
+<h2>The Spark</h2>
+<p>It started with a simple question: can you simulate one side of a cuttlefish's undulating fin in SwiftUI? The math is well-documented:</p>
+<pre><code>y(x, t) = A(x) &middot; sin(k&middot;x &minus; &omega;&middot;t)</code></pre>
+<p>Position along the fin, time, amplitude envelope, wave number, angular frequency. Textbook stuff. But getting from a textbook equation to something that looks alive on screen &mdash; that's where it gets interesting.</p>
+
+<h2>Iteration 1: A Single Fin</h2>
+<p>The initial plan called for simulating one side of a cuttlefish's lateral fin. I fed Claude a detailed spec with the wave equation, a project structure, and rendering approach.</p>
+<blockquote><span class="label">Prompt</span>Implement the following plan: Simulate one side of a cuttlefish's undulating lateral fin using SwiftUI. The fin runs along the mantle and propels the animal via a traveling sinusoidal wave.</blockquote>
+<p>The first version: a vertical body edge, 120 sample points displaced by the wave equation, a closed path filled with a teal gradient. A raised-cosine envelope tapers the wave at both ends.</p>
+<div class="canvas-wrap"><canvas id="c1a" width="500" height="400"></canvas></div>
+<p class="caption">Single lateral fin with traveling sinusoidal wave and raised-cosine envelope.</p>
+<p>It worked immediately. But looking at it, something was off &mdash; a real cuttlefish's fin narrows toward the tail.</p>
+<blockquote><span class="label">Prompt</span>This is awesome, the fin gets shorter near the back of the cuttlefish, can we add that</blockquote>
+<p>A tail taper was added: a quadratic falloff that narrows the fin toward the posterior.</p>
+<div class="canvas-wrap"><canvas id="c1b" width="500" height="400"></canvas></div>
+<p class="caption">With tail taper: the fin narrows toward the posterior.</p>
+<p>Then I wanted more control over the taper shape:</p>
+<blockquote><span class="label">Prompt</span>can we have the quadratic falloff be a dependent variable (in the slider)</blockquote>
+<p>Now the exponent itself is a slider. 1 = linear, 2 = quadratic, 3 = cubic. The fin shape became tunable.</p>
+
+<h2>Iteration 2: Bilateral Fins</h2>
+<blockquote><span class="label">Prompt</span>can you now connect the back side of the fin with a mirrored fin (forming a U at the bottom)</blockquote>
+<p>The first attempt connected both fins with a U-curve, but it didn't look right &mdash; real cuttlefish fins run as separate strips along each side of the mantle.</p>
+<blockquote><span class="label">Prompt</span>I want them to be separated kind of like how they are on the body of the cuttlefish</blockquote>
+<p>Two independent fins, one on each side. The key to bilateral symmetry: both sides use the same <code>waveParam</code> at the same body height. The normals handle the rest &mdash; <code>(1, 0)</code> pushes right, <code>(-1, 0)</code> pushes left.</p>
+<div class="canvas-wrap"><canvas id="c2" width="500" height="400"></canvas></div>
+<p class="caption">Separated bilateral fins along a tapered body.</p>
+
+<h2>Iteration 3: Connected at the Tail</h2>
+<p>With both fins working, the next goal was connecting them at the tail &mdash; but keeping the wave alive through the connection.</p>
+<blockquote><span class="label">Prompt</span>now the hard part, the bottom curves and connects, the undulating doesn't go to 0, it keeps flapping</blockquote>
+<p>The fin needed to wrap around the tail as a continuous strip, with the wave continuing through the U-curve instead of tapering to zero. Anchor points trace a semicircle, with outward normals rotating smoothly. A base offset ensures the fin always extends outward; the wave modulates how far.</p>
+<p>Several attempts produced fins that crossed through the body or had wrong curve directions. The fix: angle range <code>0 &rarr; &pi;</code> (curving downward), signed displacement along normals, and a base width that's also tapered.</p>
+<p>But the sides weren't mirrored &mdash; the continuous arc parameterization shifted the left side's phase:</p>
+<blockquote><span class="label">Prompt</span>it isn't mirrored</blockquote>
+<blockquote><span class="label">Prompt</span>also the cuttlefish is going in a circle</blockquote>
+<p>The fix: mirror the left side's <code>arcT</code> to match the right side at the same body height. Both sides now undulate in sync.</p>
+<div class="canvas-wrap"><canvas id="c3" width="500" height="400"></canvas></div>
+<p class="caption">Continuous fin strip wrapping around the tail with mirrored wave.</p>
+
+<h2>Iteration 4: Closed Loop</h2>
+<blockquote><span class="label">Prompt</span>now, the coup de gr&acirc;ce. I want you to connect the top fins forming a closed loop</blockquote>
+<p>A complete ring: right side down, U-curve at the tail, left side up, U-curve over the head. I tried having the wave travel continuously around the loop first:</p>
+<blockquote><span class="label">Prompt</span>can you make it so the wave travels around the loop continuously</blockquote>
+<p>But a phase discontinuity at the seam created a "crankshaft" artifact:</p>
+<blockquote><span class="label">Prompt</span>there's a crankshaft thing going on at the top right</blockquote>
+<p>The fix: snap the wave count to the nearest integer (<code>round(1/wavelength)</code>), guaranteeing seamless tiling. But the continuously-traveling wave looked asymmetric. I wanted bilateral symmetry back:</p>
+<blockquote><span class="label">Prompt</span>is it possible to have an inflection point at the top and bottom and have it be mirrored bilaterally?</blockquote>
+<p>The first attempt at mirroring used a <code>-1</code> envelope on the left side, which made both sides move in the same direction instead of mirroring:</p>
+<blockquote><span class="label">Prompt</span>that's parallel</blockquote>
+<p>The fix: both sides use envelope <code>+1</code>. The left side's <code>(-1, 0)</code> normal naturally mirrors the displacement. The wave travels head-to-tail on both sides simultaneously, with the curves holding steady at endpoint phase values.</p>
+<div class="canvas-wrap"><canvas id="c4" width="500" height="400"></canvas></div>
+<p class="caption">Fully closed fin loop with bilateral symmetry.</p>
+
+<h2>Iteration 5: The Circle</h2>
+<blockquote><span class="label">Prompt</span>from this state, can we have the core shape be a circle instead of an oval (don't simplify the math)</blockquote>
+<p>Every anchor sits on the perimeter, every normal points radially outward. The four-section construction collapsed into a single loop. But the bilateral mirror created cusps where the halves meet:</p>
+<blockquote><span class="label">Prompt</span>is it possible to make the connection at the top curved instead of pointy?</blockquote>
+<p>A <code>sin(&pi; &middot; waveParam)</code> pole fade smoothly reduces displacement to zero at top and bottom, so the outer edge meets the body circle tangentially.</p>
+<div class="canvas-wrap"><canvas id="c5" width="500" height="500"></canvas></div>
+<p class="caption">Circular body with bilateral wave and smooth pole transitions.</p>
+
+<h2>Iteration 6: Additive RGB</h2>
+<blockquote><span class="label">Prompt</span>I want multiple instances of it overlaid over each other, let's say three, rotated evenly. I want some additive color dynamics on their overlapping flaps.</blockquote>
+<blockquote><span class="label">Prompt</span>OK, let's do RGB and white</blockquote>
+<p>Three instances, rotated 120&deg; apart. Red, green, blue. But the first attempt had broken blending &mdash; blue painted over everything.</p>
+<blockquote><span class="label">Prompt</span>R+G+B should add to white, right?</blockquote>
+<p>The blend mode was being set inside a layer instead of on the main context. And at 50% opacity, the colors added to gray, not white. Full-intensity colors were needed so the additive math actually works: (1,0,0) + (0,1,0) + (0,0,1) = (1,1,1) = white.</p>
+<blockquote><span class="label">Prompt</span>You know those light swords that are white when static, but rgb when they are shaken? I want that kind of effect</blockquote>
+<p>The persistence-of-vision effect, driven entirely by the traveling wave. Where all three overlap: white. Where they separate: pure primaries and secondary mixes.</p>
+<div class="canvas-wrap"><canvas id="c6" width="500" height="500"></canvas></div>
+<p class="caption">RGB cuttlefish fin &mdash; the final logo.</p>
+
+<h2>What I Learned</h2>
+<p><strong>Start concrete, generalize later.</strong> Each generalization was driven by a visual goal, not premature abstraction.</p>
+<p><strong>Phase continuity matters.</strong> Every artifact came down to a phase discontinuity. The wave equation is simple; making it seamless around corners is the real work.</p>
+<p><strong>Additive color is magic.</strong> Three overlapping shapes with additive blending produce more visual complexity than any hand-tuned gradient.</p>
+<p><strong>Scale by ratio, not by value.</strong> Express parameters as fractions of geometry for resolution independence.</p>
+<p style="margin-top:2rem; color:#666;">The complete simulator is about 200 lines of Swift. No shaders, no SpriteKit. Just Canvas, Path, sin(), and a TimelineView ticking at 60fps. Every animation on this page is the same math, ported to HTML5 Canvas.</p>
+
+</div>
+
+<script>
+// ============================================================
+// Shared wave math
+// ============================================================
+function envelope(x, taper) {
+  taper = taper || 0.15;
+  if (x < taper) return 0.5 * (1 - Math.cos(Math.PI * x / taper));
+  if (x > 1 - taper) return 0.5 * (1 - Math.cos(Math.PI * (1 - x) / taper));
+  return 1;
+}
+
+function widthTaper(x, tailTaper, taperCurve) {
+  return 1.0 - tailTaper * Math.pow(x, taperCurve);
+}
+
+function rawWave(wp, time, wavelength, frequency, waveSpeed) {
+  var numWaves = Math.max(1, Math.round(1.0 / wavelength));
+  var k = 2 * Math.PI * numWaves;
+  var omega = 2 * Math.PI * frequency * waveSpeed;
+  return Math.sin(k * wp - omega * time);
+}
+
+// ============================================================
+// Hero: Small RGB logo at top
+// ============================================================
+(function() {
+  var c = document.getElementById('c0');
+  var ctx = c.getContext('2d');
+  var startTime = performance.now() / 1000;
+  var freq = 1.1, wl = 0.46, speed = -0.7, tCurve = 3.8, totalSegs = 200;
+  var instances = [
+    {rot: 0,            color: 'rgb(255,0,0)'},
+    {rot: 2*Math.PI/3,  color: 'rgb(0,255,0)'},
+    {rot: 4*Math.PI/3,  color: 'rgb(0,0,255)'},
+  ];
+  function draw() {
+    var time = performance.now() / 1000 - startTime;
+    ctx.clearRect(0, 0, c.width, c.height);
+    var cx0 = c.width / 2, cy0 = c.height / 2;
+    var bodyR = Math.min(c.width, c.height) * 0.38;
+    var amp = bodyR * 0.08;
+    var numWaves = Math.max(1, Math.round(1 / wl));
+    var k = 2 * Math.PI * numWaves;
+    var omega = 2 * Math.PI * freq * speed;
+    var baseW = amp * 0.6;
+    ctx.globalCompositeOperation = 'lighter';
+    for (var inst = 0; inst < instances.length; inst++) {
+      var rot = instances[inst].rot, outer = [];
+      for (var i = 0; i < totalSegs; i++) {
+        var t = i / totalSegs;
+        var angle = rot - Math.PI / 2 + 2 * Math.PI * t;
+        var ax = cx0 + bodyR * Math.cos(angle), ay = cy0 + bodyR * Math.sin(angle);
+        var nx = Math.cos(angle), ny = Math.sin(angle);
+        var wp = t <= 0.5 ? t * 2 : (1 - t) * 2;
+        var pf = Math.sin(Math.PI * wp);
+        var wave = Math.sin(k * wp - omega * time);
+        var d = amp * wave * pf;
+        var offset = baseW * pf + d;
+        outer.push({x: ax + offset * nx, y: ay + offset * ny});
+      }
+      ctx.beginPath(); ctx.moveTo(outer[0].x, outer[0].y);
+      for (var j = 1; j < outer.length; j++) ctx.lineTo(outer[j].x, outer[j].y);
+      ctx.closePath(); ctx.fillStyle = instances[inst].color; ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ============================================================
+// Stage 1a: Single fin (no taper — initial version)
+// ============================================================
+(function() {
+  var c = document.getElementById('c1a');
+  var ctx = c.getContext('2d');
+  var startTime = performance.now() / 1000;
+  var amp = 30, freq = 1.5, wl = 0.4, speed = 1.0, segments = 120;
+
+  function displacement(nx, time) {
+    var k = 2 * Math.PI / wl;
+    var omega = 2 * Math.PI * freq * speed;
+    var env = envelope(nx, 0.15);
+    return amp * env * Math.sin(k * nx - omega * time);
+  }
+
+  function drawFin(canvasEl, ctxEl, dispFn) {
+    var time = performance.now() / 1000 - startTime;
+    ctxEl.clearRect(0, 0, canvasEl.width, canvasEl.height);
+    var bodyX = canvasEl.width * 0.35;
+    var finTop = 30, finBottom = canvasEl.height - 30;
+    var finH = finBottom - finTop;
+
+    ctxEl.fillStyle = 'rgba(100,100,100,0.25)';
+    ctxEl.strokeStyle = 'rgba(100,100,100,0.5)';
+    ctxEl.lineWidth = 1;
+    ctxEl.beginPath();
+    ctxEl.roundRect(bodyX - 80, finTop - 15, 80, finH + 30, 30);
+    ctxEl.fill(); ctxEl.stroke();
+
+    var outer = [];
+    for (var i = 0; i <= segments; i++) {
+      var t = i / segments;
+      outer.push({x: bodyX + dispFn(t, time), y: finTop + t * finH});
+    }
+
+    ctxEl.beginPath();
+    ctxEl.moveTo(bodyX, finTop); ctxEl.lineTo(bodyX, finBottom);
+    for (var i = outer.length - 1; i >= 0; i--) ctxEl.lineTo(outer[i].x, outer[i].y);
+    ctxEl.closePath();
+    var grad = ctxEl.createLinearGradient(bodyX, 0, bodyX + amp + 20, 0);
+    grad.addColorStop(0, 'rgba(0,180,170,0.7)');
+    grad.addColorStop(1, 'rgba(0,220,220,0.15)');
+    ctxEl.fillStyle = grad; ctxEl.fill();
+
+    ctxEl.strokeStyle = 'rgba(0,180,170,0.2)'; ctxEl.lineWidth = 0.5;
+    for (var i = 0; i <= 20; i++) {
+      var t = i / 20, y = finTop + t * finH, dx = dispFn(t, time);
+      ctxEl.beginPath(); ctxEl.moveTo(bodyX, y); ctxEl.lineTo(bodyX + dx, y); ctxEl.stroke();
+    }
+
+    ctxEl.strokeStyle = 'rgba(0,200,180,1)'; ctxEl.lineWidth = 1.5;
+    ctxEl.beginPath(); ctxEl.moveTo(outer[0].x, outer[0].y);
+    for (var i = 1; i < outer.length; i++) ctxEl.lineTo(outer[i].x, outer[i].y);
+    ctxEl.stroke();
+  }
+
+  function draw() { drawFin(c, ctx, displacement); requestAnimationFrame(draw); }
+  draw();
+
+  // Stage 1b: With tail taper
+  var c2 = document.getElementById('c1b');
+  var ctx2 = c2.getContext('2d');
+  function dispTapered(nx, time) {
+    var k = 2 * Math.PI / wl;
+    var omega = 2 * Math.PI * freq * speed;
+    var env = envelope(nx, 0.15);
+    var taper = widthTaper(nx, 0.6, 2.0);
+    return amp * env * taper * Math.sin(k * nx - omega * time);
+  }
+  function draw2() { drawFin(c2, ctx2, dispTapered); requestAnimationFrame(draw2); }
+  draw2();
+})();
+
+// ============================================================
+// Stage 2: Bilateral fins
+// ============================================================
+(function() {
+  var c = document.getElementById('c2');
+  var ctx = c.getContext('2d');
+  var startTime = performance.now() / 1000;
+  var amp = 30, freq = 1.5, wl = 0.4, speed = 1.0, segments = 120;
+  var bodyWidth = 80, tailTaper = 0.6, taperCurve = 2.0;
+
+  function disp(nx, time) {
+    var k = 2 * Math.PI / wl;
+    var omega = 2 * Math.PI * freq * speed;
+    var env = envelope(nx, 0.15);
+    var tp = widthTaper(nx, tailTaper, taperCurve);
+    return amp * env * tp * Math.sin(k * nx - omega * time);
+  }
+
+  function draw() {
+    var time = performance.now() / 1000 - startTime;
+    ctx.clearRect(0, 0, c.width, c.height);
+    var bodyX = c.width * 0.5;
+    var finTop = 30, finBottom = c.height - 30;
+    var finH = finBottom - finTop;
+    var tw = bodyWidth * (1 - tailTaper * 0.5);
+
+    // Body
+    ctx.fillStyle = 'rgba(100,100,100,0.25)';
+    ctx.strokeStyle = 'rgba(100,100,100,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bodyX, finTop - 10);
+    ctx.quadraticCurveTo(bodyX + bodyWidth/2, finTop - 20, bodyX + bodyWidth/2, finTop + 20);
+    ctx.lineTo(bodyX + tw/2, finBottom - 10);
+    ctx.quadraticCurveTo(bodyX, finBottom + 10, bodyX - tw/2, finBottom - 10);
+    ctx.lineTo(bodyX - bodyWidth/2, finTop + 20);
+    ctx.quadraticCurveTo(bodyX - bodyWidth/2, finTop - 20, bodyX, finTop - 10);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    function bodyEdge(t, right) {
+      var headW = bodyWidth / 2, tailW = tw / 2;
+      var w = headW + (tailW - headW) * t;
+      return right ? bodyX + w : bodyX - w;
+    }
+
+    // Right fin
+    var rOuter = [], lOuter = [];
+    for (var i = 0; i <= segments; i++) {
+      var t = i / segments;
+      var y = finTop + t * finH;
+      var dx = disp(t, time);
+      var rAx = bodyEdge(t, true), lAx = bodyEdge(t, false);
+      rOuter.push({x: rAx + Math.abs(dx), y: y});
+      lOuter.push({x: lAx - Math.abs(dx), y: y});
+    }
+
+    // Draw fins
+    [['right', rOuter, true], ['left', lOuter, false]].forEach(function(side) {
+      var outer = side[1], isRight = side[2];
+      ctx.beginPath();
+      for (var i = 0; i <= segments; i++) {
+        var t = i / segments, y = finTop + t * finH, ax = bodyEdge(t, isRight);
+        if (i === 0) ctx.moveTo(ax, y); else ctx.lineTo(ax, y);
+      }
+      for (var i = outer.length - 1; i >= 0; i--) ctx.lineTo(outer[i].x, outer[i].y);
+      ctx.closePath();
+      var g = isRight ?
+        ctx.createLinearGradient(bodyX + bodyWidth/2, 0, bodyX + bodyWidth/2 + amp + 20, 0) :
+        ctx.createLinearGradient(bodyX - bodyWidth/2 - amp - 20, 0, bodyX - bodyWidth/2, 0);
+      g.addColorStop(0, isRight ? 'rgba(0,180,170,0.7)' : 'rgba(0,220,220,0.15)');
+      g.addColorStop(1, isRight ? 'rgba(0,220,220,0.15)' : 'rgba(0,180,170,0.7)');
+      ctx.fillStyle = g; ctx.fill();
+
+      ctx.strokeStyle = 'rgba(0,200,180,1)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(outer[0].x, outer[0].y);
+      for (var i = 1; i < outer.length; i++) ctx.lineTo(outer[i].x, outer[i].y);
+      ctx.stroke();
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ============================================================
+// Stage 3: Connected at tail (U-curve)
+// ============================================================
+(function() {
+  var c = document.getElementById('c3');
+  var ctx = c.getContext('2d');
+  var startTime = performance.now() / 1000;
+  var amp = 30, freq = 1.5, wl = 0.4, speed = 1.0;
+  var bodyWidth = 80, tailTaperAmt = 0.6, tCurve = 2.0;
+  var segments = 100, curveSegs = 40;
+
+  function draw() {
+    var time = performance.now() / 1000 - startTime;
+    ctx.clearRect(0, 0, c.width, c.height);
+    var bodyX = c.width * 0.5;
+    var finTop = 40, finBottom = c.height - 60;
+    var finH = finBottom - finTop;
+    var tw = bodyWidth * (1 - tailTaperAmt * 0.5);
+
+    // Body
+    ctx.fillStyle = 'rgba(100,100,100,0.25)';
+    ctx.strokeStyle = 'rgba(100,100,100,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bodyX, finTop - 10);
+    ctx.quadraticCurveTo(bodyX + bodyWidth/2, finTop - 20, bodyX + bodyWidth/2, finTop + 20);
+    ctx.lineTo(bodyX + tw/2, finBottom - 10);
+    ctx.quadraticCurveTo(bodyX, finBottom + 15, bodyX - tw/2, finBottom - 10);
+    ctx.lineTo(bodyX - bodyWidth/2, finTop + 20);
+    ctx.quadraticCurveTo(bodyX - bodyWidth/2, finTop - 20, bodyX, finTop - 10);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    function bodyEdge(t, right) {
+      var headW = bodyWidth / 2, tailW = tw / 2;
+      var w = headW + (tailW - headW) * t;
+      return right ? bodyX + w : bodyX - w;
+    }
+
+    var numWaves = Math.max(1, Math.round(1 / wl));
+    var k = 2 * Math.PI * numWaves;
+    var omega = 2 * Math.PI * freq * speed;
+    var totalSegs = segments * 2 + curveSegs;
+    var rightFrac = segments / totalSegs;
+    var baseW = amp * 0.6;
+
+    var anchors = [], normals = [], wps = [], fps = [];
+
+    // Right side
+    for (var i = 0; i < segments; i++) {
+      var t = i / segments;
+      anchors.push({x: bodyEdge(t, true), y: finTop + t * finH});
+      normals.push({x: 1, y: 0});
+      wps.push(t * rightFrac); fps.push(t);
+    }
+    // Bottom curve
+    var uR = tw / 2;
+    for (var i = 0; i < curveSegs; i++) {
+      var st = i / curveSegs;
+      var angle = Math.PI * st;
+      anchors.push({x: bodyX + uR * Math.cos(angle), y: finBottom + uR * Math.sin(angle)});
+      normals.push({x: Math.cos(angle), y: Math.sin(angle)});
+      wps.push(rightFrac); fps.push(1.0);
+    }
+    // Left side (mirrored)
+    for (var i = 0; i < segments; i++) {
+      var st = i / segments;
+      var bodyT = 1.0 - st;
+      anchors.push({x: bodyEdge(bodyT, false), y: finTop + bodyT * finH});
+      normals.push({x: -1, y: 0});
+      wps.push(bodyT * rightFrac); fps.push(bodyT);
+    }
+
+    // Outer points
+    var outer = [];
+    for (var j = 0; j < anchors.length; j++) {
+      var wp = wps[j], fp = fps[j];
+      var wave = Math.sin(k * wp - omega * time);
+      var tp = widthTaper(fp, tailTaperAmt, tCurve);
+      var env = envelope(wp, 0.08);
+      var d = amp * tp * wave * env;
+      var offset = baseW * tp + d;
+      outer.push({x: anchors[j].x + offset * normals[j].x, y: anchors[j].y + offset * normals[j].y});
+    }
+
+    // Draw membrane
+    ctx.beginPath();
+    ctx.moveTo(anchors[0].x, anchors[0].y);
+    for (var j = 1; j < anchors.length; j++) ctx.lineTo(anchors[j].x, anchors[j].y);
+    for (var j = anchors.length - 1; j >= 0; j--) ctx.lineTo(outer[j].x, outer[j].y);
+    ctx.closePath();
+    var g = ctx.createLinearGradient(bodyX - amp - 30, 0, bodyX + amp + 30, 0);
+    g.addColorStop(0, 'rgba(0,220,220,0.15)');
+    g.addColorStop(0.5, 'rgba(0,180,170,0.6)');
+    g.addColorStop(1, 'rgba(0,220,220,0.15)');
+    ctx.fillStyle = g; ctx.fill();
+
+    // Outer edge
+    ctx.strokeStyle = 'rgba(0,200,180,1)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(outer[0].x, outer[0].y);
+    for (var j = 1; j < outer.length; j++) ctx.lineTo(outer[j].x, outer[j].y);
+    ctx.stroke();
+
+    // Rays
+    ctx.strokeStyle = 'rgba(0,180,170,0.2)'; ctx.lineWidth = 0.5;
+    var rs = Math.max(1, Math.floor(anchors.length / 30));
+    for (var j = 0; j < anchors.length; j += rs) {
+      ctx.beginPath(); ctx.moveTo(anchors[j].x, anchors[j].y); ctx.lineTo(outer[j].x, outer[j].y); ctx.stroke();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ============================================================
+// Stage 4: Closed loop (oval body)
+// ============================================================
+(function() {
+  var c = document.getElementById('c4');
+  var ctx = c.getContext('2d');
+  var startTime = performance.now() / 1000;
+  var amp = 25, freq = 1.5, wl = 0.4, speed = 1.0;
+  var bodyWidth = 80, tailTaperAmt = 0.5, tCurve = 2.0;
+  var straightSegs = 80, curveSegs = 30;
+
+  function draw() {
+    var time = performance.now() / 1000 - startTime;
+    ctx.clearRect(0, 0, c.width, c.height);
+    var bodyX = c.width * 0.5, finTop = 50, finBottom = c.height - 50;
+    var finH = finBottom - finTop;
+    var tw = bodyWidth * (1 - tailTaperAmt * 0.5);
+
+    // Body
+    ctx.fillStyle = 'rgba(100,100,100,0.25)';
+    ctx.strokeStyle = 'rgba(100,100,100,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bodyX, finTop - 10);
+    ctx.quadraticCurveTo(bodyX + bodyWidth/2, finTop - 20, bodyX + bodyWidth/2, finTop + 20);
+    ctx.lineTo(bodyX + tw/2, finBottom - 10);
+    ctx.quadraticCurveTo(bodyX, finBottom + 15, bodyX - tw/2, finBottom - 10);
+    ctx.lineTo(bodyX - bodyWidth/2, finTop + 20);
+    ctx.quadraticCurveTo(bodyX - bodyWidth/2, finTop - 20, bodyX, finTop - 10);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    function bodyEdge(t, right) {
+      var headW = bodyWidth / 2, tailW = tw / 2;
+      var w = headW + (tailW - headW) * t;
+      return right ? bodyX + w : bodyX - w;
+    }
+
+    var numWaves = Math.max(1, Math.round(1 / wl));
+    var k = 2 * Math.PI * numWaves;
+    var omega = 2 * Math.PI * freq * speed;
+    var bR = tw / 2, tR = bodyWidth / 2;
+    var baseW = amp * 0.6;
+    var anchors = [], normals = [], wps = [], fps = [];
+
+    // Right
+    for (var i = 0; i < straightSegs; i++) {
+      var t = i / straightSegs;
+      anchors.push({x: bodyEdge(t, true), y: finTop + t * finH});
+      normals.push({x: 1, y: 0}); wps.push(t); fps.push(t);
+    }
+    // Bottom
+    for (var i = 0; i < curveSegs; i++) {
+      var st = i / curveSegs, a = Math.PI * st;
+      anchors.push({x: bodyX + bR * Math.cos(a), y: finBottom + bR * Math.sin(a)});
+      normals.push({x: Math.cos(a), y: Math.sin(a)}); wps.push(1.0); fps.push(1.0);
+    }
+    // Left (mirrored)
+    for (var i = 0; i < straightSegs; i++) {
+      var st = i / straightSegs, bodyT = 1 - st;
+      anchors.push({x: bodyEdge(bodyT, false), y: finTop + bodyT * finH});
+      normals.push({x: -1, y: 0}); wps.push(bodyT); fps.push(bodyT);
+    }
+    // Top
+    for (var i = 0; i < curveSegs; i++) {
+      var st = i / curveSegs, a = Math.PI + Math.PI * st;
+      anchors.push({x: bodyX + tR * Math.cos(a), y: finTop + tR * Math.sin(a)});
+      normals.push({x: Math.cos(a), y: Math.sin(a)}); wps.push(0.0); fps.push(0.0);
+    }
+
+    var outer = [];
+    for (var j = 0; j < anchors.length; j++) {
+      var wp = wps[j], fp = fps[j];
+      var wave = Math.sin(k * wp - omega * time);
+      var tp = widthTaper(fp, tailTaperAmt, tCurve);
+      var pf = Math.sin(Math.PI * wp);
+      var d = amp * tp * wave * pf;
+      var offset = baseW * tp * pf + d;
+      outer.push({x: anchors[j].x + offset * normals[j].x, y: anchors[j].y + offset * normals[j].y});
+    }
+
+    // Even-odd fill
+    ctx.beginPath();
+    ctx.moveTo(outer[0].x, outer[0].y);
+    for (var j = 1; j < outer.length; j++) ctx.lineTo(outer[j].x, outer[j].y);
+    ctx.closePath();
+    ctx.moveTo(anchors[0].x, anchors[0].y);
+    for (var j = 1; j < anchors.length; j++) ctx.lineTo(anchors[j].x, anchors[j].y);
+    ctx.closePath();
+    var g = ctx.createLinearGradient(bodyX - amp - 30, 0, bodyX + amp + 30, 0);
+    g.addColorStop(0, 'rgba(0,220,220,0.15)');
+    g.addColorStop(0.5, 'rgba(0,180,170,0.6)');
+    g.addColorStop(1, 'rgba(0,220,220,0.15)');
+    ctx.fillStyle = g; ctx.fill('evenodd');
+
+    ctx.strokeStyle = 'rgba(0,200,180,1)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(outer[0].x, outer[0].y);
+    for (var j = 1; j < outer.length; j++) ctx.lineTo(outer[j].x, outer[j].y);
+    ctx.closePath(); ctx.stroke();
+
+    var rs = Math.max(1, Math.floor(anchors.length / 40));
+    ctx.strokeStyle = 'rgba(0,180,170,0.2)'; ctx.lineWidth = 0.5;
+    for (var j = 0; j < anchors.length; j += rs) {
+      ctx.beginPath(); ctx.moveTo(anchors[j].x, anchors[j].y); ctx.lineTo(outer[j].x, outer[j].y); ctx.stroke();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ============================================================
+// Stage 5: Circular body
+// ============================================================
+(function() {
+  var c = document.getElementById('c5');
+  var ctx = c.getContext('2d');
+  var startTime = performance.now() / 1000;
+  var amp = 25, freq = 1.5, wl = 0.4, speed = 1.0;
+  var tailTaperAmt = 0.0, tCurve = 2.0, totalSegs = 300;
+
+  function draw() {
+    var time = performance.now() / 1000 - startTime;
+    ctx.clearRect(0, 0, c.width, c.height);
+    var cx = c.width * 0.5, cy = c.height * 0.5;
+    var bodyR = Math.min(c.width, c.height) * 0.25;
+    var numWaves = Math.max(1, Math.round(1 / wl));
+    var k = 2 * Math.PI * numWaves;
+    var omega = 2 * Math.PI * freq * speed;
+    var baseW = amp * 0.6;
+
+    // Body
+    ctx.fillStyle = 'rgba(100,100,100,0.25)';
+    ctx.strokeStyle = 'rgba(100,100,100,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, bodyR, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+
+    var anchors = [], normals = [], outer = [];
+    for (var i = 0; i < totalSegs; i++) {
+      var t = i / totalSegs;
+      var angle = -Math.PI / 2 + 2 * Math.PI * t;
+      var ax = cx + bodyR * Math.cos(angle), ay = cy + bodyR * Math.sin(angle);
+      var nx = Math.cos(angle), ny = Math.sin(angle);
+      var wp = t <= 0.5 ? t * 2 : (1 - t) * 2;
+      var tp = widthTaper(wp, tailTaperAmt, tCurve);
+      var pf = Math.sin(Math.PI * wp);
+      var wave = Math.sin(k * wp - omega * time);
+      var d = amp * tp * wave * pf;
+      var offset = baseW * tp * pf + d;
+      anchors.push({x: ax, y: ay});
+      normals.push({x: nx, y: ny});
+      outer.push({x: ax + offset * nx, y: ay + offset * ny});
+    }
+
+    // Even-odd fill
+    ctx.beginPath();
+    ctx.moveTo(outer[0].x, outer[0].y);
+    for (var j = 1; j < outer.length; j++) ctx.lineTo(outer[j].x, outer[j].y);
+    ctx.closePath();
+    ctx.moveTo(anchors[0].x, anchors[0].y);
+    for (var j = 1; j < anchors.length; j++) ctx.lineTo(anchors[j].x, anchors[j].y);
+    ctx.closePath();
+    var g = ctx.createLinearGradient(cx - bodyR - amp - 30, cy, cx + bodyR + amp + 30, cy);
+    g.addColorStop(0, 'rgba(0,220,220,0.15)');
+    g.addColorStop(0.5, 'rgba(0,180,170,0.6)');
+    g.addColorStop(1, 'rgba(0,220,220,0.15)');
+    ctx.fillStyle = g; ctx.fill('evenodd');
+
+    ctx.strokeStyle = 'rgba(0,200,180,1)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(outer[0].x, outer[0].y);
+    for (var j = 1; j < outer.length; j++) ctx.lineTo(outer[j].x, outer[j].y);
+    ctx.closePath(); ctx.stroke();
+
+    var rs = Math.max(1, Math.floor(totalSegs / 40));
+    ctx.strokeStyle = 'rgba(0,180,170,0.2)'; ctx.lineWidth = 0.5;
+    for (var j = 0; j < totalSegs; j += rs) {
+      ctx.beginPath(); ctx.moveTo(anchors[j].x, anchors[j].y); ctx.lineTo(outer[j].x, outer[j].y); ctx.stroke();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ============================================================
+// Stage 6: Additive RGB
+// ============================================================
+(function() {
+  var c = document.getElementById('c6');
+  var ctx = c.getContext('2d');
+  var startTime = performance.now() / 1000;
+  var amp = 8, freq = 1.1, wl = 0.46, speed = -0.7;
+  var tailTaperAmt = 0.0, tCurve = 3.8, totalSegs = 300;
+  var instances = [
+    {rot: 0,                color: 'rgb(255,0,0)',   edge: 'rgba(255,80,80,0.7)'},
+    {rot: 2*Math.PI/3,      color: 'rgb(0,255,0)',   edge: 'rgba(80,255,80,0.7)'},
+    {rot: 4*Math.PI/3,      color: 'rgb(0,0,255)',   edge: 'rgba(80,80,255,0.7)'},
+  ];
+
+  function draw() {
+    var time = performance.now() / 1000 - startTime;
+    ctx.clearRect(0, 0, c.width, c.height);
+    var cx0 = c.width * 0.5, cy0 = c.height * 0.5;
+    var bodyR = Math.min(c.width, c.height) * 0.3;
+    var numWaves = Math.max(1, Math.round(1 / wl));
+    var k = 2 * Math.PI * numWaves;
+    var omega = 2 * Math.PI * freq * speed;
+    var baseW = amp * 0.6;
+    var ampFrac = bodyR * (amp / (Math.min(c.width, c.height) * 0.3));
+
+    ctx.globalCompositeOperation = 'lighter';
+
+    for (var inst = 0; inst < instances.length; inst++) {
+      var rot = instances[inst].rot;
+      var outer = [];
+      for (var i = 0; i < totalSegs; i++) {
+        var t = i / totalSegs;
+        var angle = rot - Math.PI / 2 + 2 * Math.PI * t;
+        var ax = cx0 + bodyR * Math.cos(angle), ay = cy0 + bodyR * Math.sin(angle);
+        var nx = Math.cos(angle), ny = Math.sin(angle);
+        var wp = t <= 0.5 ? t * 2 : (1 - t) * 2;
+        var tp = widthTaper(wp, tailTaperAmt, tCurve);
+        var pf = Math.sin(Math.PI * wp);
+        var wave = Math.sin(k * wp - omega * time);
+        var d = amp * tp * wave * pf;
+        var offset = baseW * tp * pf + d;
+        outer.push({x: ax + offset * nx, y: ay + offset * ny});
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(outer[0].x, outer[0].y);
+      for (var j = 1; j < outer.length; j++) ctx.lineTo(outer[j].x, outer[j].y);
+      ctx.closePath();
+      ctx.fillStyle = instances[inst].color;
+      ctx.fill();
+
+      ctx.strokeStyle = instances[inst].edge;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(outer[0].x, outer[0].y);
+      for (var j = 1; j < outer.length; j++) ctx.lineTo(outer[j].x, outer[j].y);
+      ctx.closePath(); ctx.stroke();
+    }
+
+    // Body outline
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(cx0, cy0, bodyR, 0, 2 * Math.PI); ctx.stroke();
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
