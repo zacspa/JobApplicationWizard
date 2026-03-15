@@ -15,7 +15,7 @@ public enum ViewMode: String, Codable, CaseIterable, Equatable {
 
 @Reducer
 public struct AppFeature {
-    private enum CancelID { case acpCrashMonitor }
+    private enum CancelID { case acpCrashMonitor, save, saveSettings }
 
     @ObservableState
     public struct State: Equatable {
@@ -30,6 +30,7 @@ public struct AppFeature {
         public var claudeAPIKey: String = ""   // runtime mirror of Keychain value; never persisted to disk
         public var addJob: AddJobFeature.State = AddJobFeature.State()
         public var jobDetail: JobDetailFeature.State? = nil
+        public var saveError: String? = nil
 
         // ACP state — connection state is shared with JobDetailFeature via @Shared
         @Shared(.inMemory("acpConnection")) public var acpConnection = ACPConnectionState()
@@ -59,9 +60,11 @@ public struct AppFeature {
 
     public enum Action {
         case onAppear
-        case jobsLoaded([JobApplication])
-        case settingsLoaded(AppSettings)
+        case jobsLoaded(Result<[JobApplication], Error>)
+        case settingsLoaded(Result<AppSettings, Error>)
         case searchQueryChanged(String)
+        case saveFailed(String)
+        case dismissSaveError
         case filterStatusChanged(JobStatus?)
         case viewModeChanged(ViewMode)
         case selectJob(UUID?)
@@ -106,28 +109,51 @@ public struct AppFeature {
             switch action {
             case .onAppear:
                 return .run { send in
-                    async let jobs = persistence.loadJobs()
-                    async let settings = persistence.loadSettings()
+                    async let jobs = Result { try await persistence.loadJobs() }
+                    async let settings = Result { try await persistence.loadSettings() }
                     let apiKey = keychain.loadAPIKey()
-                    await send(.jobsLoaded((try? await jobs) ?? []))
-                    await send(.settingsLoaded((try? await settings) ?? AppSettings()))
+                    await send(.jobsLoaded(await jobs))
+                    await send(.settingsLoaded(await settings))
                     await send(.saveSettingsKey(apiKey))
                 }
 
-            case .jobsLoaded(let jobs):
+            case .jobsLoaded(.success(let jobs)):
                 state.jobs = IdentifiedArray(uniqueElements: jobs)
                 if state.jobs.isEmpty {
                     state.showOnboarding = true
                 }
                 return .none
 
-            case .settingsLoaded(let settings):
+            case .jobsLoaded(.failure(let error)):
+                // Decode failure on an existing file; do NOT overwrite with []
+                state.saveError = "Failed to load jobs: \(error.localizedDescription). Your data file may be corrupted; check jobs.json or jobs.backup.json in Application Support."
+                return .none
+
+            case .settingsLoaded(.success(let settings)):
                 state.settings = settings
                 state.viewMode = settings.defaultViewMode
                 state.$acpConnection.withLock { $0.aiProvider = settings.aiProvider }
                 if settings.aiProvider == .acpAgent {
                     return .send(.fetchACPRegistry)
                 }
+                return .none
+
+            case .settingsLoaded(.failure):
+                // Settings decode failure is non-critical; use defaults
+                state.settings = AppSettings()
+                state.viewMode = state.settings.defaultViewMode
+                state.$acpConnection.withLock { $0.aiProvider = state.settings.aiProvider }
+                if state.settings.aiProvider == .acpAgent {
+                    return .send(.fetchACPRegistry)
+                }
+                return .none
+
+            case .saveFailed(let message):
+                state.saveError = message
+                return .none
+
+            case .dismissSaveError:
+                state.saveError = nil
                 return .none
 
             case .searchQueryChanged(let q):
@@ -145,9 +171,14 @@ public struct AppFeature {
             case .selectJob(let id):
                 state.selectedJobID = id
                 if let id, let job = state.jobs[id: id] {
-                    state.jobDetail = JobDetailFeature.State(
+                    let previousTab = state.jobDetail?.selectedTab
+                    let previousAIPanelOpen = state.jobDetail?.aiPanelOpen ?? false
+                    var detail = JobDetailFeature.State(
                         job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
                     )
+                    if let previousTab { detail.selectedTab = previousTab }
+                    detail.aiPanelOpen = previousAIPanelOpen
+                    state.jobDetail = detail
                 } else {
                     state.jobDetail = nil
                 }
@@ -265,7 +296,7 @@ public struct AppFeature {
                 state.selectedJobID = nil
                 state.jobDetail = nil
                 state.showOnboarding = true
-                return .run { _ in try? await persistence.saveJobs([]) }
+                return saveJobs(state.jobs)
 
             // MARK: - ACP Actions
 
@@ -374,10 +405,24 @@ public struct AppFeature {
     }
 
     private func saveJobs(_ jobs: IdentifiedArrayOf<JobApplication>) -> Effect<Action> {
-        .run { _ in try? await persistence.saveJobs(Array(jobs)) }
+        .run { send in
+            do {
+                try await persistence.saveJobs(Array(jobs))
+            } catch {
+                await send(.saveFailed("Failed to save jobs: \(error.localizedDescription)"))
+            }
+        }
+        .cancellable(id: CancelID.save, cancelInFlight: true)
     }
 
     private func saveSettings(_ settings: AppSettings) -> Effect<Action> {
-        .run { _ in try? await persistence.saveSettings(settings) }
+        .run { send in
+            do {
+                try await persistence.saveSettings(settings)
+            } catch {
+                await send(.saveFailed("Failed to save settings: \(error.localizedDescription)"))
+            }
+        }
+        .cancellable(id: CancelID.saveSettings, cancelInFlight: true)
     }
 }

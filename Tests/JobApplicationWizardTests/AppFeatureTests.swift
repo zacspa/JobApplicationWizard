@@ -397,4 +397,67 @@ final class AppFeatureTests: XCTestCase {
             $0.showOnboarding = true
         }
     }
+
+    // MARK: - Error Handling (Phase 1)
+
+    func testJobsLoadFailureShowsSaveError() async {
+        struct LoadError: Error, LocalizedError {
+            var errorDescription: String? { "Corrupt JSON" }
+        }
+
+        let store = TestStore(initialState: AppFeature.State()) {
+            AppFeature()
+        } withDependencies: {
+            $0.persistenceClient.loadJobs = { throw LoadError() }
+            $0.persistenceClient.loadSettings = { AppSettings() }
+            $0.keychainClient.loadAPIKey = { "" }
+            $0.keychainClient.saveAPIKey = { _ in }
+            $0.acpRegistryClient = ACPRegistryClient(fetchAgents: { [] })
+        }
+
+        store.exhaustivity = .off
+
+        await store.send(.onAppear)
+        await store.receive(\.jobsLoaded) {
+            $0.saveError = "Failed to load jobs: Corrupt JSON. Your data file may be corrupted; check jobs.json or jobs.backup.json in Application Support."
+        }
+        await store.receive(\.settingsLoaded)
+        await store.receive(\.saveSettingsKey)
+    }
+
+    func testSaveFailureSurfacesError() async {
+        struct DiskFullError: Error, LocalizedError {
+            var errorDescription: String? { "Disk full" }
+        }
+
+        let job = JobApplication.mock()
+        var state = AppFeature.State()
+        state.jobs = IdentifiedArray(uniqueElements: [job])
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.persistenceClient.saveJobs = { _ in throw DiskFullError() }
+        }
+
+        await store.send(.toggleFavorite(job.id)) {
+            $0.jobs[id: job.id]?.isFavorite = true
+        }
+        await store.receive(\.saveFailed) {
+            $0.saveError = "Failed to save jobs: Disk full"
+        }
+    }
+
+    func testDismissSaveError() async {
+        var state = AppFeature.State()
+        state.saveError = "Some error"
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        }
+
+        await store.send(.dismissSaveError) {
+            $0.saveError = nil
+        }
+    }
 }

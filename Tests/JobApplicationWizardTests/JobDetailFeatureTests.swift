@@ -352,10 +352,9 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertEqual(store.state.aiInput, "")
     }
 
-    func testSendMessageWithTailorResumeMode() async {
+    func testSendMessagePlainText() async {
         var state = JobDetailFeature.State(job: .mock(), apiKey: "test-key")
         state.aiInput = "My resume"
-        state.aiSelectedAction = .tailorResume
 
         let store = TestStore(initialState: state) {
             JobDetailFeature()
@@ -370,9 +369,9 @@ final class JobDetailFeatureTests: XCTestCase {
         await store.receive(\.aiResponseReceived)
 
         XCTAssertEqual(store.state.chatMessages.count, 2)
-        XCTAssertTrue(store.state.chatMessages[0].content.contains("analyze my resume"))
+        // Messages are now sent as-is (no mode preamble)
+        XCTAssertEqual(store.state.chatMessages[0].content, "My resume")
         XCTAssertEqual(store.state.chatMessages[1].content, "Tailored")
-        XCTAssertEqual(store.state.aiSelectedAction, .chat)  // resets to chat after sending
     }
 
     func testSendMessageAIResponseError() async {
@@ -392,7 +391,7 @@ final class JobDetailFeatureTests: XCTestCase {
         await store.receive(\.aiResponseReceived)
 
         XCTAssertFalse(store.state.aiIsLoading)
-        XCTAssertEqual(store.state.aiError, AIError.noAPIKey.localizedDescription)
+        XCTAssertEqual(store.state.aiError, "AIError: \(AIError.noAPIKey.localizedDescription)")
     }
 
     func testSendMessageEmptyInputDoesNothing() async {
@@ -425,7 +424,9 @@ final class JobDetailFeatureTests: XCTestCase {
             $0.aiInput = ""
             $0.aiError = nil
             $0.aiTokenUsage = .zero
+            $0.job.chatHistory = []
         }
+        await store.receive(\.delegate.jobUpdated)
     }
 
     // MARK: - AI: response accumulates token usage
@@ -529,7 +530,6 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertEqual(JobDetailFeature.State.Tab.notes.label, "Notes")
         XCTAssertEqual(JobDetailFeature.State.Tab.contacts.label, "Contacts")
         XCTAssertEqual(JobDetailFeature.State.Tab.interviews.label, "Interviews")
-        XCTAssertEqual(JobDetailFeature.State.Tab.ai.label, "AI")
     }
 
     func testTabIcons() {
@@ -538,6 +538,207 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertEqual(JobDetailFeature.State.Tab.notes.icon, "note.text")
         XCTAssertEqual(JobDetailFeature.State.Tab.contacts.icon, "person.2")
         XCTAssertEqual(JobDetailFeature.State.Tab.interviews.icon, "calendar.badge.clock")
-        XCTAssertEqual(JobDetailFeature.State.Tab.ai.icon, "sparkles")
+    }
+
+    // MARK: - System Prompt Builder
+
+    func testBuildSystemPromptIncludesJobContext() {
+        let job = JobApplication.mock(
+            company: "TestCo",
+            title: "Senior Dev",
+            jobDescription: "Build things"
+        )
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+
+        XCTAssertTrue(prompt.contains("Senior Dev"))
+        XCTAssertTrue(prompt.contains("TestCo"))
+        XCTAssertTrue(prompt.contains("Build things"))
+        XCTAssertTrue(prompt.contains("expert career coach"))
+    }
+
+    func testBuildSystemPromptIncludesUserProfile() {
+        let job = JobApplication.mock()
+        var profile = UserProfile()
+        profile.name = "Alice"
+        profile.skills = ["Swift", "Python"]
+        profile.resume = "10 years experience"
+
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: profile)
+
+        XCTAssertTrue(prompt.contains("Alice"))
+        XCTAssertTrue(prompt.contains("Swift, Python"))
+        XCTAssertTrue(prompt.contains("10 years experience"))
+    }
+
+    func testBuildSystemPromptOmitsEmptyProfile() {
+        let job = JobApplication.mock()
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+
+        XCTAssertFalse(prompt.contains("About the candidate"))
+    }
+
+    func testBuildSystemPromptIncludesContacts() {
+        let job = JobApplication.mock(
+            contacts: [Contact(name: "Bob", title: "Recruiter", notes: "Met at conference")]
+        )
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+
+        XCTAssertTrue(prompt.contains("Bob"))
+        XCTAssertTrue(prompt.contains("Recruiter"))
+        XCTAssertTrue(prompt.contains("Met at conference"))
+    }
+
+    func testBuildSystemPromptIncludesInterviews() {
+        let job = JobApplication.mock(
+            interviews: [InterviewRound(round: 1, type: "Technical", interviewers: "Jane")]
+        )
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+
+        XCTAssertTrue(prompt.contains("Round 1"))
+        XCTAssertTrue(prompt.contains("Technical"))
+        XCTAssertTrue(prompt.contains("Jane"))
+    }
+
+    func testBuildSystemPromptIncludesNotes() {
+        let job = JobApplication.mock(
+            noteCards: [Note(title: "Salary Research", body: "Glassdoor says $150k")]
+        )
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+
+        XCTAssertTrue(prompt.contains("Salary Research"))
+        XCTAssertTrue(prompt.contains("Glassdoor says $150k"))
+    }
+
+    func testBuildSystemPromptIncludesActiveTab() {
+        let job = JobApplication.mock()
+        let prompt = JobDetailFeature.buildSystemPrompt(
+            job: job, profile: UserProfile(), activeTab: .interviews
+        )
+
+        XCTAssertTrue(prompt.contains("Interviews tab"))
+    }
+
+    func testBuildSystemPromptIncludesRecentActivity() {
+        let job = JobApplication.mock()
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+
+        XCTAssertTrue(prompt.contains("Recent Activity"))
+        XCTAssertTrue(prompt.contains("Added:"))
+    }
+
+    func testBuildSystemPromptIncludesLabelsAndSalary() {
+        let job = JobApplication.mock(
+            salary: "$120k-150k",
+            labels: [JobLabel(name: "Remote", colorHex: "#34C759")]
+        )
+        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+
+        XCTAssertTrue(prompt.contains("$120k-150k"))
+        XCTAssertTrue(prompt.contains("Remote"))
+    }
+
+    func testBuildSystemPromptIncludesChatHistoryTail() {
+        let job = JobApplication.mock()
+        let history = [
+            ChatMessage(role: .user, content: "Hello"),
+            ChatMessage(role: .assistant, content: "Hi there!"),
+        ]
+        let prompt = JobDetailFeature.buildSystemPrompt(
+            job: job, profile: UserProfile(), chatHistory: history
+        )
+
+        XCTAssertTrue(prompt.contains("Previous conversation"))
+        XCTAssertTrue(prompt.contains("User: Hello"))
+        XCTAssertTrue(prompt.contains("Assistant: Hi there!"))
+    }
+
+    // MARK: - AI Panel
+
+    func testToggleAIPanel() async {
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
+            JobDetailFeature()
+        }
+
+        await store.send(.toggleAIPanel) {
+            $0.aiPanelOpen = true
+        }
+        await store.send(.toggleAIPanel) {
+            $0.aiPanelOpen = false
+        }
+    }
+
+    func testOpenAIPanelWithPrompt() async {
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
+            JobDetailFeature()
+        }
+
+        await store.send(.openAIPanelWithPrompt("Draft a cover letter")) {
+            $0.aiPanelOpen = true
+            $0.aiInput = "Draft a cover letter"
+        }
+    }
+
+    // MARK: - Chat History Persistence
+
+    func testChatHistoryLoadedFromJob() {
+        let history = [ChatMessage(role: .user, content: "Hello")]
+        let job = JobApplication.mock(chatHistory: history)
+        let state = JobDetailFeature.State(job: job)
+        XCTAssertEqual(state.chatMessages.count, 1)
+        XCTAssertEqual(state.chatMessages[0].content, "Hello")
+    }
+
+    func testChatHistorySyncedOnResponse() async {
+        var state = JobDetailFeature.State(job: .mock(), apiKey: "test-key")
+        state.aiInput = "Hello"
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.claudeClient.chat = { _, _, _ in
+                ("Response", AITokenUsage(inputTokens: 10, outputTokens: 20))
+            }
+        }
+        store.exhaustivity = .off
+
+        await store.send(.sendMessage)
+        await store.receive(\.aiResponseReceived)
+
+        // Chat history should be persisted to job
+        XCTAssertEqual(store.state.job.chatHistory.count, 2)
+        XCTAssertEqual(store.state.job.chatHistory[0].content, "Hello")
+        XCTAssertEqual(store.state.job.chatHistory[1].content, "Response")
+    }
+
+    // MARK: - ChatMessage Codable
+
+    func testChatMessageCodableRoundTrip() throws {
+        let msg = ChatMessage(role: .assistant, content: "Test response")
+        let data = try JSONEncoder().encode(msg)
+        let decoded = try JSONDecoder().decode(ChatMessage.self, from: data)
+        XCTAssertEqual(decoded.id, msg.id)
+        XCTAssertEqual(decoded.role, .assistant)
+        XCTAssertEqual(decoded.content, "Test response")
+    }
+
+    func testJobApplicationChatHistoryRoundTrip() throws {
+        var job = JobApplication.mock()
+        job.chatHistory = [
+            ChatMessage(role: .user, content: "Hello"),
+            ChatMessage(role: .assistant, content: "Hi!"),
+        ]
+        let data = try JSONEncoder().encode(job)
+        let decoded = try JSONDecoder().decode(JobApplication.self, from: data)
+        XCTAssertEqual(decoded.chatHistory.count, 2)
+        XCTAssertEqual(decoded.chatHistory[0].role, .user)
+        XCTAssertEqual(decoded.chatHistory[1].role, .assistant)
+    }
+
+    func testJobApplicationEmptyChatHistoryNotEncoded() throws {
+        let job = JobApplication.mock()
+        let data = try JSONEncoder().encode(job)
+        let json = String(data: data, encoding: .utf8)!
+        // Empty chatHistory should not be in JSON (we skip encoding it)
+        XCTAssertFalse(json.contains("chatHistory"))
     }
 }
