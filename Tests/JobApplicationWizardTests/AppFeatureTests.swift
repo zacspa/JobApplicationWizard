@@ -448,6 +448,41 @@ final class AppFeatureTests: XCTestCase {
         }
     }
 
+    // MARK: - ACP Disconnect
+
+    func testDisconnectACPAgentClearsConnectionState() async {
+        var state = AppFeature.State()
+        state.$acpConnection.withLock {
+            $0.isConnected = true
+            $0.connectedAgentName = "test-agent"
+        }
+
+        var disconnectCalled = false
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.acpClient = ACPClient(
+                connect: { _ in "" },
+                disconnect: { disconnectCalled = true },
+                sendPrompt: { _, _ in ("", .zero) },
+                onUnexpectedDisconnect: { AsyncStream { $0.finish() } }
+            )
+        }
+
+        store.exhaustivity = .off
+
+        await store.send(.disconnectACPAgent)
+
+        await store.receive(\.acpDisconnected) {
+            $0.$acpConnection.withLock {
+                $0.isConnected = false
+                $0.connectedAgentName = nil
+            }
+        }
+
+        XCTAssertTrue(disconnectCalled, "acpClient.disconnect() should be called")
+    }
+
     func testDismissSaveError() async {
         var state = AppFeature.State()
         state.saveError = "Some error"
