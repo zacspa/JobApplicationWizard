@@ -5,6 +5,9 @@ import Foundation
 public struct CuttleFeature {
     private enum CancelID { case aiRequest }
 
+    /// Maximum messages retained per context when saving chat history.
+    private static let maxHistoryMessages = 100
+
     @ObservableState
     public struct State: Equatable {
         // Context
@@ -77,6 +80,14 @@ public struct CuttleFeature {
         // Lifecycle
         case restoreFromSettings(CuttleContext, [ChatMessage], [String: [ChatMessage]])
         case positionAtDropZone
+        // Delegate (parent actions)
+        case delegate(Delegate)
+
+        @CasePathable
+        public enum Delegate: Equatable {
+            /// Job-context chat was updated; parent should persist to the job model.
+            case jobChatUpdated(UUID, [ChatMessage])
+        }
     }
 
     @Dependency(\.claudeClient) var claudeClient
@@ -98,16 +109,25 @@ public struct CuttleFeature {
                 state.mood = .listening
                 state.position = location
 
-                // Check drop zone proximity using cursor position
+                // Check drop zone proximity using cursor position.
+                // Prefer more specific contexts (job > status > global) when zones overlap.
                 let tolerance: CGFloat = 20
                 state.pendingContext = nil
+                var bestZone: DropZone? = nil
                 for zone in state.dropZones {
                     let expanded = zone.frame.insetBy(dx: -tolerance, dy: -tolerance)
                     if expanded.contains(location) {
-                        state.pendingContext = zone.context
-                        break
+                        if let current = bestZone {
+                            // Prefer more specific: .job > .status > .global
+                            if specificity(zone.context) > specificity(current.context) {
+                                bestZone = zone
+                            }
+                        } else {
+                            bestZone = zone
+                        }
                     }
                 }
+                state.pendingContext = bestZone?.context
                 return .none
 
             case .dragEnded:
@@ -163,9 +183,15 @@ public struct CuttleFeature {
                 state.showContextTransitionAlert = false
                 state.alertPendingContext = nil
 
+                // Cancel any in-flight AI request to prevent cross-contamination
+                let cancelEffect = Effect<Action>.cancel(id: CancelID.aiRequest)
+                state.isLoading = false
+
+                let saveEffect: Effect<Action>
                 if !carry {
-                    // Save current chat before switching
-                    saveChatHistory(state: &state)
+                    saveEffect = saveChatHistory(state: &state)
+                } else {
+                    saveEffect = .none
                 }
 
                 let newContext = pending
@@ -173,13 +199,10 @@ public struct CuttleFeature {
                 state.acpSentSystemPrompt = false
                 state.mood = .idle
 
-                if carry {
-                    // Keep current messages
-                } else {
-                    // Load history for new context
+                if !carry {
                     loadChatHistory(state: &state)
                 }
-                return .none
+                return .merge(cancelEffect, saveEffect)
 
             case .cancelContextTransition:
                 state.showContextTransitionAlert = false
@@ -204,11 +227,14 @@ public struct CuttleFeature {
                 state.error = nil
                 state.mood = .thinking
 
+                // Build system prompt using history BEFORE the just-appended user message,
+                // since the user message is sent separately in the messages array.
+                let priorHistory = Array(state.chatMessages.dropLast())
                 let systemPrompt = CuttlePromptBuilder.buildPrompt(
                     context: state.currentContext,
                     jobs: state.jobs,
                     profile: state.userProfile,
-                    chatHistory: state.chatMessages
+                    chatHistory: priorHistory
                 )
                 let messages = state.chatMessages
 
@@ -240,15 +266,14 @@ public struct CuttleFeature {
                     inputTokens: state.tokenUsage.inputTokens + usage.inputTokens,
                     outputTokens: state.tokenUsage.outputTokens + usage.outputTokens
                 )
-                // Persist chat history for the current context
-                saveChatHistory(state: &state)
-                return .none
+                return saveChatHistory(state: &state)
 
             case .aiResponseReceived(.failure(let error)):
                 state.isLoading = false
                 state.mood = .idle
                 state.error = "\(type(of: error)): \(error.localizedDescription)"
-                return .none
+                // Save the dangling user message so it isn't lost on context switch
+                return saveChatHistory(state: &state)
 
             case .clearChat:
                 state.chatMessages = []
@@ -256,8 +281,7 @@ public struct CuttleFeature {
                 state.error = nil
                 state.tokenUsage = .zero
                 state.acpSentSystemPrompt = false
-                saveChatHistory(state: &state)
-                return .none
+                return saveChatHistory(state: &state)
 
             case .applySuggestion(let prompt):
                 state.chatInput = prompt
@@ -269,12 +293,14 @@ public struct CuttleFeature {
                 state.currentContext = context
                 state.globalChatHistory = globalHistory
                 state.statusChatHistories = statusHistories
-                // Load the correct history for the restored context
                 loadChatHistory(state: &state)
                 return .none
 
             case .positionAtDropZone:
                 snapToDropZone(state: &state, context: state.currentContext)
+                return .none
+
+            case .delegate:
                 return .none
             }
         }
@@ -282,9 +308,22 @@ public struct CuttleFeature {
 
     // MARK: - Helpers
 
+    /// Returns a specificity score for drop zone priority (higher = more specific).
+    private func specificity(_ context: CuttleContext) -> Int {
+        switch context {
+        case .global: return 0
+        case .status: return 1
+        case .job: return 2
+        }
+    }
+
     private func switchContextSilently(state: inout State, to context: CuttleContext) -> Effect<Action> {
+        // Cancel any in-flight AI request to prevent cross-contamination
+        let cancelEffect = Effect<Action>.cancel(id: CancelID.aiRequest)
+        state.isLoading = false
+
         // Save current history before switching
-        saveChatHistory(state: &state)
+        let saveEffect = saveChatHistory(state: &state)
 
         state.pendingContext = nil
         state.currentContext = context
@@ -296,7 +335,7 @@ public struct CuttleFeature {
 
         // Snap to zone
         snapToDropZone(state: &state, context: context)
-        return .none
+        return .merge(cancelEffect, saveEffect)
     }
 
     private func snapToDropZone(state: inout State, context: CuttleContext) {
@@ -315,19 +354,21 @@ public struct CuttleFeature {
         }
     }
 
-    private func saveChatHistory(state: inout State) {
+    /// Saves chat messages to the appropriate history store, with pruning.
+    /// Returns a delegate effect for job-context so AppFeature can persist to the job model.
+    private func saveChatHistory(state: inout State) -> Effect<Action> {
+        let pruned = Array(state.chatMessages.suffix(Self.maxHistoryMessages))
+
         switch state.currentContext {
         case .global:
-            state.globalChatHistory = state.chatMessages
+            state.globalChatHistory = pruned
+            return .none
         case .status(let status):
-            state.statusChatHistories[status.rawValue] = state.chatMessages
+            state.statusChatHistories[status.rawValue] = pruned
+            return .none
         case .job(let id):
-            // Job chat is stored on the job itself; handled by AppFeature sync
-            if var job = state.jobs.first(where: { $0.id == id }) {
-                job.chatHistory = state.chatMessages
-                // Note: actual persistence goes through AppFeature delegate
-            }
-            break
+            // Notify AppFeature to write chat back to the job model
+            return .send(.delegate(.jobChatUpdated(id, pruned)))
         }
     }
 

@@ -220,10 +220,19 @@ public struct AppFeature {
                     state.jobDetail = nil
                 }
                 state.cuttle.jobs = Array(state.jobs)
+                // If Cuttle was docked on the deleted job, recover to global
+                if case .job(let cuttleJobId) = state.cuttle.currentContext, cuttleJobId == id {
+                    state.cuttle.currentContext = .global
+                    state.cuttle.chatMessages = state.cuttle.globalChatHistory
+                    state.cuttle.tokenUsage = .zero
+                    state.cuttle.error = nil
+                    state.cuttle.acpSentSystemPrompt = false
+                }
                 return saveJobs(state.jobs)
 
             case .toggleFavorite(let id):
                 state.jobs[id: id]?.isFavorite.toggle()
+                state.cuttle.jobs = Array(state.jobs)
                 return saveJobs(state.jobs)
 
             case .prepareAddJob:
@@ -257,6 +266,14 @@ public struct AppFeature {
                 state.selectedJobID = nil
                 state.jobDetail = nil
                 state.cuttle.jobs = Array(state.jobs)
+                // If Cuttle was docked on the deleted job, recover to global
+                if case .job(let cuttleJobId) = state.cuttle.currentContext, cuttleJobId == id {
+                    state.cuttle.currentContext = .global
+                    state.cuttle.chatMessages = state.cuttle.globalChatHistory
+                    state.cuttle.tokenUsage = .zero
+                    state.cuttle.error = nil
+                    state.cuttle.acpSentSystemPrompt = false
+                }
                 return saveJobs(state.jobs)
 
             case .jobDetail:
@@ -264,8 +281,20 @@ public struct AppFeature {
 
             // MARK: - Cuttle
 
-            case .cuttle(.aiResponseReceived), .cuttle(.clearChat), .cuttle(.contextTransitionConfirmed):
-                // Persist Cuttle chat state to settings after AI interactions
+            case .cuttle(.delegate(.jobChatUpdated(let jobId, let messages))):
+                // Write job-context chat history back to the job model
+                state.jobs[id: jobId]?.chatHistory = messages
+                state.cuttle.jobs = Array(state.jobs)
+                return .merge(
+                    saveJobs(state.jobs),
+                    .send(.saveCuttleState)
+                )
+
+            case .cuttle(.aiResponseReceived),
+                 .cuttle(.clearChat),
+                 .cuttle(.contextTransitionConfirmed),
+                 .cuttle(.switchContext):
+                // Persist Cuttle state after chat changes or context switches
                 return .send(.saveCuttleState)
 
             case .cuttle:

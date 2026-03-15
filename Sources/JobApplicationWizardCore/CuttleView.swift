@@ -27,13 +27,16 @@ public struct CuttleView: View {
 
     public var body: some View {
         ZStack {
-            // Click-outside-to-collapse overlay
+            // Click-outside-to-collapse overlay.
+            // Uses a clear background that only captures mouse clicks,
+            // allowing keyboard shortcuts and accessibility to pass through.
             if store.isExpanded {
-                Color.black.opacity(0.001)
-                    .ignoresSafeArea()
+                Color.clear
+                    .contentShape(Rectangle())
                     .onTapGesture {
                         store.send(.collapse)
                     }
+                    .accessibilityHidden(true)
             }
 
             // Main Cuttle content

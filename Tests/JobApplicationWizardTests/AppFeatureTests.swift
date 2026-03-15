@@ -221,6 +221,7 @@ final class AppFeatureTests: XCTestCase {
 
         await store.send(.toggleFavorite(job.id)) {
             $0.jobs[id: job.id]?.isFavorite = true
+            $0.cuttle.jobs = Array($0.jobs)
         }
     }
 
@@ -448,6 +449,7 @@ final class AppFeatureTests: XCTestCase {
 
         await store.send(.toggleFavorite(job.id)) {
             $0.jobs[id: job.id]?.isFavorite = true
+            $0.cuttle.jobs = Array($0.jobs)
         }
         await store.receive(\.saveFailed) {
             $0.saveError = "Failed to save jobs: Disk full"
