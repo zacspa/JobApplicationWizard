@@ -87,6 +87,8 @@ public struct CuttleFeature {
         public enum Delegate: Equatable {
             /// Job-context chat was updated; parent should persist to the job model.
             case jobChatUpdated(UUID, [ChatMessage])
+            /// Cuttle docked on a job; parent should select it in the detail pane.
+            case contextChanged(CuttleContext)
         }
     }
 
@@ -202,7 +204,7 @@ public struct CuttleFeature {
                 if !carry {
                     loadChatHistory(state: &state)
                 }
-                return .merge(cancelEffect, saveEffect)
+                return .merge(cancelEffect, saveEffect, .send(.delegate(.contextChanged(newContext))))
 
             case .cancelContextTransition:
                 state.showContextTransitionAlert = false
@@ -335,7 +337,7 @@ public struct CuttleFeature {
 
         // Snap to zone
         snapToDropZone(state: &state, context: context)
-        return .merge(cancelEffect, saveEffect)
+        return .merge(cancelEffect, saveEffect, .send(.delegate(.contextChanged(context))))
     }
 
     private func snapToDropZone(state: inout State, context: CuttleContext) {

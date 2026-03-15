@@ -290,6 +290,13 @@ public struct AppFeature {
                     .send(.saveCuttleState)
                 )
 
+            case .cuttle(.delegate(.contextChanged(let context))):
+                // When Cuttle docks on a job, select it in the detail pane
+                if case .job(let id) = context {
+                    return .send(.selectJob(id))
+                }
+                return .none
+
             case .cuttle(.aiResponseReceived),
                  .cuttle(.clearChat),
                  .cuttle(.contextTransitionConfirmed),
