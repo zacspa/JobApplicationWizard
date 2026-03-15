@@ -66,6 +66,17 @@ private struct GeneralSettingsTab: View {
                 }
 
             }
+
+            Section("Cuttle") {
+                Button("Replay Cuttle Tour") {
+                    store.send(.replayCuttleTour)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                Text("Walk through Cuttle's features again.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
         .formStyle(.grouped)
         .padding(.horizontal, 16)
