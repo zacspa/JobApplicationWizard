@@ -41,10 +41,12 @@ public struct JobDetailFeature {
             case notes = "Notes"
             case contacts = "Contacts"
             case interviews = "Interviews"
+            case documents = "Documents"
 
             public var label: String {
                 switch self {
                 case .description: return "JD"
+                case .documents: return "Docs"
                 default: return rawValue
                 }
             }
@@ -56,6 +58,7 @@ public struct JobDetailFeature {
                 case .notes: return "note.text"
                 case .contacts: return "person.2"
                 case .interviews: return "calendar.badge.clock"
+                case .documents: return "paperclip"
                 }
             }
         }
@@ -111,6 +114,9 @@ public struct JobDetailFeature {
         case deleteContact(IndexSet)
         case addInterview
         case deleteInterview(IndexSet)
+        // Documents
+        case deleteDocument(UUID)
+        case processDocumentWithAI(UUID)
         // Description PDF
         case printTapped
         case savePDFTapped
@@ -125,6 +131,7 @@ public struct JobDetailFeature {
         public enum Delegate: Equatable {
             case jobUpdated(JobApplication)
             case jobDeleted(UUID)
+            case processDocumentWithAI(jobId: UUID, documentId: UUID)
         }
     }
 
@@ -205,6 +212,13 @@ public struct JobDetailFeature {
                 state.interviews.remove(atOffsets: idxs)
                 state.syncJobFromFields()
                 return .send(.delegate(.jobUpdated(state.job)))
+
+            case .deleteDocument(let id):
+                state.job.documents.removeAll { $0.id == id }
+                return .send(.delegate(.jobUpdated(state.job)))
+
+            case .processDocumentWithAI(let docId):
+                return .send(.delegate(.processDocumentWithAI(jobId: state.job.id, documentId: docId)))
 
             case .printTapped:
                 let job = state.job

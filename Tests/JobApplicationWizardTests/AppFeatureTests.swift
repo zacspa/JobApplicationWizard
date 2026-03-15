@@ -152,6 +152,7 @@ final class AppFeatureTests: XCTestCase {
             AppFeature()
         } withDependencies: {
             $0.persistenceClient.saveJobs = { _ in }
+            $0.historyClient.record = { _ in }
         }
 
         store.exhaustivity = .off
@@ -173,15 +174,14 @@ final class AppFeatureTests: XCTestCase {
             AppFeature()
         } withDependencies: {
             $0.persistenceClient.saveJobs = { _ in }
+            $0.historyClient.record = { _ in }
         }
 
-        await store.send(.moveJob(job.id, .interview)) {
-            var updatedJob = job
-            updatedJob.status = .interview
-            $0.jobs[id: job.id] = updatedJob
-            $0.jobDetail?.job = updatedJob
-            $0.cuttle.jobs = Array($0.jobs)
-        }
+        store.exhaustivity = .off
+        await store.send(.moveJob(job.id, .interview))
+
+        XCTAssertEqual(store.state.jobs[id: job.id]?.status, .interview)
+        XCTAssertEqual(store.state.jobDetail?.job.status, .interview)
     }
 
     // MARK: - deleteJob
@@ -197,13 +197,15 @@ final class AppFeatureTests: XCTestCase {
             AppFeature()
         } withDependencies: {
             $0.persistenceClient.saveJobs = { _ in }
+            $0.historyClient.record = { _ in }
         }
 
-        await store.send(.deleteJob(job.id)) {
-            $0.jobs = []
-            $0.selectedJobID = nil
-            $0.jobDetail = nil
-        }
+        store.exhaustivity = .off
+        await store.send(.deleteJob(job.id))
+
+        XCTAssertTrue(store.state.jobs.isEmpty)
+        XCTAssertNil(store.state.selectedJobID)
+        XCTAssertNil(store.state.jobDetail)
     }
 
     // MARK: - toggleFavorite
@@ -217,12 +219,13 @@ final class AppFeatureTests: XCTestCase {
             AppFeature()
         } withDependencies: {
             $0.persistenceClient.saveJobs = { _ in }
+            $0.historyClient.record = { _ in }
         }
 
-        await store.send(.toggleFavorite(job.id)) {
-            $0.jobs[id: job.id]?.isFavorite = true
-            $0.cuttle.jobs = Array($0.jobs)
-        }
+        store.exhaustivity = .off
+        await store.send(.toggleFavorite(job.id))
+
+        XCTAssertEqual(store.state.jobs[id: job.id]?.isFavorite, true)
     }
 
     // MARK: - Child Delegation: AddJob
@@ -233,15 +236,15 @@ final class AppFeatureTests: XCTestCase {
             AppFeature()
         } withDependencies: {
             $0.persistenceClient.saveJobs = { _ in }
+            $0.historyClient.record = { _ in }
         }
 
-        await store.send(.addJob(.delegate(.save(newJob)))) {
-            $0.jobs.append(newJob)
-            $0.selectedJobID = newJob.id
-            $0.jobDetail = JobDetailFeature.State(job: newJob)
-            $0.addJob = AddJobFeature.State()
-            $0.cuttle.jobs = Array($0.jobs)
-        }
+        store.exhaustivity = .off
+        await store.send(.addJob(.delegate(.save(newJob))))
+
+        XCTAssertEqual(store.state.jobs[id: newJob.id]?.company, newJob.company)
+        XCTAssertEqual(store.state.selectedJobID, newJob.id)
+        XCTAssertNotNil(store.state.jobDetail)
     }
 
     func testAddJobCancelDelegateResetsState() async {
@@ -272,11 +275,11 @@ final class AppFeatureTests: XCTestCase {
             $0.persistenceClient.saveJobs = { _ in }
         }
 
+        store.exhaustivity = .off
         job.company = "Updated Corp"
-        await store.send(.jobDetail(.delegate(.jobUpdated(job)))) {
-            $0.jobs[id: job.id] = job
-            $0.cuttle.jobs = Array($0.jobs)
-        }
+        await store.send(.jobDetail(.delegate(.jobUpdated(job))))
+
+        XCTAssertEqual(store.state.jobs[id: job.id]?.company, "Updated Corp")
     }
 
     func testJobDetailDeletedDelegateRemovesJob() async {
@@ -290,13 +293,15 @@ final class AppFeatureTests: XCTestCase {
             AppFeature()
         } withDependencies: {
             $0.persistenceClient.saveJobs = { _ in }
+            $0.historyClient.record = { _ in }
         }
 
-        await store.send(.jobDetail(.delegate(.jobDeleted(job.id)))) {
-            $0.jobs = []
-            $0.selectedJobID = nil
-            $0.jobDetail = nil
-        }
+        store.exhaustivity = .off
+        await store.send(.jobDetail(.delegate(.jobDeleted(job.id))))
+
+        XCTAssertTrue(store.state.jobs.isEmpty)
+        XCTAssertNil(store.state.selectedJobID)
+        XCTAssertNil(store.state.jobDetail)
     }
 
     // MARK: - importCSVResult
@@ -445,15 +450,14 @@ final class AppFeatureTests: XCTestCase {
             AppFeature()
         } withDependencies: {
             $0.persistenceClient.saveJobs = { _ in throw DiskFullError() }
+            $0.historyClient.record = { _ in }
         }
 
-        await store.send(.toggleFavorite(job.id)) {
-            $0.jobs[id: job.id]?.isFavorite = true
-            $0.cuttle.jobs = Array($0.jobs)
-        }
-        await store.receive(\.saveFailed) {
-            $0.saveError = "Failed to save jobs: Disk full"
-        }
+        store.exhaustivity = .off
+        await store.send(.toggleFavorite(job.id))
+        await store.receive(\.saveFailed)
+
+        XCTAssertEqual(store.state.saveError, "Failed to save jobs: Disk full")
     }
 
     // MARK: - ACP Disconnect

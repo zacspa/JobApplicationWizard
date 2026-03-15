@@ -23,8 +23,14 @@ public struct ContentView: View {
                     Divider()
                     Group {
                         switch store.viewMode {
-                        case .kanban: KanbanView(store: store)
-                        case .list:   ListView(store: store)
+                        case .kanban: KanbanView(
+                            store: store,
+                            onDocumentDrop: { jobId, urls in store.send(.documentDropped(jobId, urls)) },
+                            processingJobIds: store.processingDocumentJobIds
+                        )
+                        case .list: ListView(store: store) { jobId, urls in
+                            store.send(.documentDropped(jobId, urls))
+                        }
                         }
                     }
                 }
@@ -132,6 +138,24 @@ public struct ContentView: View {
             .cornerRadius(8)
 
             Spacer()
+
+            Button { store.send(.undo) } label: {
+                Image(systemName: "arrow.uturn.backward")
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(store.undoStack.isEmpty ? .secondary.opacity(0.3) : .secondary)
+            .disabled(store.undoStack.isEmpty)
+            .keyboardShortcut("z", modifiers: .command)
+            .help("Undo")
+
+            Button { store.send(.redo) } label: {
+                Image(systemName: "arrow.uturn.forward")
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(store.redoStack.isEmpty ? .secondary.opacity(0.3) : .secondary)
+            .disabled(store.redoStack.isEmpty)
+            .keyboardShortcut("z", modifiers: [.command, .shift])
+            .help("Redo")
 
             Button {
                 store.send(.prepareAddJob)

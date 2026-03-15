@@ -5,9 +5,13 @@ import ComposableArchitecture
 
 public struct KanbanView: View {
     let store: StoreOf<AppFeature>
+    let onDocumentDrop: (UUID, [URL]) -> Void
+    var processingJobIds: Set<UUID> = []
 
-    public init(store: StoreOf<AppFeature>) {
+    public init(store: StoreOf<AppFeature>, onDocumentDrop: @escaping (UUID, [URL]) -> Void = { _, _ in }, processingJobIds: Set<UUID> = []) {
         self.store = store
+        self.onDocumentDrop = onDocumentDrop
+        self.processingJobIds = processingJobIds
     }
 
     func jobsInColumn(_ status: JobStatus) -> [JobApplication] {
@@ -28,7 +32,9 @@ public struct KanbanView: View {
                         onSelect: { store.send(.selectJob($0)) },
                         onMove: { store.send(.moveJob($0, $1)) },
                         onToggleFavorite: { store.send(.toggleFavorite($0)) },
-                        onDelete: { store.send(.deleteJob($0)) }
+                        onDelete: { store.send(.deleteJob($0)) },
+                        onDocumentDrop: onDocumentDrop,
+                        processingJobIds: processingJobIds
                     )
                 }
             }
@@ -49,6 +55,8 @@ struct KanbanRow: View {
     let onMove: (UUID, JobStatus) -> Void
     let onToggleFavorite: (UUID) -> Void
     let onDelete: (UUID) -> Void
+    var onDocumentDrop: (UUID, [URL]) -> Void = { _, _ in }
+    var processingJobIds: Set<UUID> = []
 
     @State private var isTargeted = false
 
@@ -94,7 +102,27 @@ struct KanbanRow: View {
                             onDelete: { onDelete(job.id) }
                         )
                         .frame(width: 240)
+                        .overlay {
+                            if processingJobIds.contains(job.id) {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(.ultraThinMaterial)
+                                    .overlay {
+                                        VStack(spacing: 6) {
+                                            ProgressView()
+                                                .controlSize(.small)
+                                            Text("Processing document…")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                            }
+                        }
                         .cuttleDockable(context: .job(job.id))
+                        .dropDestination(for: URL.self) { urls, _ in
+                            guard !urls.isEmpty else { return false }
+                            onDocumentDrop(job.id, urls)
+                            return true
+                        }
                         .draggable(job.id.uuidString) {
                             JobCard(
                                 job: job,

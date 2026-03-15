@@ -23,7 +23,8 @@ extension JobApplication {
         excitement: Int = 3,
         hasPDF: Bool = false,
         pdfPath: String? = nil,
-        chatHistory: [ChatMessage] = []
+        chatHistory: [ChatMessage] = [],
+        documents: [JobDocument] = []
     ) -> JobApplication {
         var job = JobApplication()
         job.id = id
@@ -47,6 +48,7 @@ extension JobApplication {
         job.hasPDF = hasPDF
         job.pdfPath = pdfPath
         job.chatHistory = chatHistory
+        job.documents = documents
         return job
     }
 }

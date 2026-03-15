@@ -15,7 +15,7 @@ public enum ViewMode: String, Codable, CaseIterable, Equatable {
 
 @Reducer
 public struct AppFeature {
-    private enum CancelID { case acpCrashMonitor, save, saveSettings }
+    private enum CancelID { case acpCrashMonitor, save, saveSettings, bindingDebounce }
 
     @ObservableState
     public struct State: Equatable {
@@ -31,14 +31,29 @@ public struct AppFeature {
         public var addJob: AddJobFeature.State = AddJobFeature.State()
         public var jobDetail: JobDetailFeature.State? = nil
         public var cuttle: CuttleFeature.State = CuttleFeature.State()
+        public var history: HistoryFeature.State = HistoryFeature.State()
         public var saveError: String? = nil
         public var showImportAllConfirm: Bool = false
         public var pendingImportAll: AppDataExport? = nil
 
-        // ACP state — connection state is shared with CuttleFeature via @Shared
+        // ACP state
         @Shared(.inMemory("acpConnection")) public var acpConnection = ACPConnectionState()
         public var availableACPAgents: [ACPAgentEntry] = []
         public var isLoadingAgents: Bool = false
+
+        // Agent action review
+        public var pendingAgentReview: PendingAgentReview? = nil
+        public var showAgentReviewSheet: Bool = false
+
+        // Document processing
+        public var processingDocumentJobIds: Set<UUID> = []
+
+        // Undo/redo stacks
+        public var undoStack: [HistoryEvent] = []
+        public var redoStack: [HistoryEvent] = []
+
+        // Binding debounce tracking
+        public var lastBindingJobId: UUID? = nil
 
         public var filteredJobs: [JobApplication] {
             jobs.filter { job in
@@ -78,6 +93,7 @@ public struct AppFeature {
         case addJob(AddJobFeature.Action)
         case jobDetail(JobDetailFeature.Action)
         case cuttle(CuttleFeature.Action)
+        case history(HistoryFeature.Action)
         case exportCSV
         case importCSV
         case importCSVResult([JobApplication])
@@ -105,18 +121,38 @@ public struct AppFeature {
         case acpProcessCrashed
         // Cuttle persistence
         case saveCuttleState
+        // Agent actions
+        case agentActionModeChanged(AgentActionMode)
+        case autoProcessDocumentsChanged(Bool)
+        case applyAgentActions([AgentAction], String, UUID)
+        case confirmAgentReview
+        case cancelAgentReview
+        case toggleAgentReviewAction(Int)
+        // Documents
+        case documentDropped(UUID, [URL])
+        case documentExtracted(UUID, JobDocument)
+        case documentExtractionFailed(String)
+        case processDocumentWithAI(jobId: UUID, documentId: UUID)
+        // Undo/redo
+        case undo
+        case redo
+        // History debounce
+        case recordBindingEdit(UUID)
     }
 
     @Dependency(\.persistenceClient) var persistence
     @Dependency(\.keychainClient) var keychain
     @Dependency(\.acpClient) var acpClient
     @Dependency(\.acpRegistryClient) var acpRegistry
+    @Dependency(\.historyClient) var historyClient
+    @Dependency(\.documentClient) var documentClient
 
     public init() {}
 
     public var body: some ReducerOf<Self> {
         Scope(state: \.addJob, action: \.addJob) { AddJobFeature() }
         Scope(state: \.cuttle, action: \.cuttle) { CuttleFeature() }
+        Scope(state: \.history, action: \.history) { HistoryFeature() }
         Reduce { state, action in
             switch action {
             case .onAppear:
@@ -200,10 +236,11 @@ public struct AppFeature {
                 }
                 return .none
 
-            case .moveJob(let id, let status):
+            case .moveJob(let id, let newStatus):
                 guard var job = state.jobs[id: id] else { return .none }
-                job.status = status
-                if status == .applied && job.dateApplied == nil {
+                let oldStatus = job.status
+                job.status = newStatus
+                if newStatus == .applied && job.dateApplied == nil {
                     job.dateApplied = Date()
                 }
                 state.jobs[id: id] = job
@@ -211,16 +248,21 @@ public struct AppFeature {
                     state.jobDetail?.job = job
                 }
                 state.cuttle.jobs = Array(state.jobs)
-                return saveJobs(state.jobs)
+                let event = HistoryEvent(
+                    label: "Moved \(job.displayCompany) from \(oldStatus.rawValue) to \(newStatus.rawValue)",
+                    source: .user,
+                    command: .setStatus(jobId: id, old: oldStatus, new: newStatus)
+                )
+                return .merge(saveJobs(state.jobs), recordEvent(event, state: &state))
 
             case .deleteJob(let id):
+                let snapshot = state.jobs[id: id]
                 state.jobs.remove(id: id)
                 if state.selectedJobID == id {
                     state.selectedJobID = nil
                     state.jobDetail = nil
                 }
                 state.cuttle.jobs = Array(state.jobs)
-                // If Cuttle was docked on the deleted job, recover to global
                 if case .job(let cuttleJobId) = state.cuttle.currentContext, cuttleJobId == id {
                     state.cuttle.currentContext = .global
                     state.cuttle.chatMessages = state.cuttle.globalChatHistory
@@ -228,12 +270,28 @@ public struct AppFeature {
                     state.cuttle.error = nil
                     state.cuttle.acpSentSystemPrompt = false
                 }
-                return saveJobs(state.jobs)
+                var effects: [Effect<Action>] = [saveJobs(state.jobs)]
+                if let snapshot {
+                    let event = HistoryEvent(
+                        label: "Deleted \(snapshot.displayCompany) \(snapshot.displayTitle)",
+                        source: .user,
+                        command: .deleteJob(jobId: id, snapshot: snapshot)
+                    )
+                    effects.append(recordEvent(event, state: &state))
+                }
+                return .merge(effects)
 
             case .toggleFavorite(let id):
+                guard let job = state.jobs[id: id] else { return .none }
+                let oldVal = job.isFavorite
                 state.jobs[id: id]?.isFavorite.toggle()
                 state.cuttle.jobs = Array(state.jobs)
-                return saveJobs(state.jobs)
+                let event = HistoryEvent(
+                    label: "\(oldVal ? "Unfavorited" : "Favorited") \(job.displayCompany)",
+                    source: .user,
+                    command: .toggleFavorite(jobId: id, old: oldVal, new: !oldVal)
+                )
+                return .merge(saveJobs(state.jobs), recordEvent(event, state: &state))
 
             case .prepareAddJob:
                 state.addJob = AddJobFeature.State()
@@ -247,7 +305,12 @@ public struct AppFeature {
                 )
                 state.addJob = AddJobFeature.State()
                 state.cuttle.jobs = Array(state.jobs)
-                return saveJobs(state.jobs)
+                let event = HistoryEvent(
+                    label: "Added \(job.displayCompany) \(job.displayTitle)",
+                    source: .user,
+                    command: .addJob(jobId: job.id)
+                )
+                return .merge(saveJobs(state.jobs), recordEvent(event, state: &state))
 
             case .addJob(.delegate(.cancel)):
                 state.addJob = AddJobFeature.State()
@@ -259,14 +322,29 @@ public struct AppFeature {
             case .jobDetail(.delegate(.jobUpdated(let job))):
                 state.jobs[id: job.id] = job
                 state.cuttle.jobs = Array(state.jobs)
-                return saveJobs(state.jobs)
+                // Debounce binding edits: record history after 2s of inactivity
+                state.lastBindingJobId = job.id
+                return .merge(
+                    saveJobs(state.jobs),
+                    .run { send in
+                        try await Task.sleep(for: .seconds(2))
+                        await send(.recordBindingEdit(job.id))
+                    }
+                    .cancellable(id: CancelID.bindingDebounce, cancelInFlight: true)
+                )
+
+            case .recordBindingEdit(let jobId):
+                // The debounce timer fired; the job state is already saved.
+                // We don't record individual field-level events for bindings to keep history clean.
+                state.lastBindingJobId = nil
+                return .none
 
             case .jobDetail(.delegate(.jobDeleted(let id))):
+                let snapshot = state.jobs[id: id]
                 state.jobs.remove(id: id)
                 state.selectedJobID = nil
                 state.jobDetail = nil
                 state.cuttle.jobs = Array(state.jobs)
-                // If Cuttle was docked on the deleted job, recover to global
                 if case .job(let cuttleJobId) = state.cuttle.currentContext, cuttleJobId == id {
                     state.cuttle.currentContext = .global
                     state.cuttle.chatMessages = state.cuttle.globalChatHistory
@@ -274,7 +352,19 @@ public struct AppFeature {
                     state.cuttle.error = nil
                     state.cuttle.acpSentSystemPrompt = false
                 }
-                return saveJobs(state.jobs)
+                var effects: [Effect<Action>] = [saveJobs(state.jobs)]
+                if let snapshot {
+                    let event = HistoryEvent(
+                        label: "Deleted \(snapshot.displayCompany) \(snapshot.displayTitle)",
+                        source: .user,
+                        command: .deleteJob(jobId: id, snapshot: snapshot)
+                    )
+                    effects.append(recordEvent(event, state: &state))
+                }
+                return .merge(effects)
+
+            case .jobDetail(.delegate(.processDocumentWithAI(let jobId, let documentId))):
+                return .send(.processDocumentWithAI(jobId: jobId, documentId: documentId))
 
             case .jobDetail:
                 return .none
@@ -282,7 +372,6 @@ public struct AppFeature {
             // MARK: - Cuttle
 
             case .cuttle(.delegate(.jobChatUpdated(let jobId, let messages))):
-                // Write job-context chat history back to the job model
                 state.jobs[id: jobId]?.chatHistory = messages
                 state.cuttle.jobs = Array(state.jobs)
                 return .merge(
@@ -291,17 +380,39 @@ public struct AppFeature {
                 )
 
             case .cuttle(.delegate(.contextChanged(let context))):
-                // When Cuttle docks on a job, select it in the detail pane
                 if case .job(let id) = context {
                     return .send(.selectJob(id))
                 }
                 return .none
 
+            case .cuttle(.delegate(.agentActionsReceived(let actions, let summary))):
+                guard case .job(let jobId) = state.cuttle.currentContext,
+                      state.jobs[id: jobId] != nil else {
+                    return .none
+                }
+                // Select the job so the detail pane opens
+                if state.selectedJobID != jobId {
+                    state.selectedJobID = jobId
+                    if let job = state.jobs[id: jobId] {
+                        state.jobDetail = JobDetailFeature.State(
+                            job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                        )
+                    }
+                }
+                if state.settings.agentActionMode == .applyImmediately {
+                    return .send(.applyAgentActions(actions, summary, jobId))
+                } else {
+                    state.pendingAgentReview = PendingAgentReview(
+                        jobId: jobId, actions: actions, summary: summary
+                    )
+                    state.showAgentReviewSheet = true
+                    return .none
+                }
+
             case .cuttle(.aiResponseReceived),
                  .cuttle(.clearChat),
                  .cuttle(.contextTransitionConfirmed),
                  .cuttle(.switchContext):
-                // Persist Cuttle state after chat changes or context switches
                 return .send(.saveCuttleState)
 
             case .cuttle:
@@ -312,6 +423,260 @@ public struct AppFeature {
                 state.settings.globalChatHistory = state.cuttle.globalChatHistory
                 state.settings.statusChatHistories = state.cuttle.statusChatHistories
                 return saveSettings(state.settings)
+
+            // MARK: - History
+
+            case .history(.delegate(.applyCommands(let commands))):
+                for command in commands {
+                    applyReversedCommand(command, state: &state)
+                }
+                state.cuttle.jobs = Array(state.jobs)
+                // Refresh job detail if selected
+                if let selectedId = state.selectedJobID, let job = state.jobs[id: selectedId] {
+                    state.jobDetail = JobDetailFeature.State(
+                        job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                    )
+                }
+                return saveJobs(state.jobs)
+
+            case .history:
+                return .none
+
+            // MARK: - Agent Actions
+
+            case .agentActionModeChanged(let mode):
+                state.settings.agentActionMode = mode
+                return saveSettings(state.settings)
+
+            case .autoProcessDocumentsChanged(let enabled):
+                state.settings.autoProcessDocuments = enabled
+                return saveSettings(state.settings)
+
+            case .applyAgentActions(let actions, let summary, let jobId):
+                guard var job = state.jobs[id: jobId] else { return .none }
+                let oldSnapshot = job
+                var historyCommands: [HistoryCommand] = []
+
+                for action in actions {
+                    switch action {
+                    case .updateField(let field, let value):
+                        let oldValue: String
+                        switch field {
+                        case .company: oldValue = job.company; job.company = value
+                        case .title: oldValue = job.title; job.title = value
+                        case .location: oldValue = job.location; job.location = value
+                        case .salary: oldValue = job.salary; job.salary = value
+                        case .url: oldValue = job.url; job.url = value
+                        case .jobDescription: oldValue = job.jobDescription; job.jobDescription = value
+                        case .resumeUsed: oldValue = job.resumeUsed; job.resumeUsed = value
+                        case .coverLetter: oldValue = job.coverLetter; job.coverLetter = value
+                        }
+                        historyCommands.append(.updateField(jobId: jobId, field: field, oldValue: oldValue, newValue: value))
+
+                    case .setStatus(let statusStr):
+                        if let newStatus = JobStatus.allCases.first(where: { $0.rawValue == statusStr }) {
+                            let old = job.status
+                            job.status = newStatus
+                            historyCommands.append(.setStatus(jobId: jobId, old: old, new: newStatus))
+                        }
+
+                    case .addNote(let title, let body):
+                        let note = Note(title: title, body: body)
+                        job.noteCards.insert(note, at: 0)
+                        historyCommands.append(.addNote(jobId: jobId, noteId: note.id))
+
+                    case .updateNote(let matchTitle, let newTitle, let newBody):
+                        if let idx = job.noteCards.firstIndex(where: {
+                            $0.title.localizedCaseInsensitiveContains(matchTitle)
+                        }) {
+                            if let t = newTitle { job.noteCards[idx].title = t }
+                            if let b = newBody { job.noteCards[idx].body = b }
+                            job.noteCards[idx].updatedAt = Date()
+                        }
+
+                    case .addContact(let name, let title, let email):
+                        let contact = Contact(name: name, title: title ?? "", email: email ?? "")
+                        job.contacts.append(contact)
+                        historyCommands.append(.addContact(jobId: jobId, contactId: contact.id))
+
+                    case .updateContact(let matchName, let newName, let newTitle, let newEmail):
+                        if let idx = job.contacts.firstIndex(where: {
+                            $0.name.localizedCaseInsensitiveContains(matchName)
+                        }) {
+                            if let n = newName { job.contacts[idx].name = n }
+                            if let t = newTitle { job.contacts[idx].title = t }
+                            if let e = newEmail { job.contacts[idx].email = e }
+                        }
+
+                    case .addInterview(let round, let type, let dateStr):
+                        var date: Date? = nil
+                        if let dateStr {
+                            date = ISO8601DateFormatter().date(from: dateStr)
+                        }
+                        let interview = InterviewRound(round: round, type: type, date: date)
+                        job.interviews.append(interview)
+                        historyCommands.append(.addInterview(jobId: jobId, interviewId: interview.id))
+
+                    case .updateInterview(let round, let type, let dateStr, let interviewers, let notes):
+                        if let idx = job.interviews.firstIndex(where: { $0.round == round }) {
+                            if let t = type { job.interviews[idx].type = t }
+                            if let dateStr {
+                                job.interviews[idx].date = ISO8601DateFormatter().date(from: dateStr)
+                            }
+                            if let i = interviewers { job.interviews[idx].interviewers = i }
+                            if let n = notes { job.interviews[idx].notes = n }
+                        }
+
+                    case .deleteNote(let matchTitle):
+                        if let idx = job.noteCards.firstIndex(where: {
+                            $0.title.localizedCaseInsensitiveContains(matchTitle)
+                        }) {
+                            let snapshot = job.noteCards[idx]
+                            job.noteCards.remove(at: idx)
+                            historyCommands.append(.deleteNote(jobId: jobId, snapshot: snapshot))
+                        }
+
+                    case .deleteContact(let matchName):
+                        if let idx = job.contacts.firstIndex(where: {
+                            $0.name.localizedCaseInsensitiveContains(matchName)
+                        }) {
+                            let snapshot = job.contacts[idx]
+                            job.contacts.remove(at: idx)
+                            historyCommands.append(.deleteContact(jobId: jobId, snapshot: snapshot))
+                        }
+
+                    case .deleteInterview(let round):
+                        if let idx = job.interviews.firstIndex(where: { $0.round == round }) {
+                            let snapshot = job.interviews[idx]
+                            job.interviews.remove(at: idx)
+                            historyCommands.append(.deleteInterview(jobId: jobId, snapshot: snapshot))
+                        }
+
+                    case .addLabel(let labelName):
+                        if let preset = JobLabel.presets.first(where: { $0.name.lowercased() == labelName.lowercased() }) {
+                            job.labels.append(preset)
+                            historyCommands.append(.addLabel(jobId: jobId, label: preset))
+                        } else {
+                            let label = JobLabel(name: labelName, colorHex: "#8E8E93")
+                            job.labels.append(label)
+                            historyCommands.append(.addLabel(jobId: jobId, label: label))
+                        }
+
+                    case .removeLabel(let labelName):
+                        if let idx = job.labels.firstIndex(where: {
+                            $0.name.localizedCaseInsensitiveContains(labelName)
+                        }) {
+                            let label = job.labels[idx]
+                            job.labels.remove(at: idx)
+                            historyCommands.append(.removeLabel(jobId: jobId, label: label))
+                        }
+
+                    case .setExcitement(let level):
+                        let old = job.excitement
+                        job.excitement = max(1, min(5, level))
+                        historyCommands.append(.setExcitement(jobId: jobId, old: old, new: job.excitement))
+                    }
+                }
+
+                state.jobs[id: jobId] = job
+                state.cuttle.jobs = Array(state.jobs)
+                if state.jobDetail?.job.id == jobId {
+                    state.jobDetail = JobDetailFeature.State(
+                        job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                    )
+                }
+
+                let event = HistoryEvent(
+                    label: "AI: \(summary)",
+                    source: .agent,
+                    command: .replaceJob(jobId: jobId, oldSnapshot: oldSnapshot, newSnapshot: job)
+                )
+                return .merge(saveJobs(state.jobs), recordEvent(event, state: &state))
+
+            case .confirmAgentReview:
+                guard let review = state.pendingAgentReview else { return .none }
+                state.showAgentReviewSheet = false
+                let selectedActions = review.actions.enumerated()
+                    .filter { review.accepted.contains($0.offset) }
+                    .map(\.element)
+                state.pendingAgentReview = nil
+                guard !selectedActions.isEmpty else { return .none }
+                return .send(.applyAgentActions(selectedActions, review.summary, review.jobId))
+
+            case .cancelAgentReview:
+                state.pendingAgentReview = nil
+                state.showAgentReviewSheet = false
+                return .none
+
+            case .toggleAgentReviewAction(let index):
+                if state.pendingAgentReview?.accepted.contains(index) == true {
+                    state.pendingAgentReview?.accepted.remove(index)
+                } else {
+                    state.pendingAgentReview?.accepted.insert(index)
+                }
+                return .none
+
+            // MARK: - Documents
+
+            case .documentDropped(let jobId, let urls):
+                guard state.jobs[id: jobId] != nil else { return .none }
+                state.processingDocumentJobIds.insert(jobId)
+                return .run { send in
+                    for url in urls {
+                        do {
+                            let result = try await documentClient.extractText(url)
+                            let doc = JobDocument(
+                                filename: result.filename,
+                                documentType: result.type,
+                                rawText: result.text,
+                                fileSize: result.size,
+                                sourcePath: url.path
+                            )
+                            await send(.documentExtracted(jobId, doc))
+                        } catch {
+                            await send(.documentExtractionFailed(error.localizedDescription))
+                        }
+                    }
+                }
+
+            case .documentExtracted(let jobId, let doc):
+                state.jobs[id: jobId]?.documents.append(doc)
+                state.processingDocumentJobIds.remove(jobId)
+                state.cuttle.jobs = Array(state.jobs)
+                // Refresh job detail if viewing this job
+                if state.jobDetail?.job.id == jobId, let job = state.jobs[id: jobId] {
+                    state.jobDetail = JobDetailFeature.State(
+                        job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                    )
+                }
+                let event = HistoryEvent(
+                    label: "Added document \(doc.filename) to \(state.jobs[id: jobId]?.displayCompany ?? "job")",
+                    source: .user,
+                    command: .addDocument(jobId: jobId, documentId: doc.id)
+                )
+                // Switch Cuttle context to the target job, expand chat, then process with AI
+                state.cuttle.isExpanded = true
+                let historyEffect = recordEvent(event, state: &state)
+                return .merge(
+                    saveJobs(state.jobs),
+                    historyEffect,
+                    .send(.cuttle(.switchContext(.job(jobId)))),
+                    .send(.processDocumentWithAI(jobId: jobId, documentId: doc.id))
+                )
+
+            case .documentExtractionFailed(let error):
+                state.saveError = "Document extraction failed: \(error)"
+                state.processingDocumentJobIds = []
+                return .none
+
+            case .processDocumentWithAI(let jobId, let documentId):
+                guard let job = state.jobs[id: jobId],
+                      let doc = job.documents.first(where: { $0.id == documentId }) else {
+                    return .none
+                }
+                // Send a message to Cuttle to process the document
+                let message = "Please review the document '\(doc.filename)' (shown in the job context) and organize it into the appropriate fields."
+                return .send(.cuttle(.sendMessage(message)))
 
             case .exportCSV:
                 let csv = persistence.exportCSV(Array(state.jobs))
@@ -514,12 +879,43 @@ public struct AppFeature {
                     $0.error = "Agent process terminated unexpectedly."
                 }
                 return .none
+
+            // MARK: - Undo / Redo
+
+            case .undo:
+                guard let event = state.undoStack.popLast() else { return .none }
+                let reversed = event.command.reversed()
+                applyReversedCommand(reversed, state: &state)
+                // Push to redo stack with the original (un-reversed) command
+                state.redoStack.append(event)
+                state.cuttle.jobs = Array(state.jobs)
+                if let selectedId = state.selectedJobID, let job = state.jobs[id: selectedId] {
+                    state.jobDetail = JobDetailFeature.State(
+                        job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                    )
+                }
+                return saveJobs(state.jobs)
+
+            case .redo:
+                guard let event = state.redoStack.popLast() else { return .none }
+                // Re-apply the original command (forward direction)
+                applyForwardCommand(event.command, state: &state)
+                state.undoStack.append(event)
+                state.cuttle.jobs = Array(state.jobs)
+                if let selectedId = state.selectedJobID, let job = state.jobs[id: selectedId] {
+                    state.jobDetail = JobDetailFeature.State(
+                        job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                    )
+                }
+                return saveJobs(state.jobs)
             }
         }
         .ifLet(\.jobDetail, action: \.jobDetail) {
             JobDetailFeature()
         }
     }
+
+    // MARK: - Helpers
 
     private func saveJobs(_ jobs: IdentifiedArrayOf<JobApplication>) -> Effect<Action> {
         .run { send in
@@ -541,5 +937,161 @@ public struct AppFeature {
             }
         }
         .cancellable(id: CancelID.saveSettings, cancelInFlight: true)
+    }
+
+    private func recordEvent(_ event: HistoryEvent, state: inout State) -> Effect<Action> {
+        state.undoStack.append(event)
+        state.redoStack.removeAll()
+        return .run { [historyClient] _ in
+            await historyClient.record(event)
+        }
+    }
+
+    /// Applies a reversed command to the current state for undo/revert operations.
+    private func applyReversedCommand(_ command: HistoryCommand, state: inout State) {
+        switch command {
+        case .updateField(let jobId, let field, _, let newValue):
+            // newValue is the target value after reversal
+            switch field {
+            case .company: state.jobs[id: jobId]?.company = newValue
+            case .title: state.jobs[id: jobId]?.title = newValue
+            case .location: state.jobs[id: jobId]?.location = newValue
+            case .salary: state.jobs[id: jobId]?.salary = newValue
+            case .url: state.jobs[id: jobId]?.url = newValue
+            case .jobDescription: state.jobs[id: jobId]?.jobDescription = newValue
+            case .resumeUsed: state.jobs[id: jobId]?.resumeUsed = newValue
+            case .coverLetter: state.jobs[id: jobId]?.coverLetter = newValue
+            }
+
+        case .setStatus(let jobId, _, let newStatus):
+            state.jobs[id: jobId]?.status = newStatus
+
+        case .addNote(let jobId, let noteId):
+            // "Add note" as a reversed command means we need to restore the note
+            // This is a limitation; for now we just skip
+            break
+
+        case .deleteNote(let jobId, let snapshot):
+            state.jobs[id: jobId]?.noteCards.insert(snapshot, at: 0)
+
+        case .addContact(_, _):
+            break
+
+        case .deleteContact(let jobId, let snapshot):
+            state.jobs[id: jobId]?.contacts.append(snapshot)
+
+        case .addInterview(_, _):
+            break
+
+        case .deleteInterview(let jobId, let snapshot):
+            state.jobs[id: jobId]?.interviews.append(snapshot)
+
+        case .addLabel(let jobId, let label):
+            state.jobs[id: jobId]?.labels.append(label)
+
+        case .removeLabel(let jobId, let label):
+            state.jobs[id: jobId]?.labels.removeAll { $0.name == label.name }
+
+        case .setExcitement(let jobId, _, let newVal):
+            state.jobs[id: jobId]?.excitement = newVal
+
+        case .toggleFavorite(let jobId, _, let newVal):
+            state.jobs[id: jobId]?.isFavorite = newVal
+
+        case .addJob(let jobId):
+            // Reversing addJob = deleting. But we need a snapshot, which we don't have here.
+            state.jobs.remove(id: jobId)
+
+        case .deleteJob(_, let snapshot):
+            // Reversing deleteJob = re-adding
+            state.jobs.append(snapshot)
+
+        case .addDocument(_, _):
+            break
+
+        case .deleteDocument(let jobId, let snapshot):
+            state.jobs[id: jobId]?.documents.append(snapshot)
+
+        case .replaceJob(let jobId, _, let newSnapshot):
+            // For reversed commands, newSnapshot is the target (swapped by .reversed())
+            state.jobs[id: jobId] = newSnapshot
+
+        case .compound(let commands):
+            for cmd in commands {
+                applyReversedCommand(cmd, state: &state)
+            }
+        }
+    }
+
+    /// Applies a command in its original (forward) direction for redo operations.
+    private func applyForwardCommand(_ command: HistoryCommand, state: inout State) {
+        switch command {
+        case .updateField(let jobId, let field, _, let newValue):
+            switch field {
+            case .company: state.jobs[id: jobId]?.company = newValue
+            case .title: state.jobs[id: jobId]?.title = newValue
+            case .location: state.jobs[id: jobId]?.location = newValue
+            case .salary: state.jobs[id: jobId]?.salary = newValue
+            case .url: state.jobs[id: jobId]?.url = newValue
+            case .jobDescription: state.jobs[id: jobId]?.jobDescription = newValue
+            case .resumeUsed: state.jobs[id: jobId]?.resumeUsed = newValue
+            case .coverLetter: state.jobs[id: jobId]?.coverLetter = newValue
+            }
+
+        case .setStatus(let jobId, _, let newStatus):
+            state.jobs[id: jobId]?.status = newStatus
+
+        case .addNote(let jobId, _):
+            // Re-adding a note without a snapshot; limited
+            break
+
+        case .deleteNote(let jobId, let snapshot):
+            state.jobs[id: jobId]?.noteCards.removeAll { $0.id == snapshot.id }
+
+        case .addContact(let jobId, _):
+            break
+
+        case .deleteContact(let jobId, let snapshot):
+            state.jobs[id: jobId]?.contacts.removeAll { $0.id == snapshot.id }
+
+        case .addInterview(let jobId, _):
+            break
+
+        case .deleteInterview(let jobId, let snapshot):
+            state.jobs[id: jobId]?.interviews.removeAll { $0.id == snapshot.id }
+
+        case .addLabel(let jobId, let label):
+            state.jobs[id: jobId]?.labels.append(label)
+
+        case .removeLabel(let jobId, let label):
+            state.jobs[id: jobId]?.labels.removeAll { $0.name == label.name }
+
+        case .setExcitement(let jobId, _, let newVal):
+            state.jobs[id: jobId]?.excitement = newVal
+
+        case .toggleFavorite(let jobId, _, let newVal):
+            state.jobs[id: jobId]?.isFavorite = newVal
+
+        case .addJob(let jobId):
+            // Can't fully re-add without snapshot
+            break
+
+        case .deleteJob(let jobId, _):
+            state.jobs.remove(id: jobId)
+
+        case .addDocument(_, _):
+            break
+
+        case .deleteDocument(let jobId, let snapshot):
+            state.jobs[id: jobId]?.documents.removeAll { $0.id == snapshot.id }
+
+        case .replaceJob(let jobId, _, let newSnapshot):
+            state.jobs[id: jobId] = newSnapshot
+
+        case .compound(let commands):
+            for cmd in commands {
+                applyForwardCommand(cmd, state: &state)
+            }
+        }
     }
 }

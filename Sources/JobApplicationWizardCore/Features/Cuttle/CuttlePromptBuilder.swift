@@ -10,7 +10,8 @@ public enum CuttlePromptBuilder {
         context: CuttleContext,
         jobs: [JobApplication],
         profile: UserProfile,
-        chatHistory: [ChatMessage]
+        chatHistory: [ChatMessage],
+        aiProvider: AIProvider = .acpAgent
     ) -> String {
         switch context {
         case .global:
@@ -19,7 +20,7 @@ public enum CuttlePromptBuilder {
             return buildStatusPrompt(status: status, jobs: jobs, profile: profile, chatHistory: chatHistory)
         case .job(let id):
             if let job = jobs.first(where: { $0.id == id }) {
-                return buildJobPrompt(job: job, profile: profile, chatHistory: chatHistory)
+                return buildJobPrompt(job: job, profile: profile, chatHistory: chatHistory, aiProvider: aiProvider)
             }
             return buildGlobalPrompt(jobs: jobs, profile: profile, chatHistory: chatHistory)
         }
@@ -73,7 +74,7 @@ public enum CuttlePromptBuilder {
         sections.append("Stats: \(jobs.count) total, \(active) active, \(offers) offers")
 
         appendChatHistory(to: &sections, chatHistory: chatHistory)
-        sections.append("Help the user with their overall job search strategy. Be specific, actionable, and concise.")
+        sections.append("Help the user with their overall job search strategy. Be specific, actionable, and concise.\nDo not emit action blocks or use the apply_actions tool in this context.")
 
         return sections.joined(separator: "\n\n")
     }
@@ -158,7 +159,7 @@ public enum CuttlePromptBuilder {
             .withdrawn: "Help the user reflect on why they withdrew and refine their search criteria.",
         ]
         sections.append(statusHints[status] ?? "Help the user with these applications.")
-        sections.append("Be specific, actionable, and concise.")
+        sections.append("Be specific, actionable, and concise.\nDo not emit action blocks or use the apply_actions tool in this context.")
 
         return sections.joined(separator: "\n\n")
     }
@@ -169,7 +170,8 @@ public enum CuttlePromptBuilder {
     private static func buildJobPrompt(
         job: JobApplication,
         profile: UserProfile,
-        chatHistory: [ChatMessage]
+        chatHistory: [ChatMessage],
+        aiProvider: AIProvider = .acpAgent
     ) -> String {
         var sections: [String] = []
 
@@ -249,6 +251,12 @@ public enum CuttlePromptBuilder {
 
         appendChatHistory(to: &sections, chatHistory: chatHistory)
 
+        // Documents section
+        appendDocumentsSection(to: &sections, documents: job.documents)
+
+        // Action protocol for job context
+        appendActionProtocol(to: &sections, aiProvider: aiProvider)
+
         sections.append("Help the user with their application. Be specific, actionable, and concise.\nReference the data above when relevant; don't ask the user to repeat information they've already entered.")
 
         return sections.joined(separator: "\n\n")
@@ -281,6 +289,65 @@ public enum CuttlePromptBuilder {
                 return "\(role): \(content)"
             }
             sections.append("Previous conversation (\(chatHistory.count) messages):\n\(recap.joined(separator: "\n"))")
+        }
+    }
+
+    private static func appendDocumentsSection(to sections: inout [String], documents: [JobDocument]) {
+        guard !documents.isEmpty else { return }
+        var lines: [String] = ["Attached Documents:"]
+        for doc in documents {
+            let truncated = doc.rawText.count > 10_000 ? String(doc.rawText.prefix(10_000)) + "\n[truncated]" : doc.rawText
+            lines.append("--- \(doc.filename) (\(doc.documentType.rawValue)) ---")
+            lines.append(truncated)
+        }
+        sections.append(lines.joined(separator: "\n"))
+    }
+
+    private static func appendActionProtocol(to sections: inout [String], aiProvider: AIProvider) {
+        let fields = AgentWritableField.allCases.map(\.rawValue).joined(separator: ", ")
+
+        let actionList = """
+        Available actions:
+        - updateField: set a top-level field. Required: field (\(fields)), value.
+        - setStatus: change job status. Required: status (e.g. "Applied", "Interview").
+        - addNote: create a new note. Required: title, body.
+        - updateNote: modify an existing note matched by title. Required: matchTitle, optional: title, body.
+        - deleteNote: remove a note matched by title. Required: matchTitle.
+        - addContact: add a new contact. Required: name, optional: title, email.
+        - updateContact: modify an existing contact matched by name. Required: matchName, optional: name, title, email.
+        - deleteContact: remove a contact matched by name. Required: matchName.
+        - addInterview: add a new interview round. Required: round (number), type, optional: date (ISO 8601).
+        - updateInterview: modify an existing round matched by round number. Required: round, optional: type, date, interviewers, notes. Use this to rename or update existing rounds, NOT addInterview.
+        - deleteInterview: remove an interview round by number. Required: round.
+        - addLabel: add a label. Required: labelName.
+        - removeLabel: remove a label by name. Required: labelName.
+        - setExcitement: set excitement 1-5. Required: level.
+
+        IMPORTANT: To modify existing data, use the update/delete actions. Do NOT use add actions for records that already exist; that creates duplicates.
+        """
+
+        if aiProvider == .claudeAPI {
+            sections.append("""
+            Action Protocol:
+            You have the apply_actions tool available. Use it to modify this job's data when the user asks you to update, add, or change anything.
+            IMPORTANT: Describing changes in text does NOT modify the data. You MUST use the apply_actions tool for changes to take effect.
+            \(actionList)
+            You may include a text response alongside the tool use to explain what you did.
+            """)
+        } else {
+            sections.append("""
+            Action Protocol:
+            You can modify this job's data by emitting a JSON block wrapped in <actions></actions> tags.
+            IMPORTANT: Describing changes in text does NOT modify the data. You MUST emit the <actions> block for changes to take effect. Without it, nothing happens.
+            \(actionList)
+            Format (emit this in your response, outside of code blocks):
+            <actions>
+            {"actions": [{"action": "updateInterview", "round": 2, "type": "Hiring Manager Interview"}], "summary": "Renamed round 2"}
+            </actions>
+
+            Each action object must have an "action" key. Include a "summary" describing the changes.
+            You may include normal text before or after the <actions> block.
+            """)
         }
     }
 }

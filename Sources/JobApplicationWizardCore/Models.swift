@@ -136,6 +136,36 @@ public struct InterviewRound: Codable, Identifiable, Equatable {
     }
 }
 
+// MARK: - Job Document
+
+public struct JobDocument: Codable, Identifiable, Equatable {
+    public var id: UUID = UUID()
+    public var filename: String
+    public var documentType: DocumentType
+    public var rawText: String
+    public var addedAt: Date = Date()
+    public var fileSize: Int?
+    public var sourcePath: String?
+
+    public init(
+        id: UUID = UUID(),
+        filename: String,
+        documentType: DocumentType,
+        rawText: String,
+        addedAt: Date = Date(),
+        fileSize: Int? = nil,
+        sourcePath: String? = nil
+    ) {
+        self.id = id
+        self.filename = filename
+        self.documentType = documentType
+        self.rawText = rawText
+        self.addedAt = addedAt
+        self.fileSize = fileSize
+        self.sourcePath = sourcePath
+    }
+}
+
 // MARK: - Job Application
 
 public struct JobApplication: Codable, Identifiable, Equatable {
@@ -160,6 +190,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
     public var hasPDF: Bool = false
     public var pdfPath: String? = nil
     public var chatHistory: [ChatMessage] = []
+    public var documents: [JobDocument] = []
 
     public var displayTitle: String {
         title.isEmpty ? "Untitled Position" : title
@@ -177,7 +208,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         case id, company, title, url, status, dateAdded, dateApplied
         case salary, location, jobDescription, noteCards
         case resumeUsed, coverLetter, labels, contacts, interviews
-        case isFavorite, excitement, hasPDF, pdfPath, chatHistory
+        case isFavorite, excitement, hasPDF, pdfPath, chatHistory, documents
         case legacyNotes = "notes"
     }
 
@@ -203,6 +234,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         hasPDF       = try c.decodeIfPresent(Bool.self,            forKey: .hasPDF)       ?? false
         pdfPath      = try c.decodeIfPresent(String.self,          forKey: .pdfPath)
         chatHistory  = try c.decodeIfPresent([ChatMessage].self,   forKey: .chatHistory)  ?? []
+        documents    = try c.decodeIfPresent([JobDocument].self,  forKey: .documents)    ?? []
 
         if let cards = try c.decodeIfPresent([Note].self, forKey: .noteCards) {
             noteCards = cards
@@ -237,6 +269,9 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         try c.encodeIfPresent(pdfPath, forKey: .pdfPath)
         if !chatHistory.isEmpty {
             try c.encode(chatHistory, forKey: .chatHistory)
+        }
+        if !documents.isEmpty {
+            try c.encode(documents, forKey: .documents)
         }
     }
 }
@@ -312,10 +347,13 @@ public struct AppSettings: Codable, Equatable {
     public var cuttleContext: CuttleContext? = nil
     public var globalChatHistory: [ChatMessage] = []
     public var statusChatHistories: [String: [ChatMessage]] = [:]
+    public var agentActionMode: AgentActionMode = .applyImmediately
+    public var autoProcessDocuments: Bool = false
 
     private enum CodingKeys: String, CodingKey {
         case userProfile, defaultViewMode, aiProvider, selectedACPAgentId
         case cuttleContext, globalChatHistory, statusChatHistories
+        case agentActionMode, autoProcessDocuments
     }
 
     public init() {}
@@ -329,6 +367,8 @@ public struct AppSettings: Codable, Equatable {
         cuttleContext        = try c.decodeIfPresent(CuttleContext.self,          forKey: .cuttleContext)
         globalChatHistory    = try c.decodeIfPresent([ChatMessage].self,          forKey: .globalChatHistory)    ?? []
         statusChatHistories  = try c.decodeIfPresent([String: [ChatMessage]].self, forKey: .statusChatHistories) ?? [:]
+        agentActionMode      = try c.decodeIfPresent(AgentActionMode.self,        forKey: .agentActionMode)      ?? .applyImmediately
+        autoProcessDocuments = try c.decodeIfPresent(Bool.self,                    forKey: .autoProcessDocuments) ?? false
     }
 }
 

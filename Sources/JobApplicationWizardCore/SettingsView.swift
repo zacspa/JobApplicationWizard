@@ -121,6 +121,24 @@ private struct AIProviderSettingsTab: View {
                     .pickerStyle(.segmented)
                 }
 
+                Section("Agent Actions") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Picker("When AI proposes changes", selection: Binding(
+                            get: { store.settings.agentActionMode },
+                            set: { store.send(.agentActionModeChanged($0)) }
+                        )) {
+                            ForEach(AgentActionMode.allCases, id: \.self) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text("\"Apply Immediately\" lets the AI modify job data directly. \"Require Approval\" shows a review sheet first.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
                 if store.acpConnection.aiProvider == .claudeAPI {
                     Section("Claude API") {
                         VStack(alignment: .leading, spacing: 8) {

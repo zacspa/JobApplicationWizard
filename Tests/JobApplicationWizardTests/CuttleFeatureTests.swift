@@ -265,8 +265,8 @@ final class CuttleFeatureTests: XCTestCase {
         let store = TestStore(initialState: state) {
             CuttleFeature()
         } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in
-                ("AI response", AITokenUsage(inputTokens: 10, outputTokens: 20))
+            $0.claudeClient.chat = { _, _, _, _ in
+                ("AI response", AITokenUsage(inputTokens: 10, outputTokens: 20), nil)
             }
         }
         store.exhaustivity = .off
@@ -295,8 +295,8 @@ final class CuttleFeatureTests: XCTestCase {
         let store = TestStore(initialState: state) {
             CuttleFeature()
         } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in
-                ("Response", AITokenUsage(inputTokens: 50, outputTokens: 75))
+            $0.claudeClient.chat = { _, _, _, _ in
+                ("Response", AITokenUsage(inputTokens: 50, outputTokens: 75), nil)
             }
         }
         store.exhaustivity = .off
@@ -314,7 +314,7 @@ final class CuttleFeatureTests: XCTestCase {
         let store = TestStore(initialState: state) {
             CuttleFeature()
         } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in throw AIError.noAPIKey }
+            $0.claudeClient.chat = { _, _, _, _ in throw AIError.noAPIKey }
         }
         store.exhaustivity = .off
 
@@ -338,8 +338,8 @@ final class CuttleFeatureTests: XCTestCase {
         let store = TestStore(initialState: state) {
             CuttleFeature()
         } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in
-                ("AI response", AITokenUsage(inputTokens: 10, outputTokens: 20))
+            $0.claudeClient.chat = { _, _, _, _ in
+                ("AI response", AITokenUsage(inputTokens: 10, outputTokens: 20), nil)
             }
         }
         store.exhaustivity = .off
@@ -382,8 +382,8 @@ final class CuttleFeatureTests: XCTestCase {
         let store = TestStore(initialState: state) {
             CuttleFeature()
         } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in
-                ("Response", AITokenUsage(inputTokens: 10, outputTokens: 20))
+            $0.claudeClient.chat = { _, _, _, _ in
+                ("Response", AITokenUsage(inputTokens: 10, outputTokens: 20), nil)
             }
         }
         store.exhaustivity = .off
@@ -453,6 +453,8 @@ final class CuttleFeatureTests: XCTestCase {
 
         await store.send(.dropZonesUpdated(zones)) {
             $0.dropZones = zones
+            // Snaps to the docked zone (global) center
+            $0.position = CGPoint(x: 50, y: 20)
         }
     }
 

@@ -77,7 +77,7 @@ public struct CuttleFeature {
         case switchContext(CuttleContext)
         // Chat
         case sendMessage(String)
-        case aiResponseReceived(Result<(String, AITokenUsage), Error>)
+        case aiResponseReceived(Result<(String, AITokenUsage, AgentActionBlock?), Error>)
         case clearChat
         case applySuggestion(String)
         // Lifecycle
@@ -92,6 +92,8 @@ public struct CuttleFeature {
             case jobChatUpdated(UUID, [ChatMessage])
             /// Cuttle docked on a job; parent should select it in the detail pane.
             case contextChanged(CuttleContext)
+            /// Agent proposed actions to apply to a job.
+            case agentActionsReceived([AgentAction], String)
         }
     }
 
@@ -175,6 +177,10 @@ public struct CuttleFeature {
 
             case .dropZonesUpdated(let zones):
                 state.dropZones = zones
+                // Track the docked card during scroll (when not dragging)
+                if !state.isDragging {
+                    snapToDropZone(state: &state, context: state.currentContext)
+                }
                 return .none
 
             case .windowSizeChanged(let size):
@@ -246,13 +252,19 @@ public struct CuttleFeature {
                 // Build system prompt using history BEFORE the just-appended user message,
                 // since the user message is sent separately in the messages array.
                 let priorHistory = Array(state.chatMessages.dropLast())
+                let currentProvider = state.acpConnection.aiProvider
                 let systemPrompt = CuttlePromptBuilder.buildPrompt(
                     context: state.currentContext,
                     jobs: state.jobs,
                     profile: state.userProfile,
-                    chatHistory: priorHistory
+                    chatHistory: priorHistory,
+                    aiProvider: currentProvider
                 )
                 let messages = state.chatMessages
+
+                // Determine if tools should be included (only for job context with Claude API)
+                let isJobContext: Bool
+                if case .job = state.currentContext { isJobContext = true } else { isJobContext = false }
 
                 if state.acpConnection.aiProvider == .acpAgent && state.acpConnection.isConnected {
                     let contextPrefix = state.acpSentSystemPrompt ? "" : systemPrompt + "\n\n"
@@ -260,29 +272,46 @@ public struct CuttleFeature {
                     let fullMessage = contextPrefix + rawInput
                     return .run { send in
                         await send(.aiResponseReceived(Result {
-                            try await acpClient.sendPrompt(fullMessage, messages)
+                            let (text, usage) = try await acpClient.sendPrompt(fullMessage, messages)
+                            // ACP fallback: extract actions from text markers
+                            let actionBlock = TextActionExtractor.extract(from: text)
+                            let cleanText = actionBlock != nil ? TextActionExtractor.stripActions(from: text) : text
+                            return (cleanText, usage, actionBlock)
                         }))
                     }
                     .cancellable(id: CancelID.aiRequest, cancelInFlight: true)
                 } else {
                     let key = state.apiKey
+                    let includeTools = isJobContext
                     return .run { send in
                         await send(.aiResponseReceived(Result {
-                            try await claudeClient.chat(key, systemPrompt, messages)
-                        } as Result<(String, AITokenUsage), Error>))
+                            try await claudeClient.chat(key, systemPrompt, messages, includeTools)
+                        }))
                     }
                     .cancellable(id: CancelID.aiRequest, cancelInFlight: true)
                 }
 
-            case .aiResponseReceived(.success(let (text, usage))):
+            case .aiResponseReceived(.success(let (text, usage, actionBlock))):
                 state.isLoading = false
                 state.mood = .idle
-                state.chatMessages.append(ChatMessage(role: .assistant, content: text))
+                if !text.isEmpty {
+                    state.chatMessages.append(ChatMessage(role: .assistant, content: text))
+                }
                 state.tokenUsage = AITokenUsage(
                     inputTokens: state.tokenUsage.inputTokens + usage.inputTokens,
                     outputTokens: state.tokenUsage.outputTokens + usage.outputTokens
                 )
-                return saveChatHistory(state: &state)
+                let saveEffect = saveChatHistory(state: &state)
+
+                // If actions were received and we're in a job context, delegate to parent
+                if let block = actionBlock, !block.actions.isEmpty,
+                   case .job = state.currentContext {
+                    return .merge(
+                        saveEffect,
+                        .send(.delegate(.agentActionsReceived(block.actions, block.summary)))
+                    )
+                }
+                return saveEffect
 
             case .aiResponseReceived(.failure(let error)):
                 state.isLoading = false

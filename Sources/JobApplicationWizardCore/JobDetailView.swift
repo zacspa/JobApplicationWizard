@@ -59,6 +59,7 @@ public struct JobDetailView: View {
         case .notes: NotesTab(store: store)
         case .contacts: ContactsTab(store: store)
         case .interviews: InterviewsTab(store: store)
+        case .documents: DocumentsTab(store: store)
         }
     }
 
@@ -873,6 +874,121 @@ struct InterviewRoundRow: View {
                 }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Documents Tab
+
+struct DocumentsTab: View {
+    let store: StoreOf<JobDetailFeature>
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Attached documents (drag files onto job cards to add)")
+                    .font(.footnote).foregroundColor(.secondary)
+                Spacer()
+                Text("\(store.job.documents.count) document\(store.job.documents.count == 1 ? "" : "s")")
+                    .font(.footnote).foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 8)
+            .background(Color(NSColor.controlBackgroundColor))
+
+            Divider()
+
+            if store.job.documents.isEmpty {
+                Spacer()
+                ContentUnavailableView(
+                    "No Documents",
+                    systemImage: "paperclip",
+                    description: Text("Drag PDF, DOCX, RTF, or TXT files onto a job card to attach them")
+                )
+                Spacer()
+            } else {
+                List {
+                    ForEach(store.job.documents) { doc in
+                        DocumentRow(
+                            document: doc,
+                            onDelete: { store.send(.deleteDocument(doc.id)) },
+                            onProcess: { store.send(.processDocumentWithAI(doc.id)) }
+                        )
+                    }
+                }
+                .listStyle(.inset)
+            }
+        }
+    }
+}
+
+struct DocumentRow: View {
+    let document: JobDocument
+    let onDelete: () -> Void
+    let onProcess: () -> Void
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: document.documentType.icon)
+                    .foregroundColor(.accentColor)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(document.filename)
+                        .font(.subheadline).fontWeight(.medium)
+                    HStack(spacing: 8) {
+                        Text(document.documentType.rawValue.uppercased())
+                            .font(.caption2).foregroundColor(.secondary)
+                        if let size = document.fileSize {
+                            Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
+                                .font(.caption2).foregroundColor(.secondary)
+                        }
+                        Text(document.addedAt.relativeString)
+                            .font(.caption2).foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+                Button("Process with AI") { onProcess() }
+                    .buttonStyle(.bordered).controlSize(.mini)
+                Button { isExpanded.toggle() } label: {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.footnote).foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if isExpanded {
+                ScrollView {
+                    Text(document.rawText)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                }
+                .frame(maxHeight: 200)
+                .background(Color(NSColor.textBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.2)))
+            }
+        }
+        .padding(.vertical, 4)
+        .onTapGesture(count: 2) {
+            if let path = document.sourcePath {
+                NSWorkspace.shared.open(URL(fileURLWithPath: path))
+            }
+        }
+        .contextMenu {
+            if document.sourcePath != nil {
+                Button {
+                    if let path = document.sourcePath {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                    }
+                } label: {
+                    Label("Open in Default App", systemImage: "arrow.up.forward.app")
+                }
+            }
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete Document", systemImage: "trash")
+            }
+        }
     }
 }
 

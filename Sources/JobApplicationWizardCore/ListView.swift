@@ -3,10 +3,12 @@ import ComposableArchitecture
 
 public struct ListView: View {
     let store: StoreOf<AppFeature>
+    let onDocumentDrop: (UUID, [URL]) -> Void
     @State private var sortOrder = SortOrder.dateDesc
 
-    public init(store: StoreOf<AppFeature>) {
+    public init(store: StoreOf<AppFeature>, onDocumentDrop: @escaping (UUID, [URL]) -> Void = { _, _ in }) {
         self.store = store
+        self.onDocumentDrop = onDocumentDrop
     }
 
     enum SortOrder: String, CaseIterable {
@@ -92,6 +94,11 @@ public struct ListView: View {
                         }
                         .padding(.vertical, 2)
                         .cuttleDockable(context: .job(job.id))
+                        .dropDestination(for: URL.self) { urls, _ in
+                            guard !urls.isEmpty else { return false }
+                            onDocumentDrop(job.id, urls)
+                            return true
+                        }
                     }
 
                     TableColumn("Excitement") { job in
