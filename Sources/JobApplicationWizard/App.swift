@@ -20,15 +20,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Synchronously disconnect the ACP agent so the child process doesn't outlive the app.
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            store?.send(.disconnectACPAgent)
-            // Give the disconnect a moment to terminate the process.
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            semaphore.signal()
-        }
-        semaphore.wait()
+        // Fire-and-forget: the TCA effect will tear down the ACP process.
+        // We cannot block the main thread here (deadlocks with Swift concurrency),
+        // and the OS will clean up child processes when the app exits anyway.
+        store?.send(.disconnectACPAgent)
     }
 }
 #endif
