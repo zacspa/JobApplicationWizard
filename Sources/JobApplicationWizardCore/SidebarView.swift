@@ -48,6 +48,7 @@ public struct SidebarView: View {
                             .background(store.viewMode == mode ? Color.accentColor.opacity(0.15) : Color.clear)
                             .foregroundColor(store.viewMode == mode ? .accentColor : .secondary)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

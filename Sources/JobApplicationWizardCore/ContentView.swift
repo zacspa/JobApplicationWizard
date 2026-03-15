@@ -31,7 +31,7 @@ public struct ContentView: View {
         } detail: {
             if let detailStore = store.scope(state: \.jobDetail, action: \.jobDetail) {
                 JobDetailView(store: detailStore)
-                    .navigationSplitViewColumnWidth(min: 300, ideal: 450)
+                    .modifier(detailColumnWidth(aiPanelOpen: store.jobDetail?.aiPanelOpen ?? false))
                     .id(store.selectedJobID)
             } else {
                 ContentUnavailableView(
@@ -91,6 +91,10 @@ public struct ContentView: View {
         } message: {
             Text(store.saveError ?? "")
         }
+    }
+
+    private func detailColumnWidth(aiPanelOpen: Bool) -> DetailColumnWidth {
+        DetailColumnWidth(aiPanelOpen: aiPanelOpen)
     }
 
     var toolbar: some View {
@@ -256,6 +260,23 @@ struct FeatureRow: View {
                 Text(title).fontWeight(.semibold)
                 Text(desc).font(.caption).foregroundColor(.secondary)
             }
+        }
+    }
+}
+
+// MARK: - Detail Column Width
+
+/// Adjusts the detail column min/ideal/max based on whether the AI panel is open.
+/// When the AI panel is closed, a `max` is set so NavigationSplitView reclaims the
+/// extra width and gives it back to the content (job list) column.
+private struct DetailColumnWidth: ViewModifier {
+    let aiPanelOpen: Bool
+
+    func body(content: Content) -> some View {
+        if aiPanelOpen {
+            content.navigationSplitViewColumnWidth(min: 500, ideal: 700)
+        } else {
+            content.navigationSplitViewColumnWidth(min: 460, ideal: 450, max: 600)
         }
     }
 }
