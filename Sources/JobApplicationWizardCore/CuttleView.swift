@@ -262,7 +262,10 @@ public struct CuttleView: View {
         .frame(width: chatSize.width, height: chatSize.height)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(wavyBorder)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+        )
         .overlay(alignment: .bottomTrailing) {
             resizeHandle
         }
@@ -300,32 +303,6 @@ public struct CuttleView: View {
             .padding(6)
     }
 
-    // MARK: - Wavy Border
-
-    private var wavyBorder: some View {
-        let borderColors: [Color] = colorScheme == .dark
-            ? [.red, .green, .blue]
-            : [.cmyCyan, .cmyMagenta, .cmyYellow]
-        let borderBlend: BlendMode = colorScheme == .dark ? .plusLighter : .multiply
-
-        return TimelineView(.animation) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            ZStack {
-                WavyRoundedRect(cornerRadius: 16, amplitude: 1.5, frequency: 4, phase: t * 1.8)
-                    .stroke(borderColors[0], lineWidth: 1.2)
-                    .blendMode(borderBlend)
-                WavyRoundedRect(cornerRadius: 16, amplitude: 1.5, frequency: 6, phase: t * 1.3)
-                    .stroke(borderColors[1], lineWidth: 1.2)
-                    .blendMode(borderBlend)
-                WavyRoundedRect(cornerRadius: 16, amplitude: 1.5, frequency: 8, phase: t * 2.1)
-                    .stroke(borderColors[2], lineWidth: 1.2)
-                    .blendMode(borderBlend)
-            }
-        }
-        .drawingGroup()
-        .allowsHitTesting(false)
-    }
-
     // MARK: - Header Bar
 
     private var headerBar: some View {
@@ -350,6 +327,16 @@ public struct CuttleView: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(coordinateSpace: .named("cuttle-window"))
+                .onChanged { value in
+                    store.send(.moveChanged(value.location))
+                }
+                .onEnded { _ in
+                    store.send(.moveEnded)
+                }
+        )
     }
 
     // MARK: - Empty State

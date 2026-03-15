@@ -60,9 +60,12 @@ public struct CuttleFeature {
 
     public enum Action: BindableAction {
         case binding(BindingAction<State>)
-        // Drag
+        // Drag (with docking)
         case dragChanged(CGPoint)
         case dragEnded(CGPoint)
+        // Drag (position only, no docking)
+        case moveChanged(CGPoint)
+        case moveEnded
         case dropZonesUpdated([DropZone])
         case windowSizeChanged(CGSize)
         // Expand/collapse
@@ -158,6 +161,16 @@ public struct CuttleFeature {
                         clampPosition(state: &state)
                     }
                 }
+                return .none
+
+            // MARK: - Move (no docking)
+
+            case .moveChanged(let location):
+                state.position = CGPoint(x: location.x, y: max(location.y, Self.topInset))
+                return .none
+
+            case .moveEnded:
+                clampPosition(state: &state)
                 return .none
 
             case .dropZonesUpdated(let zones):
