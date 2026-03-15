@@ -73,7 +73,7 @@ protocol PerimeterSampler {
 ///
 /// Each bump's displacement is modulated by a second, slower sine wave driven by `time`,
 /// so bumps independently breathe in and out rather than rigidly rotating.
-struct WavyShape<Sampler: PerimeterSampler>: Shape {
+struct WavyShape<Sampler: PerimeterSampler & Sendable>: Shape {
     var sampler: Sampler
     var amplitude: CGFloat
     var frequency: Double
