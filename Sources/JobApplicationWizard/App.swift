@@ -8,6 +8,8 @@ import JobApplicationWizardCore
 
 #if os(macOS)
 class AppDelegate: NSObject, NSApplicationDelegate {
+    var store: StoreOf<AppFeature>?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Set activation policy and bring window to front
         NSApp.setActivationPolicy(.regular)
@@ -15,6 +17,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
             NSApp.windows.first?.makeKeyAndOrderFront(nil)
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // Synchronously disconnect the ACP agent so the child process doesn't outlive the app.
+        let semaphore = DispatchSemaphore(value: 0)
+        Task {
+            store?.send(.disconnectACPAgent)
+            // Give the disconnect a moment to terminate the process.
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            semaphore.signal()
+        }
+        semaphore.wait()
     }
 }
 #endif
@@ -43,7 +57,8 @@ struct JobApplicationWizardApp: App {
     var body: some Scene {
         WindowGroup(id: "main") {
             ContentView(store: store)
-                .frame(minWidth: 960, minHeight: 600)
+                .frame(minWidth: 1200, minHeight: 600)
+                .onAppear { appDelegate.store = store }
         }
         .defaultSize(width: 1440, height: 900)
         .windowStyle(.titleBar)

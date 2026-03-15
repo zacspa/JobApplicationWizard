@@ -18,10 +18,11 @@ public struct JobDetailView: View {
             Divider()
             HStack(spacing: 0) {
                 tabContent
+                    .frame(minWidth: 460)
                 if store.aiPanelOpen {
                     Divider()
                     AISidePanel(store: store)
-                        .frame(minWidth: 280, idealWidth: 340, maxWidth: 500)
+                        .frame(minWidth: 360, idealWidth: 360, maxWidth: 500)
                 }
             }
         }
@@ -930,6 +931,7 @@ struct AISidePanel: View {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange).font(.footnote)
                     Text("No job description saved; AI responses will be generic. Paste the JD in the Description tab.")
                         .font(.caption).foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(8)
                 .background(Color.orange.opacity(0.08))
@@ -939,6 +941,7 @@ struct AISidePanel: View {
                     Image(systemName: "person.crop.circle.badge.exclamationmark").foregroundColor(.orange).font(.footnote)
                     Text("Set up your profile in the sidebar for personalized advice.")
                         .font(.caption).foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(8)
                 .background(Color.orange.opacity(0.08))
@@ -1005,6 +1008,7 @@ struct AISidePanel: View {
             if store.acpConnection.aiProvider == .acpAgent, let name = store.acpConnection.connectedAgentName {
                 Text("Connected to \(name)")
                     .font(.subheadline).fontWeight(.medium)
+                    .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text("AI Assistant")
                     .font(.subheadline).fontWeight(.medium)
@@ -1012,6 +1016,7 @@ struct AISidePanel: View {
 
             Text("Ask anything about this application, or try a suggestion below.")
                 .font(.caption).foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 300)
 
