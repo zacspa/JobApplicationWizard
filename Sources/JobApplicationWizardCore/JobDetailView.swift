@@ -1236,10 +1236,16 @@ struct ChatBubble: View {
 
 // MARK: - Jitter Circle (RGB Cuttlefish Fin)
 
-/// Three overlapping circular fin instances (R, G, B) with additive blending;
-/// where all three overlap the result is white, edges show color separation.
+/// Three overlapping circular fin instances with color mixing;
+/// uses additive RGB in dark mode (overlap → white) and
+/// subtractive CMY in light mode.
+// TODO: Light mode CMY produces a black center where all three overlap.
+// Need a way to selectively remap only the darkest pixels to a lighter
+// value without washing out the colored edges. Screen blend lifts
+// everything uniformly; a per-pixel threshold approach is needed.
 struct JitterCircle: View {
     @State private var startDate = Date()
+    @Environment(\.colorScheme) private var colorScheme
 
     // Wave params; amplitude is expressed as fraction of bodyRadius
     private static let amplitudeFrac: Double = 0.08
@@ -1249,11 +1255,25 @@ struct JitterCircle: View {
     private static let tailTaper: Double = 0.0
     private static let taperCurve: Double = 3.8
 
-    private static let instances: [(rotation: Double, color: Color)] = [
+    private static let additiveInstances: [(rotation: Double, color: Color)] = [
         (0,              Color(red: 1, green: 0, blue: 0)),
         (2 * .pi / 3,   Color(red: 0, green: 1, blue: 0)),
         (4 * .pi / 3,   Color(red: 0, green: 0, blue: 1)),
     ]
+
+    private static let subtractiveInstances: [(rotation: Double, color: Color)] = [
+        (0,              .cmyCyan),
+        (2 * .pi / 3,   .cmyMagenta),
+        (4 * .pi / 3,   .cmyYellow),
+    ]
+
+    private var instances: [(rotation: Double, color: Color)] {
+        colorScheme == .dark ? Self.additiveInstances : Self.subtractiveInstances
+    }
+
+    private var canvasBlendMode: GraphicsContext.BlendMode {
+        colorScheme == .dark ? .plusLighter : .multiply
+    }
 
     var body: some View {
         TimelineView(.animation) { timeline in
@@ -1268,9 +1288,9 @@ struct JitterCircle: View {
                 let k = 2 * Double.pi * numWaves
                 let omega = 2 * Double.pi * Self.frequency * Self.waveSpeed
 
-                context.blendMode = .plusLighter
+                context.blendMode = canvasBlendMode
 
-                for inst in Self.instances {
+                for inst in instances {
                     var outerPoints: [CGPoint] = []
                     for i in 0..<totalSegments {
                         let t = Double(i) / Double(totalSegments)
