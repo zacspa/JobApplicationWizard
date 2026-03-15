@@ -973,8 +973,12 @@ struct AISidePanel: View {
                                     .id(msg.id)
                             }
                             if store.aiIsLoading {
-                                ThinkingBubble()
-                                    .id("thinking")
+                                HStack {
+                                    JitterCircle()
+                                        .frame(width: 40, height: 40)
+                                    Spacer()
+                                }
+                                .id("thinking")
                             }
                         }
                         Color.clear.frame(height: 1).id("bottom")
