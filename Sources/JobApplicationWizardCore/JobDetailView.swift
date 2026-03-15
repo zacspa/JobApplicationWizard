@@ -895,6 +895,7 @@ struct InterviewRoundRow: View {
 
 struct AISidePanel: View {
     @Bindable var store: StoreOf<JobDetailFeature>
+    @Environment(\.openSettings) private var openSettings
     @FocusState private var inputFocused: Bool
     @State private var thinkingAmplitude: Double = 0.01
     @State private var showThinking: Bool = false
@@ -965,59 +966,59 @@ struct AISidePanel: View {
                 .frame(maxWidth: .infinity)
             } else if !aiReady {
                 notReadyView
-            }
-
-            // Message history
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if store.chatMessages.isEmpty {
-                            emptyStateView
-                        } else {
-                            ForEach(store.chatMessages) { msg in
-                                ChatBubble(message: msg)
-                                    .id(msg.id)
-                            }
-                            if showThinking {
-                                HStack {
-                                    JitterCircle(amplitudeFrac: thinkingAmplitude)
-                                        .frame(width: 40, height: 40)
-                                    Spacer()
+            } else {
+                // Message history
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            if store.chatMessages.isEmpty {
+                                emptyStateView
+                            } else {
+                                ForEach(store.chatMessages) { msg in
+                                    ChatBubble(message: msg)
+                                        .id(msg.id)
                                 }
-                                .id("thinking")
+                                if showThinking {
+                                    HStack {
+                                        JitterCircle(amplitudeFrac: thinkingAmplitude)
+                                            .frame(width: 40, height: 40)
+                                        Spacer()
+                                    }
+                                    .id("thinking")
+                                }
                             }
+                            Color.clear.frame(height: 1).id("bottom")
                         }
-                        Color.clear.frame(height: 1).id("bottom")
+                        .padding(16)
                     }
-                    .padding(16)
-                }
-                .onChange(of: store.chatMessages.count) { _, _ in
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 50_000_000)
-                        withAnimation { proxy.scrollTo("bottom") }
-                    }
-                }
-                .onChange(of: store.aiIsLoading) { _, loading in
-                    if loading {
-                        // Start small, ease up to full amplitude
-                        thinkingAmplitude = Self.minAmplitude
-                        showThinking = true
-                        withAnimation { proxy.scrollTo("bottom") }
-                        withAnimation(.easeIn(duration: 2.0)) {
-                            thinkingAmplitude = Self.maxAmplitude
+                    .onChange(of: store.chatMessages.count) { _, _ in
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 50_000_000)
+                            withAnimation { proxy.scrollTo("bottom") }
                         }
-                    } else {
-                        // Hide immediately so it doesn't linger below the response
-                        showThinking = false
-                        thinkingAmplitude = Self.minAmplitude
+                    }
+                    .onChange(of: store.aiIsLoading) { _, loading in
+                        if loading {
+                            // Start small, ease up to full amplitude
+                            thinkingAmplitude = Self.minAmplitude
+                            showThinking = true
+                            withAnimation { proxy.scrollTo("bottom") }
+                            withAnimation(.easeIn(duration: 2.0)) {
+                                thinkingAmplitude = Self.maxAmplitude
+                            }
+                        } else {
+                            // Hide immediately so it doesn't linger below the response
+                            showThinking = false
+                            thinkingAmplitude = Self.minAmplitude
+                        }
                     }
                 }
+
+                Divider()
+
+                // Input bar
+                inputBar
             }
-
-            Divider()
-
-            // Input bar
-            inputBar
         }
     }
 
@@ -1084,7 +1085,10 @@ struct AISidePanel: View {
                     .frame(maxWidth: 300)
             }
 
-            SettingsLink {
+            Button {
+                NotificationCenter.default.post(name: .selectSettingsTab, object: SettingsTab.aiProvider)
+                openSettings()
+            } label: {
                 Label("Set Up AI Provider", systemImage: "gearshape")
             }
             .buttonStyle(.borderedProminent)
