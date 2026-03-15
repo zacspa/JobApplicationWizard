@@ -1084,9 +1084,7 @@ struct AISidePanel: View {
                     .frame(maxWidth: 300)
             }
 
-            Button {
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-            } label: {
+            SettingsLink {
                 Label("Set Up AI Provider", systemImage: "gearshape")
             }
             .buttonStyle(.borderedProminent)
