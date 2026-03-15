@@ -3,14 +3,14 @@
     <channel>
         <title>Job Application Wizard</title>
         <item>
-            <title>Version 3.0.1</title>
-            <pubDate>Sun, 15 Mar 2026 04:44:01 +0000</pubDate>
-            <sparkle:version>3.0.1</sparkle:version>
-            <sparkle:shortVersionString>3.0.1</sparkle:shortVersionString>
+            <title>Version 3.0.2</title>
+            <pubDate>Sun, 15 Mar 2026 05:32:54 +0000</pubDate>
+            <sparkle:version>3.0.2</sparkle:version>
+            <sparkle:shortVersionString>3.0.2</sparkle:shortVersionString>
             <enclosure
-                url="https://github.com/zacspa/JobApplicationWizard/releases/download/v3.0.1/JobApplicationWizard.dmg"
-                sparkle:edSignature="uqmtHm3+fx2vognnbRmgVm8IOEkaT8/sYDPFxRDD/dzmn0kpoBJjvxt8szEVshe6XN+owDnLlCkpbisoVpfrBA=="
-                length="6138149"
+                url="https://github.com/zacspa/JobApplicationWizard/releases/download/v3.0.2/JobApplicationWizard.dmg"
+                sparkle:edSignature="ANlZUeHgsE6uNtOCeW/cgwuETFm6j0KPK8FlKD9jGEoHgtYzxrJtlecX0TZbbWGMpXOLY2Eeg6tcErGWYknwBA=="
+                length="6139631"
                 type="application/octet-stream"/>
         </item>
     </channel>
