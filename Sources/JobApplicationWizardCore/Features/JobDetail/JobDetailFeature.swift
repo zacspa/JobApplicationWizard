@@ -37,6 +37,7 @@ public struct JobDetailFeature {
         public var chatMessages: [ChatMessage] = []
         public var aiIsLoading: Bool = false
         public var aiError: String? = nil
+        public var acpSentSystemPrompt: Bool = false
         public var apiKey: String
         public var userProfile: UserProfile
         public var aiTokenUsage: AITokenUsage = .zero
@@ -317,8 +318,9 @@ public struct JobDetailFeature {
                 if state.acpConnection.aiProvider == .acpAgent && state.acpConnection.isConnected {
                     // ACP sessions maintain conversation history server-side, so we only
                     // need to send the current message. System prompt context is prepended
-                    // to the first message to establish job/profile context.
-                    let contextPrefix = messages.count <= 1 ? systemPrompt + "\n\n" : ""
+                    // to the first message of each session to establish job/profile context.
+                    let contextPrefix = state.acpSentSystemPrompt ? "" : systemPrompt + "\n\n"
+                    state.acpSentSystemPrompt = true
                     let fullMessage = contextPrefix + rawInput
                     return .run { send in
                         await send(.aiResponseReceived(Result {
@@ -341,6 +343,7 @@ public struct JobDetailFeature {
                 state.aiInput = ""
                 state.aiError = nil
                 state.aiTokenUsage = .zero
+                state.acpSentSystemPrompt = false
                 state.syncJobFromFields()
                 return .send(.delegate(.jobUpdated(state.job)))
 

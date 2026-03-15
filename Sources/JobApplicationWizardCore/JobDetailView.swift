@@ -1,5 +1,6 @@
 import SwiftUI
 import ComposableArchitecture
+import MarkdownUI
 
 // MARK: - Job Detail Panel
 
@@ -1222,8 +1223,8 @@ struct ChatBubble: View {
     var bubbleContent: some View {
         Group {
             if message.role == .assistant {
-                Text(LocalizedStringKey(message.content))
-                    .font(.body)
+                Markdown(message.content)
+                    .markdownTextStyle { FontSize(13) }
                     .textSelection(.enabled)
             } else {
                 Text(message.content)

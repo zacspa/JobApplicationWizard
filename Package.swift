@@ -16,6 +16,10 @@ let package = Package(
         .package(
             url: "https://github.com/aptove/swift-sdk",
             from: "0.1.16"
+        ),
+        .package(
+            url: "https://github.com/gonzalezreal/swift-markdown-ui",
+            from: "2.4.0"
         )
     ],
     targets: [
@@ -25,7 +29,8 @@ let package = Package(
                 .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "ACP", package: "swift-sdk"),
-                .product(name: "ACPModel", package: "swift-sdk")
+                .product(name: "ACPModel", package: "swift-sdk"),
+                .product(name: "MarkdownUI", package: "swift-markdown-ui")
             ],
             path: "Sources/JobApplicationWizardCore",
             resources: [.process("Resources")]
