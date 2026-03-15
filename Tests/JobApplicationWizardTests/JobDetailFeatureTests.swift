@@ -391,7 +391,7 @@ final class JobDetailFeatureTests: XCTestCase {
         await store.receive(\.aiResponseReceived)
 
         XCTAssertFalse(store.state.aiIsLoading)
-        XCTAssertEqual(store.state.aiError, AIError.noAPIKey.localizedDescription)
+        XCTAssertEqual(store.state.aiError, "AIError: \(AIError.noAPIKey.localizedDescription)")
     }
 
     func testSendMessageEmptyInputDoesNothing() async {
