@@ -1,25 +1,43 @@
 import SwiftUI
 import ComposableArchitecture
 
+public enum SettingsTab: Hashable {
+    case general, aiProvider, data, about
+}
+
+public extension Notification.Name {
+    static let selectSettingsTab = Notification.Name("selectSettingsTab")
+}
+
 public struct SettingsView: View {
     @Bindable var store: StoreOf<AppFeature>
+    @State private var selectedTab: SettingsTab = .general
 
     public init(store: StoreOf<AppFeature>) {
         self.store = store
     }
 
     public var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             GeneralSettingsTab(store: store)
                 .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(SettingsTab.general)
             AIProviderSettingsTab(store: store)
                 .tabItem { Label("AI Provider", systemImage: "sparkles") }
+                .tag(SettingsTab.aiProvider)
             DataSettingsTab(store: store)
                 .tabItem { Label("Data", systemImage: "externaldrive") }
+                .tag(SettingsTab.data)
             AboutSettingsTab()
                 .tabItem { Label("About", systemImage: "info.circle") }
+                .tag(SettingsTab.about)
         }
         .frame(width: 480)
+        .onReceive(NotificationCenter.default.publisher(for: .selectSettingsTab)) { notif in
+            if let tab = notif.object as? SettingsTab {
+                selectedTab = tab
+            }
+        }
     }
 }
 
