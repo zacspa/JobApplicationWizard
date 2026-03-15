@@ -15,33 +15,28 @@ public struct DebugPanel: View {
             Label("Debug Menu", systemImage: "ladybug")
                 .font(.headline)
 
-            if let detail = store.jobDetail {
-                GroupBox("AI Assistant") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Mock AI (skips API calls)", isOn: Binding(
-                            get: { detail.aiMockMode },
-                            set: { newValue in
-                                store.send(.jobDetail(.binding(.set(\.aiMockMode, newValue))))
-                            }
-                        ))
-
-                        LabeledContent("Messages") {
-                            Text("\(detail.chatMessages.count)")
-                                .monospacedDigit()
-                        }
-                        LabeledContent("Provider") {
-                            Text(detail.acpConnection.aiProvider == .acpAgent ? "ACP Agent" : "Claude API")
-                        }
-                        LabeledContent("Tokens used") {
-                            Text("\(detail.aiTokenUsage.totalTokens)")
-                                .monospacedDigit()
-                        }
+            GroupBox("Cuttle AI") {
+                VStack(alignment: .leading, spacing: 8) {
+                    LabeledContent("Context") {
+                        Text(store.cuttle.currentContext.displayLabel(jobs: Array(store.jobs)))
                     }
-                    .padding(.vertical, 4)
+                    LabeledContent("Messages") {
+                        Text("\(store.cuttle.chatMessages.count)")
+                            .monospacedDigit()
+                    }
+                    LabeledContent("Provider") {
+                        Text(store.acpConnection.aiProvider == .acpAgent ? "ACP Agent" : "Claude API")
+                    }
+                    LabeledContent("Tokens used") {
+                        Text("\(store.cuttle.tokenUsage.totalTokens)")
+                            .monospacedDigit()
+                    }
+                    LabeledContent("Drop zones") {
+                        Text("\(store.cuttle.dropZones.count)")
+                            .monospacedDigit()
+                    }
                 }
-            } else {
-                Text("Select a job to see AI debug options.")
-                    .font(.caption).foregroundColor(.secondary)
+                .padding(.vertical, 4)
             }
 
             GroupBox("Cuttlefish Circle") {

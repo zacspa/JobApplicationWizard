@@ -74,6 +74,7 @@ struct KanbanRow: View {
             .frame(minWidth: 100, idealWidth: 130, maxWidth: 150, alignment: .leading)
             .padding(.vertical, 12)
             .padding(.leading, 12)
+            .cuttleDockable(context: .status(status))
 
             Rectangle()
                 .fill(status.color)
@@ -93,6 +94,7 @@ struct KanbanRow: View {
                             onDelete: { onDelete(job.id) }
                         )
                         .frame(width: 240)
+                        .cuttleDockable(context: .job(job.id))
                         .draggable(job.id.uuidString) {
                             JobCard(
                                 job: job,

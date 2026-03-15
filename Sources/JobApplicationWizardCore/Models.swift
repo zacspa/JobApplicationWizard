@@ -309,19 +309,26 @@ public struct AppSettings: Codable, Equatable {
     public var defaultViewMode: ViewMode = .kanban
     public var aiProvider: AIProvider = .acpAgent
     public var selectedACPAgentId: String? = nil
+    public var cuttleContext: CuttleContext? = nil
+    public var globalChatHistory: [ChatMessage] = []
+    public var statusChatHistories: [String: [ChatMessage]] = [:]
 
     private enum CodingKeys: String, CodingKey {
         case userProfile, defaultViewMode, aiProvider, selectedACPAgentId
+        case cuttleContext, globalChatHistory, statusChatHistories
     }
 
     public init() {}
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        userProfile        = try c.decodeIfPresent(UserProfile.self, forKey: .userProfile)        ?? UserProfile()
-        defaultViewMode    = try c.decodeIfPresent(ViewMode.self,    forKey: .defaultViewMode)    ?? .kanban
-        aiProvider         = try c.decodeIfPresent(AIProvider.self,  forKey: .aiProvider)         ?? .acpAgent
-        selectedACPAgentId = try c.decodeIfPresent(String.self,      forKey: .selectedACPAgentId)
+        userProfile          = try c.decodeIfPresent(UserProfile.self,            forKey: .userProfile)          ?? UserProfile()
+        defaultViewMode      = try c.decodeIfPresent(ViewMode.self,               forKey: .defaultViewMode)      ?? .kanban
+        aiProvider           = try c.decodeIfPresent(AIProvider.self,             forKey: .aiProvider)           ?? .acpAgent
+        selectedACPAgentId   = try c.decodeIfPresent(String.self,                 forKey: .selectedACPAgentId)
+        cuttleContext        = try c.decodeIfPresent(CuttleContext.self,          forKey: .cuttleContext)
+        globalChatHistory    = try c.decodeIfPresent([ChatMessage].self,          forKey: .globalChatHistory)    ?? []
+        statusChatHistories  = try c.decodeIfPresent([String: [ChatMessage]].self, forKey: .statusChatHistories) ?? [:]
     }
 }
 

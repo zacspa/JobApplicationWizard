@@ -11,60 +11,78 @@ public struct ContentView: View {
     }
 
     public var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            SidebarView(store: store)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
-        } content: {
-            VStack(spacing: 0) {
-                toolbar
-                Divider()
-                StatusFilterBar(store: store)
-                Divider()
-                Group {
-                    switch store.viewMode {
-                    case .kanban: KanbanView(store: store)
-                    case .list:   ListView(store: store)
+        ZStack {
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                SidebarView(store: store)
+                    .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+            } content: {
+                VStack(spacing: 0) {
+                    toolbar
+                    Divider()
+                    StatusFilterBar(store: store)
+                    Divider()
+                    Group {
+                        switch store.viewMode {
+                        case .kanban: KanbanView(store: store)
+                        case .list:   ListView(store: store)
+                        }
+                    }
+                }
+                .navigationSplitViewColumnWidth(min: 420, ideal: 540)
+            } detail: {
+                if let detailStore = store.scope(state: \.jobDetail, action: \.jobDetail) {
+                    JobDetailView(store: detailStore)
+                        .modifier(DetailColumnWidth())
+                        .id(store.selectedJobID)
+                } else {
+                    ContentUnavailableView(
+                        "Select a Job",
+                        systemImage: "briefcase",
+                        description: Text("Choose a job application to view details, or add a new one.")
+                    )
+                }
+            }
+            .navigationSplitViewStyle(.balanced)
+            .toolbar {
+                ToolbarItemGroup(placement: .navigation) {
+                    if columnVisibility != .all {
+                        SettingsLink {
+                            Image(systemName: "gear").padding(4)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Settings")
+
+                        Button { store.send(.importCSV) } label: {
+                            Image(systemName: "square.and.arrow.down").padding(4)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Import from CSV")
+
+                        Button { store.send(.exportCSV) } label: {
+                            Image(systemName: "square.and.arrow.up").padding(4)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Export to CSV")
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(min: 420, ideal: 540)
-        } detail: {
-            if let detailStore = store.scope(state: \.jobDetail, action: \.jobDetail) {
-                JobDetailView(store: detailStore)
-                    .modifier(detailColumnWidth(aiPanelOpen: store.jobDetail?.aiPanelOpen ?? false))
-                    .id(store.selectedJobID)
-            } else {
-                ContentUnavailableView(
-                    "Select a Job",
-                    systemImage: "briefcase",
-                    description: Text("Choose a job application to view details, or add a new one.")
-                )
+
+            // Cuttle overlay
+            GeometryReader { geo in
+                CuttleView(store: store.scope(state: \.cuttle, action: \.cuttle))
+                    .onChange(of: geo.size) { _, newSize in
+                        store.send(.cuttle(.windowSizeChanged(newSize)))
+                    }
+                    .onAppear {
+                        store.send(.cuttle(.windowSizeChanged(geo.size)))
+                    }
             }
         }
-        .navigationSplitViewStyle(.balanced)
-        .toolbar {
-            ToolbarItemGroup(placement: .navigation) {
-                if columnVisibility != .all {
-                    SettingsLink {
-                        Image(systemName: "gear").padding(4)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Settings")
-
-                    Button { store.send(.importCSV) } label: {
-                        Image(systemName: "square.and.arrow.down").padding(4)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Import from CSV")
-
-                    Button { store.send(.exportCSV) } label: {
-                        Image(systemName: "square.and.arrow.up").padding(4)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Export to CSV")
-                }
-            }
+        .coordinateSpace(name: "cuttle-window")
+        .onPreferenceChange(DropZonePreferenceKey.self) { zones in
+            store.send(.cuttle(.dropZonesUpdated(zones)))
         }
+        .environment(\.cuttlePendingContext, store.cuttle.pendingContext)
         .sheet(isPresented: Binding(
             get: { store.showOnboarding },
             set: { if !$0 { store.send(.dismissOnboarding) } }
@@ -91,10 +109,6 @@ public struct ContentView: View {
         } message: {
             Text(store.saveError ?? "")
         }
-    }
-
-    private func detailColumnWidth(aiPanelOpen: Bool) -> DetailColumnWidth {
-        DetailColumnWidth(aiPanelOpen: aiPanelOpen)
     }
 
     var toolbar: some View {
@@ -147,12 +161,14 @@ struct StatusFilterBar: View {
                            selected: store.filterStatus == nil) {
                     store.send(.filterStatusChanged(nil))
                 }
+                .cuttleDockable(context: .global)
                 ForEach(JobStatus.allCases) { status in
                     FilterPill(label: status.rawValue,
                                count: store.jobs.filter { $0.status == status }.count,
                                selected: store.filterStatus == status) {
                         store.send(.filterStatusChanged(status))
                     }
+                    .cuttleDockable(context: .status(status))
                 }
             }
             .padding(.horizontal, 16)
@@ -266,17 +282,9 @@ struct FeatureRow: View {
 
 // MARK: - Detail Column Width
 
-/// Adjusts the detail column min/ideal/max based on whether the AI panel is open.
-/// When the AI panel is closed, a `max` is set so NavigationSplitView reclaims the
-/// extra width and gives it back to the content (job list) column.
+/// Fixed detail column width now that the AI panel is no longer inline.
 private struct DetailColumnWidth: ViewModifier {
-    let aiPanelOpen: Bool
-
     func body(content: Content) -> some View {
-        if aiPanelOpen {
-            content.navigationSplitViewColumnWidth(min: 500, ideal: 700)
-        } else {
-            content.navigationSplitViewColumnWidth(min: 460, ideal: 450, max: 600)
-        }
+        content.navigationSplitViewColumnWidth(min: 460, ideal: 550, max: 600)
     }
 }

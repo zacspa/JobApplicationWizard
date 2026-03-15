@@ -65,6 +65,7 @@ public struct ListView: View {
                 Table(sortedJobs, selection: selectionBinding) {
                     TableColumn("Company / Role") { job in
                         VStack(alignment: .leading, spacing: 2) {
+                            // Note: cuttleDockable is applied to the whole VStack below
                             HStack(spacing: 5) {
                                 Image(systemName: job.status.icon)
                                     .foregroundColor(job.status.color)
@@ -90,6 +91,7 @@ public struct ListView: View {
                                 .foregroundColor(.secondary)
                         }
                         .padding(.vertical, 2)
+                        .cuttleDockable(context: .job(job.id))
                     }
 
                     TableColumn("Excitement") { job in

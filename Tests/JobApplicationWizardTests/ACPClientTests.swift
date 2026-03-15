@@ -116,10 +116,10 @@ final class ACPClientTests: XCTestCase {
         XCTAssertNil(conn.error)
     }
 
-    // MARK: - JobDetailFeature State Initialization
+    // MARK: - CuttleFeature State Initialization
 
-    func testJobDetailStateInitDefaultsToACPAgent() {
-        let state = JobDetailFeature.State(job: .mock())
+    func testCuttleStateInitDefaultsToACPAgent() {
+        let state = CuttleFeature.State()
         // acpConnection is shared state — default is .acpAgent, not connected
         XCTAssertEqual(state.acpConnection.aiProvider, .acpAgent)
         XCTAssertFalse(state.acpConnection.isConnected)

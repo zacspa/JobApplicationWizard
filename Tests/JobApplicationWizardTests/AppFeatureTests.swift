@@ -180,6 +180,7 @@ final class AppFeatureTests: XCTestCase {
             updatedJob.status = .interview
             $0.jobs[id: job.id] = updatedJob
             $0.jobDetail?.job = updatedJob
+            $0.cuttle.jobs = Array($0.jobs)
         }
     }
 
@@ -238,6 +239,7 @@ final class AppFeatureTests: XCTestCase {
             $0.selectedJobID = newJob.id
             $0.jobDetail = JobDetailFeature.State(job: newJob)
             $0.addJob = AddJobFeature.State()
+            $0.cuttle.jobs = Array($0.jobs)
         }
     }
 
@@ -272,6 +274,7 @@ final class AppFeatureTests: XCTestCase {
         job.company = "Updated Corp"
         await store.send(.jobDetail(.delegate(.jobUpdated(job)))) {
             $0.jobs[id: job.id] = job
+            $0.cuttle.jobs = Array($0.jobs)
         }
     }
 
@@ -324,6 +327,7 @@ final class AppFeatureTests: XCTestCase {
         await store.send(.importCSVResult([duplicate, newJob])) {
             $0.jobs.append(newJob)
             $0.filterStatus = nil  // cleared to show imported jobs
+            $0.cuttle.jobs = Array($0.jobs)
         }
 
         // Verify the existing job was NOT overwritten
@@ -348,6 +352,7 @@ final class AppFeatureTests: XCTestCase {
         await store.send(.saveSettingsKey("new-key")) {
             $0.claudeAPIKey = "new-key"
             $0.jobDetail?.apiKey = "new-key"
+            $0.cuttle.apiKey = "new-key"
         }
     }
 
@@ -372,6 +377,7 @@ final class AppFeatureTests: XCTestCase {
         await store.send(.saveProfile(profile)) {
             $0.settings.userProfile = profile
             $0.jobDetail?.userProfile = profile
+            $0.cuttle.userProfile = profile
         }
     }
 

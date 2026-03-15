@@ -269,7 +269,7 @@ final class JobDetailFeatureTests: XCTestCase {
         await store.receive(\.delegate.jobUpdated)
     }
 
-    func testDeleteLastInterviewFromMultiple() async {
+    func testDeleteLastInterviewFromMultiples() async {
         let interviews = [
             InterviewRound(round: 1, type: "Phone"),
             InterviewRound(round: 2, type: "Technical"),
@@ -322,136 +322,6 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertEqual(store.state.interviews[0].round, 1)
         XCTAssertEqual(store.state.interviews[1].round, 2)
         XCTAssertEqual(store.state.interviews[2].round, 3)
-    }
-
-    // MARK: - AI: sendMessage
-
-    func testSendMessageWithChatMode() async {
-        var state = JobDetailFeature.State(job: .mock(), apiKey: "test-key")
-        state.aiInput = "Hello"
-
-        let store = TestStore(initialState: state) {
-            JobDetailFeature()
-        } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in
-                ("AI response", AITokenUsage(inputTokens: 10, outputTokens: 20))
-            }
-        }
-        store.exhaustivity = .off
-
-        await store.send(.sendMessage)
-        await store.receive(\.aiResponseReceived)
-
-        XCTAssertFalse(store.state.aiIsLoading)
-        XCTAssertEqual(store.state.chatMessages.count, 2)
-        XCTAssertEqual(store.state.chatMessages[0].role, .user)
-        XCTAssertEqual(store.state.chatMessages[0].content, "Hello")
-        XCTAssertEqual(store.state.chatMessages[1].role, .assistant)
-        XCTAssertEqual(store.state.chatMessages[1].content, "AI response")
-        XCTAssertEqual(store.state.aiTokenUsage, AITokenUsage(inputTokens: 10, outputTokens: 20))
-        XCTAssertEqual(store.state.aiInput, "")
-    }
-
-    func testSendMessagePlainText() async {
-        var state = JobDetailFeature.State(job: .mock(), apiKey: "test-key")
-        state.aiInput = "My resume"
-
-        let store = TestStore(initialState: state) {
-            JobDetailFeature()
-        } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in
-                ("Tailored", AITokenUsage(inputTokens: 5, outputTokens: 10))
-            }
-        }
-        store.exhaustivity = .off
-
-        await store.send(.sendMessage)
-        await store.receive(\.aiResponseReceived)
-
-        XCTAssertEqual(store.state.chatMessages.count, 2)
-        // Messages are now sent as-is (no mode preamble)
-        XCTAssertEqual(store.state.chatMessages[0].content, "My resume")
-        XCTAssertEqual(store.state.chatMessages[1].content, "Tailored")
-    }
-
-    func testSendMessageAIResponseError() async {
-        var state = JobDetailFeature.State(job: .mock(), apiKey: "test-key")
-        state.aiInput = "Hello"
-
-        let store = TestStore(initialState: state) {
-            JobDetailFeature()
-        } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in
-                throw AIError.noAPIKey
-            }
-        }
-        store.exhaustivity = .off
-
-        await store.send(.sendMessage)
-        await store.receive(\.aiResponseReceived)
-
-        XCTAssertFalse(store.state.aiIsLoading)
-        XCTAssertEqual(store.state.aiError, "AIError: \(AIError.noAPIKey.localizedDescription)")
-    }
-
-    func testSendMessageEmptyInputDoesNothing() async {
-        var state = JobDetailFeature.State(job: .mock(), apiKey: "test-key")
-        state.aiInput = "   "
-
-        let store = TestStore(initialState: state) {
-            JobDetailFeature()
-        }
-
-        await store.send(.sendMessage)
-        // No state changes, no effects
-    }
-
-    // MARK: - AI: clearChat
-
-    func testClearChat() async {
-        var state = JobDetailFeature.State(job: .mock())
-        state.chatMessages = [ChatMessage(role: .user, content: "test")]
-        state.aiInput = "something"
-        state.aiError = "some error"
-        state.aiTokenUsage = AITokenUsage(inputTokens: 100, outputTokens: 200)
-
-        let store = TestStore(initialState: state) {
-            JobDetailFeature()
-        }
-
-        await store.send(.clearChat) {
-            $0.chatMessages = []
-            $0.aiInput = ""
-            $0.aiError = nil
-            $0.aiTokenUsage = .zero
-            $0.job.chatHistory = []
-        }
-        await store.receive(\.delegate.jobUpdated)
-    }
-
-    // MARK: - AI: response accumulates token usage
-
-    func testAIResponseAccumulatesTokenUsage() async {
-        var state = JobDetailFeature.State(job: .mock(), apiKey: "test-key")
-        state.aiTokenUsage = AITokenUsage(inputTokens: 100, outputTokens: 200)
-        state.aiInput = "More"
-
-        let store = TestStore(initialState: state) {
-            JobDetailFeature()
-        } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in
-                ("Response", AITokenUsage(inputTokens: 50, outputTokens: 75))
-            }
-        }
-        store.exhaustivity = .off
-
-        await store.send(.sendMessage)
-        await store.receive(\.aiResponseReceived)
-
-        XCTAssertEqual(store.state.aiTokenUsage.inputTokens, 150)
-        XCTAssertEqual(store.state.aiTokenUsage.outputTokens, 275)
-        XCTAssertEqual(store.state.chatMessages.count, 2)
-        XCTAssertEqual(store.state.chatMessages.last?.content, "Response")
     }
 
     // MARK: - PDF
@@ -540,15 +410,17 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertEqual(JobDetailFeature.State.Tab.interviews.icon, "calendar.badge.clock")
     }
 
-    // MARK: - System Prompt Builder
+    // MARK: - CuttlePromptBuilder (migrated from JobDetailFeature.buildSystemPrompt)
 
-    func testBuildSystemPromptIncludesJobContext() {
+    func testBuildJobPromptIncludesJobContext() {
         let job = JobApplication.mock(
             company: "TestCo",
             title: "Senior Dev",
             jobDescription: "Build things"
         )
-        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .job(job.id), jobs: [job], profile: UserProfile(), chatHistory: []
+        )
 
         XCTAssertTrue(prompt.contains("Senior Dev"))
         XCTAssertTrue(prompt.contains("TestCo"))
@@ -556,95 +428,100 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertTrue(prompt.contains("expert career coach"))
     }
 
-    func testBuildSystemPromptIncludesUserProfile() {
+    func testBuildJobPromptIncludesUserProfile() {
         let job = JobApplication.mock()
         var profile = UserProfile()
         profile.name = "Alice"
         profile.skills = ["Swift", "Python"]
         profile.resume = "10 years experience"
 
-        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: profile)
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .job(job.id), jobs: [job], profile: profile, chatHistory: []
+        )
 
         XCTAssertTrue(prompt.contains("Alice"))
         XCTAssertTrue(prompt.contains("Swift, Python"))
         XCTAssertTrue(prompt.contains("10 years experience"))
     }
 
-    func testBuildSystemPromptOmitsEmptyProfile() {
+    func testBuildJobPromptOmitsEmptyProfile() {
         let job = JobApplication.mock()
-        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .job(job.id), jobs: [job], profile: UserProfile(), chatHistory: []
+        )
 
         XCTAssertFalse(prompt.contains("About the candidate"))
     }
 
-    func testBuildSystemPromptIncludesContacts() {
+    func testBuildJobPromptIncludesContacts() {
         let job = JobApplication.mock(
             contacts: [Contact(name: "Bob", title: "Recruiter", notes: "Met at conference")]
         )
-        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .job(job.id), jobs: [job], profile: UserProfile(), chatHistory: []
+        )
 
         XCTAssertTrue(prompt.contains("Bob"))
         XCTAssertTrue(prompt.contains("Recruiter"))
         XCTAssertTrue(prompt.contains("Met at conference"))
     }
 
-    func testBuildSystemPromptIncludesInterviews() {
+    func testBuildJobPromptIncludesInterviews() {
         let job = JobApplication.mock(
             interviews: [InterviewRound(round: 1, type: "Technical", interviewers: "Jane")]
         )
-        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .job(job.id), jobs: [job], profile: UserProfile(), chatHistory: []
+        )
 
         XCTAssertTrue(prompt.contains("Round 1"))
         XCTAssertTrue(prompt.contains("Technical"))
         XCTAssertTrue(prompt.contains("Jane"))
     }
 
-    func testBuildSystemPromptIncludesNotes() {
+    func testBuildJobPromptIncludesNotes() {
         let job = JobApplication.mock(
             noteCards: [Note(title: "Salary Research", body: "Glassdoor says $150k")]
         )
-        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .job(job.id), jobs: [job], profile: UserProfile(), chatHistory: []
+        )
 
         XCTAssertTrue(prompt.contains("Salary Research"))
         XCTAssertTrue(prompt.contains("Glassdoor says $150k"))
     }
 
-    func testBuildSystemPromptIncludesActiveTab() {
+    func testBuildJobPromptIncludesRecentActivity() {
         let job = JobApplication.mock()
-        let prompt = JobDetailFeature.buildSystemPrompt(
-            job: job, profile: UserProfile(), activeTab: .interviews
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .job(job.id), jobs: [job], profile: UserProfile(), chatHistory: []
         )
-
-        XCTAssertTrue(prompt.contains("Interviews tab"))
-    }
-
-    func testBuildSystemPromptIncludesRecentActivity() {
-        let job = JobApplication.mock()
-        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
 
         XCTAssertTrue(prompt.contains("Recent Activity"))
         XCTAssertTrue(prompt.contains("Added:"))
     }
 
-    func testBuildSystemPromptIncludesLabelsAndSalary() {
+    func testBuildJobPromptIncludesLabelsAndSalary() {
         let job = JobApplication.mock(
             salary: "$120k-150k",
             labels: [JobLabel(name: "Remote", colorHex: "#34C759")]
         )
-        let prompt = JobDetailFeature.buildSystemPrompt(job: job, profile: UserProfile())
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .job(job.id), jobs: [job], profile: UserProfile(), chatHistory: []
+        )
 
         XCTAssertTrue(prompt.contains("$120k-150k"))
         XCTAssertTrue(prompt.contains("Remote"))
     }
 
-    func testBuildSystemPromptIncludesChatHistoryTail() {
+    func testBuildPromptIncludesChatHistoryTail() {
         let job = JobApplication.mock()
         let history = [
             ChatMessage(role: .user, content: "Hello"),
             ChatMessage(role: .assistant, content: "Hi there!"),
         ]
-        let prompt = JobDetailFeature.buildSystemPrompt(
-            job: job, profile: UserProfile(), chatHistory: history
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .job(job.id), jobs: [job], profile: UserProfile(), chatHistory: history
         )
 
         XCTAssertTrue(prompt.contains("Previous conversation"))
@@ -652,65 +529,34 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Assistant: Hi there!"))
     }
 
-    // MARK: - AI Panel
+    func testBuildGlobalPromptIncludesAllJobs() {
+        let jobs = [
+            JobApplication.mock(company: "Acme", title: "Engineer"),
+            JobApplication.mock(company: "BigCo", title: "Manager"),
+        ]
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .global, jobs: jobs, profile: UserProfile(), chatHistory: []
+        )
 
-    func testToggleAIPanel() async {
-        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
-            JobDetailFeature()
-        }
-
-        await store.send(.toggleAIPanel) {
-            $0.aiPanelOpen = true
-        }
-        await store.send(.toggleAIPanel) {
-            $0.aiPanelOpen = false
-        }
+        XCTAssertTrue(prompt.contains("Acme"))
+        XCTAssertTrue(prompt.contains("BigCo"))
+        XCTAssertTrue(prompt.contains("full job search dashboard"))
     }
 
-    func testOpenAIPanelWithPrompt() async {
-        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
-            JobDetailFeature()
-        }
+    func testBuildStatusPromptScopesToStatus() {
+        let jobs = [
+            JobApplication.mock(company: "Acme", title: "Engineer", status: .interview),
+            JobApplication.mock(company: "BigCo", title: "Manager", status: .wishlist),
+        ]
+        let prompt = CuttlePromptBuilder.buildPrompt(
+            context: .status(.interview), jobs: jobs, profile: UserProfile(), chatHistory: []
+        )
 
-        await store.send(.openAIPanelWithPrompt("Draft a cover letter")) {
-            $0.aiPanelOpen = true
-            $0.aiInput = "Draft a cover letter"
-        }
+        XCTAssertTrue(prompt.contains("Acme"))
+        XCTAssertTrue(prompt.contains("Interview jobs"))
     }
 
-    // MARK: - Chat History Persistence
-
-    func testChatHistoryLoadedFromJob() {
-        let history = [ChatMessage(role: .user, content: "Hello")]
-        let job = JobApplication.mock(chatHistory: history)
-        let state = JobDetailFeature.State(job: job)
-        XCTAssertEqual(state.chatMessages.count, 1)
-        XCTAssertEqual(state.chatMessages[0].content, "Hello")
-    }
-
-    func testChatHistorySyncedOnResponse() async {
-        var state = JobDetailFeature.State(job: .mock(), apiKey: "test-key")
-        state.aiInput = "Hello"
-
-        let store = TestStore(initialState: state) {
-            JobDetailFeature()
-        } withDependencies: {
-            $0.claudeClient.chat = { _, _, _ in
-                ("Response", AITokenUsage(inputTokens: 10, outputTokens: 20))
-            }
-        }
-        store.exhaustivity = .off
-
-        await store.send(.sendMessage)
-        await store.receive(\.aiResponseReceived)
-
-        // Chat history should be persisted to job
-        XCTAssertEqual(store.state.job.chatHistory.count, 2)
-        XCTAssertEqual(store.state.job.chatHistory[0].content, "Hello")
-        XCTAssertEqual(store.state.job.chatHistory[1].content, "Response")
-    }
-
-    // MARK: - ChatMessage Codable
+    // MARK: - Chat History Codable
 
     func testChatMessageCodableRoundTrip() throws {
         let msg = ChatMessage(role: .assistant, content: "Test response")

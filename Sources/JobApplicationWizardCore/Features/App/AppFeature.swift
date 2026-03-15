@@ -30,11 +30,12 @@ public struct AppFeature {
         public var claudeAPIKey: String = ""   // runtime mirror of Keychain value; never persisted to disk
         public var addJob: AddJobFeature.State = AddJobFeature.State()
         public var jobDetail: JobDetailFeature.State? = nil
+        public var cuttle: CuttleFeature.State = CuttleFeature.State()
         public var saveError: String? = nil
         public var showImportAllConfirm: Bool = false
         public var pendingImportAll: AppDataExport? = nil
 
-        // ACP state — connection state is shared with JobDetailFeature via @Shared
+        // ACP state — connection state is shared with CuttleFeature via @Shared
         @Shared(.inMemory("acpConnection")) public var acpConnection = ACPConnectionState()
         public var availableACPAgents: [ACPAgentEntry] = []
         public var isLoadingAgents: Bool = false
@@ -76,6 +77,7 @@ public struct AppFeature {
         case prepareAddJob
         case addJob(AddJobFeature.Action)
         case jobDetail(JobDetailFeature.Action)
+        case cuttle(CuttleFeature.Action)
         case exportCSV
         case importCSV
         case importCSVResult([JobApplication])
@@ -101,6 +103,8 @@ public struct AppFeature {
         case disconnectACPAgent
         case acpDisconnected
         case acpProcessCrashed
+        // Cuttle persistence
+        case saveCuttleState
     }
 
     @Dependency(\.persistenceClient) var persistence
@@ -112,6 +116,7 @@ public struct AppFeature {
 
     public var body: some ReducerOf<Self> {
         Scope(state: \.addJob, action: \.addJob) { AddJobFeature() }
+        Scope(state: \.cuttle, action: \.cuttle) { CuttleFeature() }
         Reduce { state, action in
             switch action {
             case .onAppear:
@@ -126,13 +131,13 @@ public struct AppFeature {
 
             case .jobsLoaded(.success(let jobs)):
                 state.jobs = IdentifiedArray(uniqueElements: jobs)
+                state.cuttle.jobs = Array(state.jobs)
                 if state.jobs.isEmpty {
                     state.showOnboarding = true
                 }
                 return .none
 
             case .jobsLoaded(.failure(let error)):
-                // Decode failure on an existing file; do NOT overwrite with []
                 state.saveError = "Failed to load jobs: \(error.localizedDescription). Your data file may be corrupted; check jobs.json or jobs.backup.json in Application Support."
                 return .none
 
@@ -140,13 +145,19 @@ public struct AppFeature {
                 state.settings = settings
                 state.viewMode = settings.defaultViewMode
                 state.$acpConnection.withLock { $0.aiProvider = settings.aiProvider }
-                if settings.aiProvider == .acpAgent {
-                    return .send(.fetchACPRegistry)
-                }
-                return .none
+                // Restore Cuttle state from settings
+                state.cuttle.userProfile = settings.userProfile
+                let context = settings.cuttleContext ?? .global
+                return .merge(
+                    .send(.cuttle(.restoreFromSettings(
+                        context,
+                        settings.globalChatHistory,
+                        settings.statusChatHistories
+                    ))),
+                    settings.aiProvider == .acpAgent ? .send(.fetchACPRegistry) : .none
+                )
 
             case .settingsLoaded(.failure):
-                // Settings decode failure is non-critical; use defaults
                 state.settings = AppSettings()
                 state.viewMode = state.settings.defaultViewMode
                 state.$acpConnection.withLock { $0.aiProvider = state.settings.aiProvider }
@@ -179,12 +190,10 @@ public struct AppFeature {
                 state.selectedJobID = id
                 if let id, let job = state.jobs[id: id] {
                     let previousTab = state.jobDetail?.selectedTab
-                    let previousAIPanelOpen = state.jobDetail?.aiPanelOpen ?? false
                     var detail = JobDetailFeature.State(
                         job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
                     )
                     if let previousTab { detail.selectedTab = previousTab }
-                    detail.aiPanelOpen = previousAIPanelOpen
                     state.jobDetail = detail
                 } else {
                     state.jobDetail = nil
@@ -201,6 +210,7 @@ public struct AppFeature {
                 if state.jobDetail?.job.id == id {
                     state.jobDetail?.job = job
                 }
+                state.cuttle.jobs = Array(state.jobs)
                 return saveJobs(state.jobs)
 
             case .deleteJob(let id):
@@ -209,6 +219,7 @@ public struct AppFeature {
                     state.selectedJobID = nil
                     state.jobDetail = nil
                 }
+                state.cuttle.jobs = Array(state.jobs)
                 return saveJobs(state.jobs)
 
             case .toggleFavorite(let id):
@@ -226,6 +237,7 @@ public struct AppFeature {
                     job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
                 )
                 state.addJob = AddJobFeature.State()
+                state.cuttle.jobs = Array(state.jobs)
                 return saveJobs(state.jobs)
 
             case .addJob(.delegate(.cancel)):
@@ -237,16 +249,33 @@ public struct AppFeature {
 
             case .jobDetail(.delegate(.jobUpdated(let job))):
                 state.jobs[id: job.id] = job
+                state.cuttle.jobs = Array(state.jobs)
                 return saveJobs(state.jobs)
 
             case .jobDetail(.delegate(.jobDeleted(let id))):
                 state.jobs.remove(id: id)
                 state.selectedJobID = nil
                 state.jobDetail = nil
+                state.cuttle.jobs = Array(state.jobs)
                 return saveJobs(state.jobs)
 
             case .jobDetail:
                 return .none
+
+            // MARK: - Cuttle
+
+            case .cuttle(.aiResponseReceived), .cuttle(.clearChat), .cuttle(.contextTransitionConfirmed):
+                // Persist Cuttle chat state to settings after AI interactions
+                return .send(.saveCuttleState)
+
+            case .cuttle:
+                return .none
+
+            case .saveCuttleState:
+                state.settings.cuttleContext = state.cuttle.currentContext
+                state.settings.globalChatHistory = state.cuttle.globalChatHistory
+                state.settings.statusChatHistories = state.cuttle.statusChatHistories
+                return saveSettings(state.settings)
 
             case .exportCSV:
                 let csv = persistence.exportCSV(Array(state.jobs))
@@ -262,11 +291,11 @@ public struct AppFeature {
                 }
 
             case .importCSVResult(let imported):
-                // Merge: skip any job whose ID already exists
                 let existingIDs = Set(state.jobs.ids)
                 let newJobs = imported.filter { !existingIDs.contains($0.id) }
                 for job in newJobs { state.jobs.append(job) }
-                if !newJobs.isEmpty { state.filterStatus = nil }  // show all so imported jobs are visible
+                if !newJobs.isEmpty { state.filterStatus = nil }
+                state.cuttle.jobs = Array(state.jobs)
                 return saveJobs(state.jobs)
 
             case .dismissOnboarding:
@@ -276,6 +305,7 @@ public struct AppFeature {
             case .saveSettingsKey(let key):
                 state.claudeAPIKey = key
                 state.jobDetail?.apiKey = key
+                state.cuttle.apiKey = key
                 return .run { _ in
                     keychain.saveAPIKey(key)
                 }
@@ -291,6 +321,7 @@ public struct AppFeature {
             case .saveProfile(let profile):
                 state.settings.userProfile = profile
                 state.jobDetail?.userProfile = profile
+                state.cuttle.userProfile = profile
                 return saveSettings(state.settings)
 
             case .defaultViewModeChanged(let mode):
@@ -303,6 +334,7 @@ public struct AppFeature {
                 state.selectedJobID = nil
                 state.jobDetail = nil
                 state.showOnboarding = true
+                state.cuttle.jobs = []
                 return saveJobs(state.jobs)
 
             case .exportAll:
@@ -336,6 +368,8 @@ public struct AppFeature {
                 state.jobDetail = nil
                 state.pendingImportAll = nil
                 state.showImportAllConfirm = false
+                state.cuttle.jobs = Array(state.jobs)
+                state.cuttle.userProfile = export.settings.userProfile
                 return .merge(
                     saveJobs(state.jobs),
                     saveSettings(state.settings)
@@ -370,7 +404,6 @@ public struct AppFeature {
             case .acpRegistryLoaded(.success(let agents)):
                 state.isLoadingAgents = false
                 state.availableACPAgents = agents
-                // Auto-connect if we have a saved agent selection and aren't already connected
                 if !state.acpConnection.isConnected && !state.acpConnection.isConnecting,
                    let savedId = state.settings.selectedACPAgentId,
                    agents.contains(where: { $0.id == savedId }) {
