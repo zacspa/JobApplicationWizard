@@ -159,6 +159,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
     public var excitement: Int = 3
     public var hasPDF: Bool = false
     public var pdfPath: String? = nil
+    public var chatHistory: [ChatMessage] = []
 
     public var displayTitle: String {
         title.isEmpty ? "Untitled Position" : title
@@ -176,7 +177,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         case id, company, title, url, status, dateAdded, dateApplied
         case salary, location, jobDescription, noteCards
         case resumeUsed, coverLetter, labels, contacts, interviews
-        case isFavorite, excitement, hasPDF, pdfPath
+        case isFavorite, excitement, hasPDF, pdfPath, chatHistory
         case legacyNotes = "notes"
     }
 
@@ -201,6 +202,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         excitement   = try c.decodeIfPresent(Int.self,             forKey: .excitement)   ?? 3
         hasPDF       = try c.decodeIfPresent(Bool.self,            forKey: .hasPDF)       ?? false
         pdfPath      = try c.decodeIfPresent(String.self,          forKey: .pdfPath)
+        chatHistory  = try c.decodeIfPresent([ChatMessage].self,   forKey: .chatHistory)  ?? []
 
         if let cards = try c.decodeIfPresent([Note].self, forKey: .noteCards) {
             noteCards = cards
@@ -233,6 +235,9 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         try c.encode(excitement,     forKey: .excitement)
         try c.encode(hasPDF,         forKey: .hasPDF)
         try c.encodeIfPresent(pdfPath, forKey: .pdfPath)
+        if !chatHistory.isEmpty {
+            try c.encode(chatHistory, forKey: .chatHistory)
+        }
     }
 }
 
@@ -332,14 +337,15 @@ public enum AIAction: String, CaseIterable, Equatable {
 
 // MARK: - Chat Message
 
-public struct ChatMessage: Identifiable, Equatable {
+public struct ChatMessage: Codable, Identifiable, Equatable {
     public var id: UUID = UUID()
     public var role: Role
     public var content: String
     public var timestamp: Date = Date()
 
-    public enum Role: Equatable {
-        case user, assistant
+    public enum Role: String, Codable, Equatable {
+        case user = "user"
+        case assistant = "assistant"
     }
 
     public init(id: UUID = UUID(), role: Role, content: String, timestamp: Date = Date()) {

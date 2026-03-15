@@ -44,6 +44,15 @@ public struct DebugPanel: View {
                     .font(.caption).foregroundColor(.secondary)
             }
 
+            GroupBox("Cuttlefish Circle") {
+                VStack(alignment: .leading, spacing: 8) {
+                    JitterCircle()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .padding(.vertical, 4)
+            }
+
             GroupBox("App State") {
                 VStack(alignment: .leading, spacing: 8) {
                     LabeledContent("Jobs loaded") {

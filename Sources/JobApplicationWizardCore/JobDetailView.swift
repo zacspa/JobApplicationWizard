@@ -16,7 +16,14 @@ public struct JobDetailView: View {
             Divider()
             tabBar
             Divider()
-            tabContent
+            HStack(spacing: 0) {
+                tabContent
+                if store.aiPanelOpen {
+                    Divider()
+                    AISidePanel(store: store)
+                        .frame(minWidth: 280, idealWidth: 340, maxWidth: 500)
+                }
+            }
         }
         .alert("Delete Application", isPresented: Binding(
             get: { store.showDeleteConfirm },
@@ -58,7 +65,6 @@ public struct JobDetailView: View {
         case .notes: NotesTab(store: store)
         case .contacts: ContactsTab(store: store)
         case .interviews: InterviewsTab(store: store)
-        case .ai: AIAssistantTab(store: store)
         }
     }
 
@@ -75,6 +81,14 @@ public struct JobDetailView: View {
                 }
                 Spacer()
                 HStack(spacing: 8) {
+                    Button { store.send(.toggleAIPanel) } label: {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(store.aiPanelOpen ? .accentColor : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Toggle AI Assistant")
+                    .keyboardShortcut("a", modifiers: [.option, .command])
+
                     Button { store.send(.toggleFavorite) } label: {
                         Image(systemName: store.job.isFavorite ? "star.fill" : "star")
                             .foregroundColor(store.job.isFavorite ? .yellow : .secondary)
@@ -852,41 +866,40 @@ struct InterviewRoundRow: View {
                 .labelsHidden().font(.footnote).frame(width: 160)
             }
             TextField("Interviewers", text: $round.interviewers).textFieldStyle(.roundedBorder).font(.footnote)
-            TextField("Notes / Feedback", text: $round.notes).textFieldStyle(.roundedBorder).font(.footnote)
+            TextEditor(text: $round.notes)
+                .font(.footnote)
+                .scrollContentBackground(.hidden)
+                .padding(4)
+                .frame(minHeight: 36, maxHeight: 120)
+                .fixedSize(horizontal: false, vertical: true)
+                .background(Color(NSColor.textBackgroundColor))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+                .overlay(alignment: .topLeading) {
+                    if round.notes.isEmpty {
+                        Text("Notes / Feedback")
+                            .font(.footnote).foregroundColor(.secondary)
+                            .padding(.horizontal, 8).padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                }
         }
         .padding(.vertical, 4)
     }
 }
 
-// MARK: - AI Assistant Tab (Chat UI)
+// MARK: - AI Side Panel
 
-struct AIAssistantTab: View {
+struct AISidePanel: View {
     @Bindable var store: StoreOf<JobDetailFeature>
     @FocusState private var inputFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            // Mode picker
+            // Provider / token info bar
             VStack(spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 0) {
-                        ForEach(AIAction.allCases, id: \.self) { action in
-                            Button { store.send(.binding(.set(\.aiSelectedAction, action))) } label: {
-                                Text(action.rawValue)
-                                    .font(.subheadline)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(store.aiSelectedAction == action ? Color.accentColor.opacity(0.12) : Color.clear)
-                                    .foregroundColor(store.aiSelectedAction == action ? .accentColor : .secondary)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                .padding(.horizontal, 8)
-
-                // Provider / token info bar
                 if store.acpConnection.aiProvider == .acpAgent, let name = store.acpConnection.connectedAgentName {
                     HStack(spacing: 4) {
                         Circle().fill(Color.green).frame(width: 6, height: 6)
@@ -894,22 +907,42 @@ struct AIAssistantTab: View {
                             .font(.caption2).foregroundColor(.secondary)
                         Spacer()
                     }
-                    .padding(.horizontal, 16).padding(.bottom, 6)
+                    .padding(.horizontal, 16).padding(.vertical, 6)
                 } else if store.acpConnection.aiProvider == .claudeAPI && store.aiTokenUsage.totalTokens > 0 {
                     HStack {
                         Spacer()
                         Text("\(store.aiTokenUsage.totalTokens.formatted()) tok")
                             .font(.caption2).foregroundColor(.secondary)
-                        Text("·").foregroundColor(.secondary)
+                        Text("\u{00B7}").foregroundColor(.secondary)
                         Text(String(format: "~$%.4f", store.aiTokenUsage.estimatedCost))
                             .font(.caption2).foregroundColor(.secondary)
                     }
-                    .padding(.horizontal, 16).padding(.bottom, 6)
+                    .padding(.horizontal, 16).padding(.vertical, 6)
                 }
             }
             .background(Color(NSColor.controlBackgroundColor))
 
             Divider()
+
+            // Missing-context warnings
+            if store.job.jobDescription.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange).font(.footnote)
+                    Text("No job description saved; AI responses will be generic. Paste the JD in the Description tab.")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                .padding(8)
+                .background(Color.orange.opacity(0.08))
+            }
+            if store.userProfile.name.isEmpty && store.userProfile.resume.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.crop.circle.badge.exclamationmark").foregroundColor(.orange).font(.footnote)
+                    Text("Set up your profile in the sidebar for personalized advice.")
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                .padding(8)
+                .background(Color.orange.opacity(0.08))
+            }
 
             if store.acpConnection.isConnecting {
                 VStack(spacing: 12) {
@@ -922,40 +955,7 @@ struct AIAssistantTab: View {
                 }
                 .frame(maxWidth: .infinity)
             } else if !aiReady {
-                VStack(spacing: 16) {
-                    Spacer()
-                    Image(systemName: store.acpConnection.aiProvider == .claudeAPI ? "key.fill" : "cpu")
-                        .font(.system(size: 32))
-                        .foregroundColor(.secondary)
-
-                    if store.acpConnection.aiProvider == .acpAgent {
-                        Text("Connect an AI Agent")
-                            .font(.headline)
-                        Text("ACP (Agent Client Protocol) lets you use any compatible AI agent — Claude, Goose, Copilot, and more — for resume tailoring, interview prep, and job fit analysis.")
-                            .font(.subheadline).foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: 360)
-                    } else {
-                        Text("Add Your API Key")
-                            .font(.headline)
-                        Text("Enter your Claude API key to get AI-powered resume tailoring, cover letter drafting, interview prep, and job fit analysis.")
-                            .font(.subheadline).foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: 360)
-                    }
-
-                    Button {
-                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                    } label: {
-                        Label("Set Up AI Provider", systemImage: "gearshape")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 32)
+                notReadyView
             }
 
             // Message history
@@ -963,24 +963,7 @@ struct AIAssistantTab: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         if store.chatMessages.isEmpty {
-                            VStack(spacing: 12) {
-                                Text("✦").font(.system(size: 28))
-
-                                if store.acpConnection.aiProvider == .acpAgent, let name = store.acpConnection.connectedAgentName {
-                                    Text("Connected to \(name)")
-                                        .font(.subheadline).fontWeight(.medium)
-                                } else {
-                                    Text("AI Assistant")
-                                        .font(.subheadline).fontWeight(.medium)
-                                }
-
-                                Text("Ask anything about this application, or use the quick actions above to tailor your resume, draft a cover letter, prep for interviews, or analyze your fit.")
-                                    .font(.caption).foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .frame(maxWidth: 320)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 48)
+                            emptyStateView
                         } else {
                             ForEach(store.chatMessages) { msg in
                                 ChatBubble(message: msg)
@@ -991,14 +974,12 @@ struct AIAssistantTab: View {
                                     .id("thinking")
                             }
                         }
-                        // Invisible anchor at the very bottom
                         Color.clear.frame(height: 1).id("bottom")
                     }
                     .padding(16)
                 }
                 .onChange(of: store.chatMessages.count) { _, _ in
                     Task { @MainActor in
-                        // Small delay to let layout settle for long messages
                         try? await Task.sleep(nanoseconds: 50_000_000)
                         withAnimation { proxy.scrollTo("bottom") }
                     }
@@ -1013,66 +994,145 @@ struct AIAssistantTab: View {
             Divider()
 
             // Input bar
-            VStack(spacing: 6) {
-                if let error = store.aiError {
-                    Text(error).font(.footnote).foregroundColor(.red)
-                        .padding(8).background(Color.red.opacity(0.1)).cornerRadius(6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            inputBar
+        }
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 12) {
+            JitterCircle()
+
+            if store.acpConnection.aiProvider == .acpAgent, let name = store.acpConnection.connectedAgentName {
+                Text("Connected to \(name)")
+                    .font(.subheadline).fontWeight(.medium)
+            } else {
+                Text("AI Assistant")
+                    .font(.subheadline).fontWeight(.medium)
+            }
+
+            Text("Ask anything about this application, or try a suggestion below.")
+                .font(.caption).foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 300)
+
+            // Suggestion chips
+            FlowLayout(spacing: 8) {
+                SuggestionChip("Analyze my fit for this role") {
+                    store.send(.openAIPanelWithPrompt("Analyze my fit for this role"))
                 }
-                HStack(alignment: .bottom, spacing: 8) {
-                    ZStack(alignment: .topLeading) {
-                        if store.aiInput.isEmpty {
-                            Text(inputPlaceholder)
-                                .foregroundColor(.secondary)
-                                .font(.body)
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 8)
-                                .allowsHitTesting(false)
-                        }
-                        TextEditor(text: $store.aiInput)
-                            .scrollContentBackground(.hidden)
-                            .background(Color.clear)
-                            .font(.body)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 4)
-                            .frame(minHeight: 42, maxHeight: 100)
-                            .focused($inputFocused)
-                            .disabled(!aiReady || store.aiIsLoading)
-                            .onKeyPress(keys: [.return]) { press in
-                                if press.modifiers.contains(.shift) {
-                                    return .ignored  // insert newline
-                                }
-                                if canSend {
-                                    store.send(.sendMessage)
-                                    Task { @MainActor in inputFocused = true }
-                                }
-                                return .handled
-                            }
-                    }
-                    .padding(.horizontal, 4).padding(.vertical, 2)
-                    .background(Color(NSColor.textBackgroundColor))
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
-                    Button {
-                        store.send(.sendMessage)
-                        Task { @MainActor in inputFocused = true }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill").font(.title2)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(canSend ? .accentColor : .secondary)
-                    .disabled(!canSend)
+                SuggestionChip("Tailor my resume to this JD") {
+                    store.send(.openAIPanelWithPrompt("Tailor my resume to this JD"))
                 }
-                .onAppear { inputFocused = true }
-                HStack {
-                    Button("Clear conversation") { store.send(.clearChat) }
-                        .buttonStyle(.plain).font(.footnote).foregroundColor(.secondary)
-                        .disabled(store.chatMessages.isEmpty)
-                    Spacer()
+                SuggestionChip("Draft a cover letter") {
+                    store.send(.openAIPanelWithPrompt("Draft a cover letter"))
+                }
+                SuggestionChip("Prep me for interviews") {
+                    store.send(.openAIPanelWithPrompt("Prep me for interviews"))
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 10)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 48)
+    }
+
+    private var notReadyView: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: store.acpConnection.aiProvider == .claudeAPI ? "key.fill" : "cpu")
+                .font(.system(size: 32))
+                .foregroundColor(.secondary)
+
+            if store.acpConnection.aiProvider == .acpAgent {
+                Text("Connect an AI Agent")
+                    .font(.headline)
+                Text("Open Settings to connect an ACP-compatible agent.")
+                    .font(.subheadline).foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 300)
+            } else {
+                Text("Add Your API Key")
+                    .font(.headline)
+                Text("Enter your Claude API key in Settings.")
+                    .font(.subheadline).foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 300)
+            }
+
+            Button {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            } label: {
+                Label("Set Up AI Provider", systemImage: "gearshape")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+    }
+
+    private var inputBar: some View {
+        VStack(spacing: 6) {
+            if let error = store.aiError {
+                Text(error).font(.footnote).foregroundColor(.red)
+                    .padding(8).background(Color.red.opacity(0.1)).cornerRadius(6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack(alignment: .bottom, spacing: 8) {
+                ZStack(alignment: .topLeading) {
+                    if store.aiInput.isEmpty {
+                        Text("Ask a follow-up...")
+                            .foregroundColor(.secondary)
+                            .font(.body)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
+                    }
+                    TextEditor(text: $store.aiInput)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.clear)
+                        .font(.body)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 4)
+                        .frame(minHeight: 42, maxHeight: 100)
+                        .focused($inputFocused)
+                        .disabled(!aiReady || store.aiIsLoading)
+                        .onKeyPress(keys: [.return]) { press in
+                            if press.modifiers.contains(.shift) {
+                                return .ignored
+                            }
+                            if canSend {
+                                store.send(.sendMessage)
+                                Task { @MainActor in inputFocused = true }
+                            }
+                            return .handled
+                        }
+                }
+                .padding(.horizontal, 4).padding(.vertical, 2)
+                .background(Color(NSColor.textBackgroundColor))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
+                Button {
+                    store.send(.sendMessage)
+                    Task { @MainActor in inputFocused = true }
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill").font(.title2)
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(canSend ? .accentColor : .secondary)
+                .disabled(!canSend)
+            }
+            .onAppear { inputFocused = true }
+            HStack {
+                Button("Clear conversation") { store.send(.clearChat) }
+                    .buttonStyle(.plain).font(.footnote).foregroundColor(.secondary)
+                    .disabled(store.chatMessages.isEmpty)
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(Color(NSColor.controlBackgroundColor))
     }
 
     var aiReady: Bool {
@@ -1086,15 +1146,30 @@ struct AIAssistantTab: View {
         !store.aiIsLoading && aiReady
             && !store.aiInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+}
 
-    var inputPlaceholder: String {
-        switch store.aiSelectedAction {
-        case .chat: return "Ask a follow-up..."
-        case .tailorResume: return "Paste your resume / experience summary..."
-        case .coverLetter: return "Brief background / key achievements..."
-        case .interviewPrep: return "Your background (optional)..."
-        case .analyzeFit: return "Your background / experience summary..."
+// MARK: - Suggestion Chip
+
+struct SuggestionChip: View {
+    let text: String
+    let action: () -> Void
+
+    init(_ text: String, action: @escaping () -> Void) {
+        self.text = text
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text(text)
+                .font(.caption)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.accentColor.opacity(0.1))
+                .foregroundColor(.accentColor)
+                .clipShape(Capsule())
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1116,11 +1191,20 @@ struct ChatBubble: View {
         }
     }
 
+    @ViewBuilder
     var bubbleContent: some View {
-        Text(message.content)
-            .font(.body)
-            .textSelection(.enabled)
-            .padding(.horizontal, 12).padding(.vertical, 8)
+        Group {
+            if message.role == .assistant {
+                Text(LocalizedStringKey(message.content))
+                    .font(.body)
+                    .textSelection(.enabled)
+            } else {
+                Text(message.content)
+                    .font(.body)
+                    .textSelection(.enabled)
+            }
+        }
+            .padding(.horizontal, message.role == .assistant ? 14 : 12).padding(.vertical, 8)
             .background(
                 message.role == .user
                     ? Color.accentColor.opacity(0.15)
@@ -1147,6 +1231,83 @@ struct ChatBubble: View {
                 }
             }
             .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - Jitter Circle (RGB Cuttlefish Fin)
+
+/// Three overlapping circular fin instances (R, G, B) with additive blending;
+/// where all three overlap the result is white, edges show color separation.
+struct JitterCircle: View {
+    @State private var startDate = Date()
+
+    // Wave params; amplitude is expressed as fraction of bodyRadius
+    private static let amplitudeFrac: Double = 0.08
+    private static let frequency: Double = 1.1
+    private static let wavelength: Double = 0.46
+    private static let waveSpeed: Double = -0.7
+    private static let tailTaper: Double = 0.0
+    private static let taperCurve: Double = 3.8
+
+    private static let instances: [(rotation: Double, color: Color)] = [
+        (0,              Color(red: 1, green: 0, blue: 0)),
+        (2 * .pi / 3,   Color(red: 0, green: 1, blue: 0)),
+        (4 * .pi / 3,   Color(red: 0, green: 0, blue: 1)),
+    ]
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let elapsed = timeline.date.timeIntervalSince(startDate)
+            Canvas { context, size in
+                let cx = size.width * 0.5
+                let cy = size.height * 0.5
+                let bodyRadius = Double(min(size.width, size.height)) * 0.38
+                let amplitude = bodyRadius * Self.amplitudeFrac
+                let totalSegments = 200
+                let numWaves = max(1, (1.0 / Self.wavelength).rounded())
+                let k = 2 * Double.pi * numWaves
+                let omega = 2 * Double.pi * Self.frequency * Self.waveSpeed
+
+                context.blendMode = .plusLighter
+
+                for inst in Self.instances {
+                    var outerPoints: [CGPoint] = []
+                    for i in 0..<totalSegments {
+                        let t = Double(i) / Double(totalSegments)
+                        let angle = inst.rotation - Double.pi / 2 + 2 * Double.pi * t
+
+                        let ax = cx + bodyRadius * cos(angle)
+                        let ay = cy + bodyRadius * sin(angle)
+                        let nx = cos(angle)
+                        let ny = sin(angle)
+
+                        let wp = t <= 0.5 ? t * 2.0 : (1.0 - t) * 2.0
+                        let taper = 1.0 - Self.tailTaper * pow(wp, Self.taperCurve)
+                        let poleFade = sin(Double.pi * wp)
+                        let wave = sin(k * wp - omega * elapsed)
+                        let d = amplitude * taper * wave * poleFade
+                        let baseW = amplitude * 0.6
+                        let offset = baseW * taper * poleFade + d
+
+                        outerPoints.append(CGPoint(
+                            x: ax + offset * nx,
+                            y: ay + offset * ny
+                        ))
+                    }
+
+                    var outerPath = Path()
+                    outerPath.move(to: outerPoints[0])
+                    for j in 1..<outerPoints.count {
+                        outerPath.addLine(to: outerPoints[j])
+                    }
+                    outerPath.closeSubpath()
+
+                    context.fill(outerPath, with: .color(inst.color))
+                }
+            }
+            .frame(width: 48, height: 48)
+        }
+        .drawingGroup()
     }
 }
 
