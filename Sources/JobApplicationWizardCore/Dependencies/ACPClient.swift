@@ -215,6 +215,14 @@ private actor ACPProcessManager {
         proc.executableURL = URL(fileURLWithPath: resolvedPath)
         proc.arguments = arguments
 
+        // GUI apps inherit a minimal PATH that lacks Homebrew/nvm/etc.
+        // Resolve the user's login shell PATH so tools like npx are found.
+        var env = ProcessInfo.processInfo.environment
+        if let shellPath = Self.resolveShellPath() {
+            env["PATH"] = shellPath
+        }
+        proc.environment = env
+
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
@@ -359,11 +367,19 @@ private actor ACPProcessManager {
             prompt: [.text(TextContent(text: text))]
         )
 
+        acpLog.info("sendPrompt: sending \(text.count) chars to session \(sid)")
+
         // Send prompt — agent message chunks arrive via onSessionUpdate
-        _ = try await conn.prompt(request: request)
+        do {
+            _ = try await conn.prompt(request: request)
+        } catch {
+            acpLog.error("sendPrompt: prompt failed: \(error)")
+            throw error
+        }
 
         // Collect accumulated text from notifications
         let responseText = await client.getCollectedText()
+        acpLog.info("sendPrompt: received \(responseText.count) chars response")
 
         // ACP doesn't expose token usage
         return (responseText, .zero)
@@ -398,6 +414,29 @@ private actor ACPProcessManager {
 
         throw ACPClientError.noCompatibleDistribution(entry.name)
     }
+
+    /// Runs the user's login shell to resolve their full PATH (includes Homebrew, nvm, etc.).
+    /// Cached after first call.
+    private static let _cachedShellPath: String? = {
+        guard let shell = ProcessInfo.processInfo.environment["SHELL"], !shell.isEmpty else { return nil }
+        let probe = Process()
+        probe.executableURL = URL(fileURLWithPath: shell)
+        probe.arguments = ["-ilc", "echo $PATH"]
+        let pipe = Pipe()
+        probe.standardOutput = pipe
+        probe.standardError = FileHandle.nullDevice
+        do {
+            try probe.run()
+            probe.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (path?.isEmpty == false) ? path : nil
+        } catch {
+            return nil
+        }
+    }()
+
+    private static func resolveShellPath() -> String? { _cachedShellPath }
 }
 
 extension ACPClient: DependencyKey {

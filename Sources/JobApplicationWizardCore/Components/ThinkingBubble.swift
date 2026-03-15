@@ -52,16 +52,35 @@ struct ColorMixDot: View {
     }
 }
 
-// MARK: - Wavy Rounded Rectangle
+// MARK: - Perimeter Sampler
 
-/// A rounded-rectangle border whose path physically undulates inward/outward
-/// along its normal following a sine wave. Each point is manually computed by
-/// walking the perimeter (straight edges + arc corners) so endpoints meet exactly.
-struct WavyRoundedRect: Shape {
-    var cornerRadius: CGFloat
+/// A point and its outward-facing unit normal on a shape's perimeter.
+struct PerimeterSample {
+    var point: CGPoint
+    var normal: CGPoint
+}
+
+/// Produces evenly-spaced (point, normal) samples around a closed perimeter.
+/// `fraction` runs from 0 (start) to 1 (back to start).
+protocol PerimeterSampler {
+    func sample(at fraction: CGFloat, in rect: CGRect) -> PerimeterSample
+}
+
+// MARK: - Wavy Shape (generic)
+
+/// A `Shape` that displaces a base perimeter outward/inward with a sine wave.
+/// The perimeter geometry is provided by any `PerimeterSampler`.
+///
+/// Each bump's displacement is modulated by a second, slower sine wave driven by `time`,
+/// so bumps independently breathe in and out rather than rigidly rotating.
+struct WavyShape<Sampler: PerimeterSampler>: Shape {
+    var sampler: Sampler
     var amplitude: CGFloat
     var frequency: Double
     var phase: Double
+    /// Continuous clock time for per-bump amplitude modulation. When 0, falls back to
+    /// the original rotate-only behavior (used by ThinkingBubble's existing animations).
+    var time: Double = 0
 
     var animatableData: Double {
         get { phase }
@@ -69,111 +88,23 @@ struct WavyRoundedRect: Shape {
     }
 
     func path(in rect: CGRect) -> Path {
-        // Inset the base rounded rect so outward wave peaks stay within the frame.
-        let insetRect = rect.insetBy(dx: amplitude, dy: amplitude)
-        guard insetRect.width > 0, insetRect.height > 0 else { return Path() }
-        let r = min(cornerRadius, min(insetRect.width, insetRect.height) / 2)
         let steps = 256
-
-        // Sample points and outward normals around the rounded rect perimeter.
-        // Walk clockwise: top edge (left to right), top-right corner arc,
-        // right edge (top to bottom), bottom-right arc, bottom edge (right to left),
-        // bottom-left arc, left edge (bottom to top), top-left arc.
-        struct Sample { var point: CGPoint; var normal: CGPoint }
-
-        // Total perimeter for uniform parameterization
-        let straightH = insetRect.width - 2 * r
-        let straightV = insetRect.height - 2 * r
-        let arcLen = 0.5 * .pi * r  // quarter circle
-        let totalLen = 2 * straightH + 2 * straightV + 4 * arcLen
-
-        func sampleAt(_ dist: CGFloat) -> Sample {
-            var d = dist.truncatingRemainder(dividingBy: totalLen)
-            if d < 0 { d += totalLen }
-
-            // Segment 0: top edge, left to right
-            let seg0 = straightH
-            if d <= seg0 {
-                let x = insetRect.minX + r + d
-                return Sample(point: CGPoint(x: x, y: insetRect.minY), normal: CGPoint(x: 0, y: -1))
-            }
-            d -= seg0
-
-            // Segment 1: top-right corner arc (center at maxX-r, minY+r)
-            let seg1 = arcLen
-            if d <= seg1 {
-                let angle = -CGFloat.pi / 2 + (d / r) // from -π/2 to 0
-                let cx = insetRect.maxX - r, cy = insetRect.minY + r
-                return Sample(
-                    point: CGPoint(x: cx + r * cos(angle), y: cy + r * sin(angle)),
-                    normal: CGPoint(x: cos(angle), y: sin(angle))
-                )
-            }
-            d -= seg1
-
-            // Segment 2: right edge, top to bottom
-            let seg2 = straightV
-            if d <= seg2 {
-                let y = insetRect.minY + r + d
-                return Sample(point: CGPoint(x: insetRect.maxX, y: y), normal: CGPoint(x: 1, y: 0))
-            }
-            d -= seg2
-
-            // Segment 3: bottom-right corner arc (center at maxX-r, maxY-r)
-            let seg3 = arcLen
-            if d <= seg3 {
-                let angle = (d / r) // from 0 to π/2
-                let cx = insetRect.maxX - r, cy = insetRect.maxY - r
-                return Sample(
-                    point: CGPoint(x: cx + r * cos(angle), y: cy + r * sin(angle)),
-                    normal: CGPoint(x: cos(angle), y: sin(angle))
-                )
-            }
-            d -= seg3
-
-            // Segment 4: bottom edge, right to left
-            let seg4 = straightH
-            if d <= seg4 {
-                let x = insetRect.maxX - r - d
-                return Sample(point: CGPoint(x: x, y: insetRect.maxY), normal: CGPoint(x: 0, y: 1))
-            }
-            d -= seg4
-
-            // Segment 5: bottom-left corner arc (center at minX+r, maxY-r)
-            let seg5 = arcLen
-            if d <= seg5 {
-                let angle = CGFloat.pi / 2 + (d / r) // from π/2 to π
-                let cx = insetRect.minX + r, cy = insetRect.maxY - r
-                return Sample(
-                    point: CGPoint(x: cx + r * cos(angle), y: cy + r * sin(angle)),
-                    normal: CGPoint(x: cos(angle), y: sin(angle))
-                )
-            }
-            d -= seg5
-
-            // Segment 6: left edge, bottom to top
-            let seg6 = straightV
-            if d <= seg6 {
-                let y = insetRect.maxY - r - d
-                return Sample(point: CGPoint(x: insetRect.minX, y: y), normal: CGPoint(x: -1, y: 0))
-            }
-            d -= seg6
-
-            // Segment 7: top-left corner arc (center at minX+r, minY+r)
-            let angle = CGFloat.pi + (d / r) // from π to 3π/2
-            let cx = insetRect.minX + r, cy = insetRect.minY + r
-            return Sample(
-                point: CGPoint(x: cx + r * cos(angle), y: cy + r * sin(angle)),
-                normal: CGPoint(x: cos(angle), y: sin(angle))
-            )
-        }
-
         var path = Path()
         for i in 0..<steps {
             let frac = CGFloat(i) / CGFloat(steps)
-            let dist = frac * totalLen
-            let s = sampleAt(dist)
-            let wave = CGFloat(sin(Double(frac) * .pi * 2.0 * frequency + phase)) * amplitude
+            let s = sampler.sample(at: frac, in: rect)
+            // Base spatial wave: N bumps around the perimeter
+            let spatial = sin(Double(frac) * .pi * 2.0 * frequency + phase)
+            // Per-bump temporal modulation: each bump breathes at its own rate
+            let modulation: Double
+            if time != 0 {
+                // Use the bump's angular position as a seed for its breathing rate
+                let bumpAngle = Double(frac) * .pi * 2.0 * frequency
+                modulation = 0.5 + 0.5 * sin(time * 1.3 + bumpAngle * 0.7)
+            } else {
+                modulation = 1.0
+            }
+            let wave = CGFloat(spatial * modulation) * amplitude
             let pt = CGPoint(x: s.point.x + s.normal.x * wave, y: s.point.y + s.normal.y * wave)
             if i == 0 {
                 path.move(to: pt)
@@ -183,6 +114,145 @@ struct WavyRoundedRect: Shape {
         }
         path.closeSubpath()
         return path
+    }
+}
+
+// MARK: - Rounded Rect Sampler
+
+struct RoundedRectSampler: PerimeterSampler {
+    var cornerRadius: CGFloat
+    var amplitude: CGFloat
+
+    func sample(at fraction: CGFloat, in rect: CGRect) -> PerimeterSample {
+        let insetRect = rect.insetBy(dx: amplitude, dy: amplitude)
+        guard insetRect.width > 0, insetRect.height > 0 else {
+            return PerimeterSample(point: .zero, normal: CGPoint(x: 0, y: -1))
+        }
+        let r = min(cornerRadius, min(insetRect.width, insetRect.height) / 2)
+
+        let straightH = insetRect.width - 2 * r
+        let straightV = insetRect.height - 2 * r
+        let arcLen = 0.5 * .pi * r
+        let totalLen = 2 * straightH + 2 * straightV + 4 * arcLen
+
+        var d = (fraction * totalLen).truncatingRemainder(dividingBy: totalLen)
+        if d < 0 { d += totalLen }
+
+        // Segment 0: top edge, left to right
+        if d <= straightH {
+            let x = insetRect.minX + r + d
+            return PerimeterSample(point: CGPoint(x: x, y: insetRect.minY), normal: CGPoint(x: 0, y: -1))
+        }
+        d -= straightH
+
+        // Segment 1: top-right corner arc
+        if d <= arcLen {
+            let angle = -CGFloat.pi / 2 + (d / r)
+            let cx = insetRect.maxX - r, cy = insetRect.minY + r
+            return PerimeterSample(
+                point: CGPoint(x: cx + r * cos(angle), y: cy + r * sin(angle)),
+                normal: CGPoint(x: cos(angle), y: sin(angle))
+            )
+        }
+        d -= arcLen
+
+        // Segment 2: right edge, top to bottom
+        if d <= straightV {
+            let y = insetRect.minY + r + d
+            return PerimeterSample(point: CGPoint(x: insetRect.maxX, y: y), normal: CGPoint(x: 1, y: 0))
+        }
+        d -= straightV
+
+        // Segment 3: bottom-right corner arc
+        if d <= arcLen {
+            let angle = d / r
+            let cx = insetRect.maxX - r, cy = insetRect.maxY - r
+            return PerimeterSample(
+                point: CGPoint(x: cx + r * cos(angle), y: cy + r * sin(angle)),
+                normal: CGPoint(x: cos(angle), y: sin(angle))
+            )
+        }
+        d -= arcLen
+
+        // Segment 4: bottom edge, right to left
+        if d <= straightH {
+            let x = insetRect.maxX - r - d
+            return PerimeterSample(point: CGPoint(x: x, y: insetRect.maxY), normal: CGPoint(x: 0, y: 1))
+        }
+        d -= straightH
+
+        // Segment 5: bottom-left corner arc
+        if d <= arcLen {
+            let angle = CGFloat.pi / 2 + (d / r)
+            let cx = insetRect.minX + r, cy = insetRect.maxY - r
+            return PerimeterSample(
+                point: CGPoint(x: cx + r * cos(angle), y: cy + r * sin(angle)),
+                normal: CGPoint(x: cos(angle), y: sin(angle))
+            )
+        }
+        d -= arcLen
+
+        // Segment 6: left edge, bottom to top
+        if d <= straightV {
+            let y = insetRect.maxY - r - d
+            return PerimeterSample(point: CGPoint(x: insetRect.minX, y: y), normal: CGPoint(x: -1, y: 0))
+        }
+        d -= straightV
+
+        // Segment 7: top-left corner arc
+        let angle = CGFloat.pi + (d / r)
+        let cx = insetRect.minX + r, cy = insetRect.minY + r
+        return PerimeterSample(
+            point: CGPoint(x: cx + r * cos(angle), y: cy + r * sin(angle)),
+            normal: CGPoint(x: cos(angle), y: sin(angle))
+        )
+    }
+}
+
+// MARK: - Circle Sampler
+
+struct CircleSampler: PerimeterSampler {
+    var amplitude: CGFloat
+
+    func sample(at fraction: CGFloat, in rect: CGRect) -> PerimeterSample {
+        let insetRect = rect.insetBy(dx: amplitude, dy: amplitude)
+        guard insetRect.width > 0, insetRect.height > 0 else {
+            return PerimeterSample(point: .zero, normal: CGPoint(x: 0, y: -1))
+        }
+        let r = min(insetRect.width, insetRect.height) / 2
+        let cx = insetRect.midX
+        let cy = insetRect.midY
+        let angle = fraction * 2 * .pi
+        return PerimeterSample(
+            point: CGPoint(x: cx + r * cos(angle), y: cy + r * sin(angle)),
+            normal: CGPoint(x: cos(angle), y: sin(angle))
+        )
+    }
+}
+
+// MARK: - Convenience Type Aliases
+
+/// Wavy rounded rectangle (drop-in replacement for the old `WavyRoundedRect`).
+typealias WavyRoundedRect = WavyShape<RoundedRectSampler>
+
+extension WavyRoundedRect {
+    init(cornerRadius: CGFloat, amplitude: CGFloat, frequency: Double, phase: Double) {
+        self.init(
+            sampler: RoundedRectSampler(cornerRadius: cornerRadius, amplitude: amplitude),
+            amplitude: amplitude, frequency: frequency, phase: phase
+        )
+    }
+}
+
+/// Wavy circle border.
+typealias WavyCircle = WavyShape<CircleSampler>
+
+extension WavyCircle {
+    init(amplitude: CGFloat, frequency: Double, phase: Double, time: Double = 0) {
+        self.init(
+            sampler: CircleSampler(amplitude: amplitude),
+            amplitude: amplitude, frequency: frequency, phase: phase, time: time
+        )
     }
 }
 

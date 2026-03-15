@@ -32,7 +32,7 @@ public struct JobDetailFeature {
         public var showCopied: Bool = false
 
         // AI state
-        public var aiSelectedAction: AIAction = .chat
+        public var aiPanelOpen: Bool = false
         public var aiInput: String = ""
         public var chatMessages: [ChatMessage] = []
         public var aiIsLoading: Bool = false
@@ -51,7 +51,6 @@ public struct JobDetailFeature {
             case notes = "Notes"
             case contacts = "Contacts"
             case interviews = "Interviews"
-            case ai = "AI"
 
             public var label: String {
                 switch self {
@@ -67,7 +66,6 @@ public struct JobDetailFeature {
                 case .notes: return "note.text"
                 case .contacts: return "person.2"
                 case .interviews: return "calendar.badge.clock"
-                case .ai: return "sparkles"
                 }
             }
         }
@@ -87,6 +85,7 @@ public struct JobDetailFeature {
             self.interviews = job.interviews
             self.apiKey = apiKey
             self.userProfile = userProfile
+            self.chatMessages = job.chatHistory
             // acpConnection is automatically shared — no passthrough needed
         }
 
@@ -103,6 +102,7 @@ public struct JobDetailFeature {
             job.labels = labels
             job.contacts = contacts
             job.interviews = interviews
+            job.chatHistory = chatMessages
         }
     }
 
@@ -132,6 +132,8 @@ public struct JobDetailFeature {
         case clearCopied
         case pdfSaved(Result<String, Error>)
         // AI
+        case toggleAIPanel
+        case openAIPanelWithPrompt(String)
         case sendMessage
         case clearChat
         case aiResponseReceived(Result<(String, AITokenUsage), Error>)
@@ -269,32 +271,23 @@ public struct JobDetailFeature {
                 state.pdfError = error.localizedDescription
                 return .none
 
+            case .toggleAIPanel:
+                state.aiPanelOpen.toggle()
+                return .none
+
+            case .openAIPanelWithPrompt(let prompt):
+                state.aiPanelOpen = true
+                state.aiInput = prompt
+                return .none
+
             case .sendMessage:
                 let rawInput = state.aiInput.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !rawInput.isEmpty else { return .none }
 
-                // Build user message with optional preamble for specialized modes
-                let userText: String
-                switch state.aiSelectedAction {
-                case .chat:
-                    userText = rawInput
-                case .tailorResume:
-                    userText = "Please analyze my resume for this role and suggest tailoring:\n\n\(rawInput)"
-                case .coverLetter:
-                    userText = "Please write a cover letter. My background:\n\n\(rawInput)"
-                case .interviewPrep:
-                    userText = "Please generate interview questions and STAR-framework answers for this role.\(rawInput.isEmpty ? "" : "\n\n\(rawInput)")"
-                case .analyzeFit:
-                    userText = "Please analyze my fit for this role. My background:\n\n\(rawInput)"
-                }
-
-                state.chatMessages.append(ChatMessage(role: .user, content: userText))
+                state.chatMessages.append(ChatMessage(role: .user, content: rawInput))
                 state.aiInput = ""
                 state.aiIsLoading = true
                 state.aiError = nil
-                if state.aiSelectedAction != .chat {
-                    state.aiSelectedAction = .chat
-                }
 
                 #if DEBUG
                 if state.aiMockMode {
@@ -313,7 +306,12 @@ public struct JobDetailFeature {
                 }
                 #endif
 
-                let systemPrompt = Self.buildSystemPrompt(job: state.job, profile: state.userProfile)
+                let systemPrompt = Self.buildSystemPrompt(
+                    job: state.job,
+                    profile: state.userProfile,
+                    activeTab: state.selectedTab,
+                    chatHistory: state.chatMessages
+                )
                 let messages = state.chatMessages
 
                 if state.acpConnection.aiProvider == .acpAgent && state.acpConnection.isConnected {
@@ -321,7 +319,7 @@ public struct JobDetailFeature {
                     // need to send the current message. System prompt context is prepended
                     // to the first message to establish job/profile context.
                     let contextPrefix = messages.count <= 1 ? systemPrompt + "\n\n" : ""
-                    let fullMessage = contextPrefix + userText
+                    let fullMessage = contextPrefix + rawInput
                     return .run { send in
                         await send(.aiResponseReceived(Result {
                             try await acpClient.sendPrompt(fullMessage, messages)
@@ -343,7 +341,8 @@ public struct JobDetailFeature {
                 state.aiInput = ""
                 state.aiError = nil
                 state.aiTokenUsage = .zero
-                return .none
+                state.syncJobFromFields()
+                return .send(.delegate(.jobUpdated(state.job)))
 
             case .aiResponseReceived(.success(let (text, usage))):
                 state.aiIsLoading = false
@@ -352,11 +351,12 @@ public struct JobDetailFeature {
                     inputTokens: state.aiTokenUsage.inputTokens + usage.inputTokens,
                     outputTokens: state.aiTokenUsage.outputTokens + usage.outputTokens
                 )
-                return .none
+                state.syncJobFromFields()
+                return .send(.delegate(.jobUpdated(state.job)))
 
             case .aiResponseReceived(.failure(let error)):
                 state.aiIsLoading = false
-                state.aiError = error.localizedDescription
+                state.aiError = "\(type(of: error)): \(error.localizedDescription)"
                 return .none
 
             case .delegate:
@@ -365,33 +365,119 @@ public struct JobDetailFeature {
         }
     }
 
-    /// Builds the system prompt for AI chat, incorporating the user profile and job context.
-    public static func buildSystemPrompt(job: JobApplication, profile: UserProfile) -> String {
-        var profileSection = ""
+    /// Builds the system prompt for AI chat, incorporating the user profile, job context,
+    /// active tab, and recent chat history for continuity.
+    public static func buildSystemPrompt(
+        job: JobApplication,
+        profile: UserProfile,
+        activeTab: State.Tab = .overview,
+        chatHistory: [ChatMessage] = []
+    ) -> String {
+        var sections: [String] = []
+
+        sections.append("You are an expert career coach integrated into a job application tracker.")
+
+        // Candidate profile
         if !profile.name.isEmpty || !profile.resume.isEmpty {
-            profileSection = """
-
-            About the candidate:
-            \(profile.name.isEmpty ? "" : "Name: \(profile.name)\n")\
-            \(profile.currentTitle.isEmpty ? "" : "Current Title: \(profile.currentTitle)\n")\
-            \(profile.location.isEmpty ? "" : "Location: \(profile.location)\n")\
-            \(profile.skills.isEmpty ? "" : "Skills: \(profile.skills.joined(separator: ", "))\n")\
-            \(profile.targetRoles.isEmpty ? "" : "Target Roles: \(profile.targetRoles.joined(separator: ", "))\n")\
-            \(profile.preferredSalary.isEmpty ? "" : "Preferred Salary: \(profile.preferredSalary)\n")\
-            Work Preference: \(profile.workPreference.rawValue)
-            \(profile.summary.isEmpty ? "" : "\nSummary: \(profile.summary)")
-            \(profile.resume.isEmpty ? "" : "\nResume:\n\(profile.resume)")
-            """
+            var lines: [String] = ["About the candidate:"]
+            if !profile.name.isEmpty { lines.append("Name: \(profile.name)") }
+            if !profile.currentTitle.isEmpty { lines.append("Current Title: \(profile.currentTitle)") }
+            if !profile.location.isEmpty { lines.append("Location: \(profile.location)") }
+            if !profile.skills.isEmpty { lines.append("Skills: \(profile.skills.joined(separator: ", "))") }
+            if !profile.targetRoles.isEmpty { lines.append("Target Roles: \(profile.targetRoles.joined(separator: ", "))") }
+            if !profile.preferredSalary.isEmpty { lines.append("Preferred Salary: \(profile.preferredSalary)") }
+            lines.append("Work Preference: \(profile.workPreference.rawValue)")
+            if !profile.summary.isEmpty { lines.append("Summary: \(profile.summary)") }
+            if !profile.resume.isEmpty { lines.append("Resume:\n\(profile.resume)") }
+            sections.append(lines.joined(separator: "\n"))
         }
-        return """
-        You are an expert career coach integrated into a job application tracker.
-        \(profileSection)
-        Target Job: \(job.displayTitle) at \(job.displayCompany)
-        Status: \(job.status.rawValue)
-        Job Description:
-        \(job.jobDescription.isEmpty ? "Not provided" : job.jobDescription)
 
-        Help the user with their application. Be specific, actionable, and concise.
-        """
+        // Job details
+        var jobLines: [String] = [
+            "Target Job: \(job.displayTitle) at \(job.displayCompany)",
+            "Status: \(job.status.rawValue)",
+        ]
+        if !job.location.isEmpty { jobLines.append("Location: \(job.location)") }
+        if !job.salary.isEmpty { jobLines.append("Salary: \(job.salary)") }
+        if !job.labels.isEmpty { jobLines.append("Labels: \(job.labels.map(\.name).joined(separator: ", "))") }
+        if job.excitement != 3 { jobLines.append("Excitement: \(job.excitement)/5") }
+        if !job.resumeUsed.isEmpty { jobLines.append("Resume Version: \(job.resumeUsed)") }
+        sections.append(jobLines.joined(separator: "\n"))
+
+        // Job description
+        sections.append("Job Description:\n\(job.jobDescription.isEmpty ? "Not provided" : job.jobDescription)")
+
+        // Notes
+        if !job.noteCards.isEmpty {
+            let noteLines = job.noteCards.map { note in
+                let body = note.body.count > 500 ? String(note.body.prefix(500)) + "..." : note.body
+                let title = note.title.isEmpty ? "Untitled" : note.title
+                return "- \(title): \(body)"
+            }
+            sections.append("Notes:\n\(noteLines.joined(separator: "\n"))")
+        }
+
+        // Contacts
+        if !job.contacts.isEmpty {
+            let contactLines = job.contacts.map { c in
+                let titlePart = c.title.isEmpty ? "" : " (\(c.title))"
+                let notesPart = c.notes.isEmpty ? "" : " \u{2014} \(c.notes)"
+                return "- \(c.name)\(titlePart)\(notesPart)"
+            }
+            sections.append("Contacts:\n\(contactLines.joined(separator: "\n"))")
+        }
+
+        // Interview rounds
+        if !job.interviews.isEmpty {
+            let interviewLines = job.interviews.map { iv in
+                var parts = "- Round \(iv.round): \(iv.type.isEmpty ? "TBD" : iv.type)"
+                if let date = iv.date { parts += ", \(date.relativeString)" }
+                if !iv.interviewers.isEmpty { parts += ", Interviewers: \(iv.interviewers)" }
+                if !iv.notes.isEmpty { parts += ", Notes: \(iv.notes)" }
+                if iv.completed { parts += " (completed)" }
+                return parts
+            }
+            sections.append("Interview Rounds:\n\(interviewLines.joined(separator: "\n"))")
+        }
+
+        // Recent activity timeline
+        var timeline: [String] = []
+        timeline.append("- Added: \(job.dateAdded.relativeString)")
+        if let applied = job.dateApplied {
+            timeline.append("- Applied: \(applied.relativeString)")
+        } else {
+            timeline.append("- Applied: Not yet")
+        }
+        let now = Date()
+        let upcoming = job.interviews
+            .filter { $0.date != nil && $0.date! > now && !$0.completed }
+            .sorted { ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) }
+        for iv in upcoming.prefix(3) {
+            let typeLabel = iv.type.isEmpty ? "Round \(iv.round)" : "Round \(iv.round) (\(iv.type))"
+            timeline.append("- \(typeLabel) scheduled \(iv.date!.relativeString)")
+        }
+        if let recentNote = job.noteCards.max(by: { $0.updatedAt < $1.updatedAt }),
+           !recentNote.title.isEmpty {
+            timeline.append("- Note '\(recentNote.title)' updated \(recentNote.updatedAt.relativeString)")
+        }
+        sections.append("Recent Activity:\n\(timeline.joined(separator: "\n"))")
+
+        // Active tab context
+        sections.append("The user is currently viewing the \(activeTab.rawValue) tab.")
+
+        // Chat history tail for continuity
+        if !chatHistory.isEmpty {
+            let tail = chatHistory.suffix(6)
+            let recap = tail.map { msg in
+                let role = msg.role == .user ? "User" : "Assistant"
+                let content = msg.content.count > 300 ? String(msg.content.prefix(300)) + "..." : msg.content
+                return "\(role): \(content)"
+            }
+            sections.append("Previous conversation (\(chatHistory.count) messages):\n\(recap.joined(separator: "\n"))")
+        }
+
+        sections.append("Help the user with their application. Be specific, actionable, and concise.\nReference the data above when relevant; don't ask the user to repeat information they've already entered.")
+
+        return sections.joined(separator: "\n\n")
     }
 }

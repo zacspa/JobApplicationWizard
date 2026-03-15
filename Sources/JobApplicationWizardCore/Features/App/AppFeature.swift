@@ -171,9 +171,14 @@ public struct AppFeature {
             case .selectJob(let id):
                 state.selectedJobID = id
                 if let id, let job = state.jobs[id: id] {
-                    state.jobDetail = JobDetailFeature.State(
+                    let previousTab = state.jobDetail?.selectedTab
+                    let previousAIPanelOpen = state.jobDetail?.aiPanelOpen ?? false
+                    var detail = JobDetailFeature.State(
                         job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
                     )
+                    if let previousTab { detail.selectedTab = previousTab }
+                    detail.aiPanelOpen = previousAIPanelOpen
+                    state.jobDetail = detail
                 } else {
                     state.jobDetail = nil
                 }
