@@ -74,11 +74,11 @@ final class CuttleOnboardingTests: XCTestCase {
     func testPreviousStepGoesBack() async {
         var state = CuttleOnboardingFeature.State()
         state.isActive = true
-        state.currentStep = .expandCollapse
+        state.currentStep = .carryOrFresh
         let store = TestStore(initialState: state) { CuttleOnboardingFeature() }
 
         await store.send(.previousStep) {
-            $0.currentStep = .meetCuttle
+            $0.currentStep = .dragToDock
         }
     }
 
@@ -100,8 +100,11 @@ final class CuttleOnboardingTests: XCTestCase {
         await store.send(.previousStep) {
             $0.currentStep = .expandCollapse
         }
+        // Collapses when leaving chatBasics, then re-expands for expandCollapse
         await store.receive(\.delegate.collapseCuttle)
     }
+
+
 
     // MARK: - Skip All
 

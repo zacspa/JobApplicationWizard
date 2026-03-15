@@ -90,7 +90,8 @@ public struct ContentView: View {
                     store: store.scope(state: \.cuttleOnboarding, action: \.cuttleOnboarding),
                     cuttlePosition: store.cuttle.position,
                     cuttleIsExpanded: store.cuttle.isExpanded,
-                    windowSize: store.cuttle.windowSize
+                    windowSize: store.cuttle.windowSize,
+                    dropZones: store.cuttle.dropZones
                 )
             }
         }
