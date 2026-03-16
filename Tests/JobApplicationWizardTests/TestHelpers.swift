@@ -24,7 +24,8 @@ extension JobApplication {
         hasPDF: Bool = false,
         pdfPath: String? = nil,
         chatHistory: [ChatMessage] = [],
-        documents: [JobDocument] = []
+        documents: [JobDocument] = [],
+        tasks: [SubTask] = []
     ) -> JobApplication {
         var job = JobApplication()
         job.id = id
@@ -49,6 +50,7 @@ extension JobApplication {
         job.pdfPath = pdfPath
         job.chatHistory = chatHistory
         job.documents = documents
+        job.tasks = tasks
         return job
     }
 }

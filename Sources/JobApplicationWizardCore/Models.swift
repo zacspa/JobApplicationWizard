@@ -37,6 +37,17 @@ public enum JobStatus: String, Codable, CaseIterable, Identifiable, Equatable {
         case .withdrawn:   return "arrow.uturn.backward.circle.fill"
         }
     }
+
+    public var suggestedTaskTitles: [String] {
+        switch self {
+        case .wishlist:    return ["Research the company", "Check salary range", "Save job description"]
+        case .applied:     return ["Save application confirmation", "Follow up after 1 week"]
+        case .phoneScreen: return ["Research your interviewer", "Prepare elevator pitch", "Confirm call time and format"]
+        case .interview:   return ["Prepare STAR answers", "Research company culture", "Send thank-you note after"]
+        case .offer:       return ["Review offer details", "Research market salary", "Negotiate or accept"]
+        case .rejected, .withdrawn: return []
+        }
+    }
 }
 
 // MARK: - Label
@@ -111,6 +122,22 @@ public struct Contact: Codable, Identifiable, Equatable {
         self.linkedin = linkedin
         self.notes = notes
         self.connected = connected
+    }
+}
+
+// MARK: - SubTask
+
+public struct SubTask: Identifiable, Codable, Equatable {
+    public var id: UUID = UUID()
+    public var title: String
+    public var isCompleted: Bool = false
+    public var forStatus: JobStatus
+
+    public init(id: UUID = UUID(), title: String, isCompleted: Bool = false, forStatus: JobStatus) {
+        self.id = id
+        self.title = title
+        self.isCompleted = isCompleted
+        self.forStatus = forStatus
     }
 }
 
@@ -191,6 +218,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
     public var pdfPath: String? = nil
     public var chatHistory: [ChatMessage] = []
     public var documents: [JobDocument] = []
+    public var tasks: [SubTask] = []
 
     public var displayTitle: String {
         title.isEmpty ? "Untitled Position" : title
@@ -198,6 +226,14 @@ public struct JobApplication: Codable, Identifiable, Equatable {
 
     public var displayCompany: String {
         company.isEmpty ? "Unknown Company" : company
+    }
+
+    public var currentTasks: [SubTask] {
+        tasks.filter { $0.forStatus == status }
+    }
+
+    public var hasIncompleteCurrentTasks: Bool {
+        tasks.contains { $0.forStatus == status && !$0.isCompleted }
     }
 
     public init() {}
@@ -208,7 +244,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         case id, company, title, url, status, dateAdded, dateApplied
         case salary, location, jobDescription, noteCards
         case resumeUsed, coverLetter, labels, contacts, interviews
-        case isFavorite, excitement, hasPDF, pdfPath, chatHistory, documents
+        case isFavorite, excitement, hasPDF, pdfPath, chatHistory, documents, tasks
         case legacyNotes = "notes"
     }
 
@@ -235,6 +271,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         pdfPath      = try c.decodeIfPresent(String.self,          forKey: .pdfPath)
         chatHistory  = try c.decodeIfPresent([ChatMessage].self,   forKey: .chatHistory)  ?? []
         documents    = try c.decodeIfPresent([JobDocument].self,  forKey: .documents)    ?? []
+        tasks        = try c.decodeIfPresent([SubTask].self,        forKey: .tasks)        ?? []
 
         if let cards = try c.decodeIfPresent([Note].self, forKey: .noteCards) {
             noteCards = cards
@@ -273,6 +310,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         if !documents.isEmpty {
             try c.encode(documents, forKey: .documents)
         }
+        try c.encode(tasks,          forKey: .tasks)
     }
 }
 

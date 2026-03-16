@@ -28,6 +28,15 @@ public struct JobDetailView: View {
         } message: {
             Text("Delete \(store.job.displayTitle) at \(store.job.displayCompany)? This cannot be undone.")
         }
+        .alert("Incomplete Tasks", isPresented: Binding(
+            get: { store.showIncompleteTasksAlert },
+            set: { if !$0 { store.send(.moveJobAlertCancel) } }
+        )) {
+            Button("Continue Anyway", role: .destructive) { store.send(.moveJobAlertContinue) }
+            Button("Cancel", role: .cancel) { store.send(.moveJobAlertCancel) }
+        } message: {
+            Text("You have incomplete tasks for this stage. Move anyway?")
+        }
     }
 
     var tabBar: some View {
@@ -91,7 +100,7 @@ public struct JobDetailView: View {
 
                     Menu {
                         ForEach(JobStatus.allCases) { s in
-                            Button { store.send(.moveJob(s)) } label: {
+                            Button { store.send(.moveJobRequested(s)) } label: {
                                 Label(s.rawValue, systemImage: s.icon)
                             }
                         }
@@ -271,6 +280,41 @@ struct OverviewTab: View {
     }
 }
 
+// MARK: - Task Row
+
+struct TaskRowView: View {
+    let task: SubTask
+    let onToggle: () -> Void
+    let onDelete: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack {
+            Button(action: onToggle) {
+                Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(task.isCompleted ? .green : .secondary)
+            }
+            .buttonStyle(.plain)
+            Text(task.title)
+                .font(.subheadline)
+                .strikethrough(task.isCompleted)
+                .foregroundColor(task.isCompleted ? .secondary : .primary)
+            Spacer()
+            if isHovered {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 8)
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
+    }
+}
+
 // MARK: - Detail Row helper
 
 struct DetailRow<Content: View>: View {
@@ -430,80 +474,220 @@ struct NotesTab: View {
     ]
 
     var body: some View {
-        if let noteID = selectedNoteID,
-           store.noteCards.contains(where: { $0.id == noteID }) {
-            NoteEditorView(
-                note: Binding(
-                    get: { store.noteCards.first(where: { $0.id == noteID }) ?? Note() },
-                    set: { new in
-                        var updated = new
-                        updated.updatedAt = Date()
-                        var copy = store.noteCards
-                        if let idx = copy.firstIndex(where: { $0.id == updated.id }) {
-                            copy[idx] = updated
-                            store.send(.binding(.set(\.noteCards, copy)))
-                        }
-                    }
-                ),
-                onBack: { selectedNoteID = nil },
-                onDelete: {
-                    store.send(.deleteNote(noteID))
-                    selectedNoteID = nil
-                }
-            )
-        } else {
-            NoteCardGridView(
-                store: store,
-                cardColors: NotesTab.cardColors,
-                onSelectNote: { selectedNoteID = $0 }
-            )
+        ScrollView {
+            VStack(spacing: 16) {
+                TasksSectionView(store: store)
+                NotesSectionView(
+                    store: store,
+                    cardColors: NotesTab.cardColors,
+                    selectedNoteID: $selectedNoteID
+                )
+            }
+            .padding(16)
         }
     }
 }
 
-// MARK: - Note Card Grid
+// MARK: - Tasks Section (grouped by status phase)
 
-struct NoteCardGridView: View {
+struct TasksSectionView: View {
     @Bindable var store: StoreOf<JobDetailFeature>
-    let cardColors: [Color]
-    let onSelectNote: (UUID) -> Void
+
+    /// Statuses that have tasks, with the current status always first
+    private var statusesWithTasks: [JobStatus] {
+        let current = store.job.status
+        var statuses = JobStatus.allCases.filter { status in
+            store.job.tasks.contains { $0.forStatus == status }
+        }
+        // Always include current status so user can add tasks even if none exist yet
+        if !statuses.contains(current) {
+            statuses.append(current)
+        }
+        // Sort: current status first, then by allCases order
+        statuses.sort { a, b in
+            if a == current { return true }
+            if b == current { return false }
+            return (JobStatus.allCases.firstIndex(of: a) ?? 0) < (JobStatus.allCases.firstIndex(of: b) ?? 0)
+        }
+        return statuses
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
             HStack {
-                Text("Notes about this application")
-                    .font(.footnote).foregroundColor(.secondary)
+                let totalRemaining = store.job.tasks.filter { !$0.isCompleted }.count
+                Text(totalRemaining > 0 ? "Tasks (\(totalRemaining) remaining)" : "Tasks")
+                    .font(.headline)
                 Spacer()
-                Button { store.send(.addNote) } label: {
-                    Label("New Note", systemImage: "plus").font(.footnote)
+                if !store.isAddingTask {
+                    Button { store.send(.addTaskTapped) } label: {
+                        Label("Add Task", systemImage: "plus").font(.footnote)
+                    }
+                    .buttonStyle(.bordered).controlSize(.mini)
                 }
-                .buttonStyle(.bordered).controlSize(.mini)
             }
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(.bottom, 10)
 
-            Divider()
-
-            if store.noteCards.isEmpty {
-                Spacer()
-                ContentUnavailableView(
-                    "No Notes Yet",
-                    systemImage: "note.text",
-                    description: Text("Add your first note to capture research, salary info, or anything relevant")
-                )
-                Spacer()
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 180))], spacing: 12) {
-                        ForEach(store.noteCards) { note in
-                            NoteCard(
-                                note: note,
-                                accentColor: cardColors[abs(note.id.hashValue) % cardColors.count],
-                                onTap: { onSelectNote(note.id) }
-                            )
+            // Add task UI (adds to current status)
+            if store.isAddingTask {
+                VStack(alignment: .leading, spacing: 8) {
+                    let suggestions = store.job.status.suggestedTaskTitles.filter { s in
+                        !store.job.tasks.contains { $0.title == s && $0.forStatus == store.job.status }
+                    }
+                    if !suggestions.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(suggestions, id: \.self) { suggestion in
+                                    Button { store.send(.addSuggestedTask(suggestion)) } label: {
+                                        Text("+ \(suggestion)")
+                                            .font(.footnote)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.accentColor.opacity(0.1))
+                                            .foregroundColor(.accentColor)
+                                            .clipShape(Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
                     }
-                    .padding(16)
+                    HStack {
+                        TextField("Task title...", text: Binding(
+                            get: { store.newTaskText },
+                            set: { store.send(.newTaskTextChanged($0)) }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .font(.subheadline)
+                        .onSubmit { store.send(.saveNewTask) }
+                        Button("Save") { store.send(.saveNewTask) }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .disabled(store.newTaskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Button("Cancel") { store.send(.cancelNewTask) }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color(NSColor.controlBackgroundColor)))
+                .padding(.bottom, 8)
+            }
+
+            // Grouped by status
+            ForEach(statusesWithTasks) { status in
+                let tasksForStatus = store.job.tasks.filter { $0.forStatus == status }
+                let isCurrent = status == store.job.status
+
+                VStack(alignment: .leading, spacing: 0) {
+                    // Status group header
+                    HStack(spacing: 6) {
+                        Image(systemName: status.icon)
+                            .font(.caption)
+                            .foregroundColor(status.color)
+                        Text(status.rawValue)
+                            .font(.subheadline).fontWeight(.medium)
+                            .foregroundColor(isCurrent ? .primary : .secondary)
+                        if isCurrent {
+                            Text("current")
+                                .font(.system(size: 9, weight: .medium))
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(status.color.opacity(0.15))
+                                .foregroundColor(status.color)
+                                .clipShape(Capsule())
+                        }
+                        Spacer()
+                        if !tasksForStatus.isEmpty {
+                            let done = tasksForStatus.filter { $0.isCompleted }.count
+                            Text("\(done)/\(tasksForStatus.count)")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 6).padding(.horizontal, 8)
+
+                    if tasksForStatus.isEmpty {
+                        Text("No tasks")
+                            .font(.caption).foregroundColor(.secondary)
+                            .padding(.horizontal, 8).padding(.bottom, 6)
+                    } else {
+                        ForEach(tasksForStatus) { task in
+                            TaskRowView(
+                                task: task,
+                                onToggle: { store.send(.toggleTask(task.id)) },
+                                onDelete: { store.send(.deleteTask(task.id)) }
+                            )
+                            if task.id != tasksForStatus.last?.id {
+                                Divider().padding(.leading, 32)
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 8).fill(
+                    isCurrent ? Color(NSColor.controlBackgroundColor) : Color.clear
+                ))
+            }
+        }
+    }
+}
+
+// MARK: - Notes Section
+
+struct NotesSectionView: View {
+    @Bindable var store: StoreOf<JobDetailFeature>
+    let cardColors: [Color]
+    @Binding var selectedNoteID: UUID?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if selectedNoteID == nil {
+                HStack {
+                    Text("Notes")
+                        .font(.headline)
+                    Spacer()
+                    Button { store.send(.addNote) } label: {
+                        Label("New Note", systemImage: "plus").font(.footnote)
+                    }
+                    .buttonStyle(.bordered).controlSize(.mini)
+                }
+            }
+
+            if let noteID = selectedNoteID,
+               store.noteCards.contains(where: { $0.id == noteID }) {
+                NoteEditorView(
+                    note: Binding(
+                        get: { store.noteCards.first(where: { $0.id == noteID }) ?? Note() },
+                        set: { new in
+                            var updated = new
+                            updated.updatedAt = Date()
+                            var copy = store.noteCards
+                            if let idx = copy.firstIndex(where: { $0.id == updated.id }) {
+                                copy[idx] = updated
+                                store.send(.binding(.set(\.noteCards, copy)))
+                            }
+                        }
+                    ),
+                    onBack: { selectedNoteID = nil },
+                    onDelete: {
+                        store.send(.deleteNote(noteID))
+                        selectedNoteID = nil
+                    }
+                )
+            } else if store.noteCards.isEmpty {
+                Text("No notes yet — add one to capture research, salary info, or anything relevant.")
+                    .font(.subheadline).foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 20)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180))], spacing: 12) {
+                    ForEach(store.noteCards) { note in
+                        NoteCard(
+                            note: note,
+                            accentColor: cardColors[abs(note.id.hashValue) % cardColors.count],
+                            onTap: { selectedNoteID = note.id }
+                        )
+                    }
                 }
             }
         }

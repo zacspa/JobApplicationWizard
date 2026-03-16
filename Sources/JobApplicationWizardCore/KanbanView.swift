@@ -176,6 +176,8 @@ struct JobCard: View {
     let onDelete: () -> Void
 
     @State private var isHovered = false
+    @State private var showTaskPopover = false
+    @State private var hoverTimer: Task<Void, Never>? = nil
 
     var body: some View {
         Button(action: onSelect) {
@@ -244,6 +246,14 @@ struct JobCard: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
+                    if !job.currentTasks.isEmpty {
+                        let done = job.currentTasks.filter { $0.isCompleted }.count
+                        let total = job.currentTasks.count
+                        let allDone = done == total
+                        Label("\(done)/\(total)", systemImage: allDone ? "checkmark.circle.fill" : "checklist")
+                            .font(.caption2)
+                            .foregroundColor(allDone ? .green : .secondary)
+                    }
                     if !job.contacts.isEmpty {
                         Label("\(job.contacts.count)", systemImage: "person.circle")
                             .font(.caption2)
@@ -269,7 +279,25 @@ struct JobCard: View {
             .shadow(color: .black.opacity(0.04), radius: 2, y: 1)
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .popover(isPresented: $showTaskPopover, arrowEdge: .bottom) {
+            TaskPopoverView(job: job)
+        }
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering {
+                hoverTimer = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(800))
+                    guard !Task.isCancelled else { return }
+                    if !job.currentTasks.isEmpty {
+                        showTaskPopover = true
+                    }
+                }
+            } else {
+                hoverTimer?.cancel()
+                hoverTimer = nil
+                showTaskPopover = false
+            }
+        }
         .contextMenu {
             Menu("Move to") {
                 ForEach(JobStatus.allCases) { s in
@@ -295,6 +323,35 @@ struct JobCard: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+}
+
+// MARK: - Task Popover
+
+struct TaskPopoverView: View {
+    let job: JobApplication
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("\(job.status.rawValue) Tasks")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+                .padding(.bottom, 2)
+            ForEach(job.currentTasks) { task in
+                HStack(spacing: 6) {
+                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .foregroundColor(task.isCompleted ? .green : .secondary)
+                        .font(.caption)
+                    Text(task.title)
+                        .font(.caption)
+                        .foregroundColor(task.isCompleted ? .secondary : .primary)
+                        .strikethrough(task.isCompleted)
+                }
+            }
+        }
+        .padding(12)
+        .frame(minWidth: 200)
     }
 }
 
