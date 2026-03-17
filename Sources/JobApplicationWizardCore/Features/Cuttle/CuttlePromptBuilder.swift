@@ -222,6 +222,9 @@ public enum CuttlePromptBuilder {
                 if !iv.interviewers.isEmpty { parts += ", Interviewers: \(iv.interviewers)" }
                 if !iv.notes.isEmpty { parts += ", Notes: \(iv.notes)" }
                 if iv.completed { parts += " (completed)" }
+                if iv.calendarEventIdentifier != nil {
+                    parts += ", Calendar: '\(iv.calendarEventTitle ?? "Linked event")'"
+                }
                 return parts
             }
             sections.append("Interview Rounds:\n\(interviewLines.joined(separator: "\n"))")
