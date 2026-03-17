@@ -1,3 +1,4 @@
+import ComposableArchitecture
 import XCTest
 @testable import JobApplicationWizardCore
 
@@ -107,6 +108,83 @@ final class CalendarClientTests: XCTestCase {
         )
         let result = await Task { event }.value
         XCTAssertEqual(result.id, "sendable-id")
+    }
+
+    // MARK: - testValue override
+
+    func testCalendarClientTestValueCanOverrideRequestAccess() async throws {
+        // Default testValue returns true
+        let defaultResult = try await CalendarClient.testValue.requestAccess()
+        XCTAssertTrue(defaultResult)
+
+        // Can be overridden via withDependencies
+        var overriddenResult: Bool?
+        await withDependencies {
+            $0.calendarClient.requestAccess = { false }
+        } operation: {
+            @Dependency(\.calendarClient) var client
+            overriddenResult = try? await client.requestAccess()
+        }
+        XCTAssertEqual(overriddenResult, false)
+    }
+
+    // MARK: - JobDetailFeature: access denied
+
+    @MainActor
+    func testCalendarClientTestValueRequestAccessOverridable() async {
+        let fetchCalled = LockIsolated(false)
+        let interviewId = UUID()
+        let job = JobApplication.mock(interviews: [InterviewRound(id: interviewId, round: 1)])
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.calendarClient.requestAccess = { false }
+            $0.calendarClient.fetchEvents = { _, _ in
+                fetchCalled.setValue(true)
+                return []
+            }
+        }
+
+        await store.send(.linkCalendarEvent(interviewId: interviewId)) {
+            $0.showCalendarPicker = true
+            $0.calendarPickerInterviewId = interviewId
+        }
+        await store.receive(\.calendarAccessResult) {
+            $0.calendarAccessGranted = false
+        }
+
+        XCTAssertFalse(fetchCalled.value, "fetchEvents must not be called when calendar access is denied")
+    }
+
+    // MARK: - AppFeature: no calendar permission on launch
+
+    @MainActor
+    func testAppFeatureDoesNotRequestCalendarPermissionOnLaunch() async {
+        let requestAccessCalled = LockIsolated(false)
+
+        let store = TestStore(initialState: AppFeature.State()) {
+            AppFeature()
+        } withDependencies: {
+            $0.persistenceClient.loadJobs = { [] }
+            $0.persistenceClient.loadSettings = { AppSettings() }
+            $0.keychainClient.loadAPIKey = { "" }
+            $0.keychainClient.saveAPIKey = { _ in }
+            $0.acpRegistryClient = ACPRegistryClient(fetchAgents: { [] })
+            $0.calendarClient.requestAccess = {
+                requestAccessCalled.setValue(true)
+                return false
+            }
+        }
+
+        store.exhaustivity = .off
+
+        await store.send(.onAppear)
+        await store.receive(\.jobsLoaded)
+        await store.receive(\.settingsLoaded)
+        await store.receive(\.saveSettingsKey)
+
+        XCTAssertFalse(requestAccessCalled.value, "Calendar permission must not be requested on app launch")
     }
 
     // MARK: - fetchEvent
