@@ -151,8 +151,10 @@ public struct InterviewRound: Codable, Identifiable, Equatable {
     public var interviewers: String = ""
     public var notes: String = ""
     public var completed: Bool = false
+    public var calendarEventIdentifier: String? = nil
+    public var calendarEventTitle: String? = nil
 
-    public init(id: UUID = UUID(), round: Int, type: String = "", date: Date? = nil, interviewers: String = "", notes: String = "", completed: Bool = false) {
+    public init(id: UUID = UUID(), round: Int, type: String = "", date: Date? = nil, interviewers: String = "", notes: String = "", completed: Bool = false, calendarEventIdentifier: String? = nil, calendarEventTitle: String? = nil) {
         self.id = id
         self.round = round
         self.type = type
@@ -160,6 +162,8 @@ public struct InterviewRound: Codable, Identifiable, Equatable {
         self.interviewers = interviewers
         self.notes = notes
         self.completed = completed
+        self.calendarEventIdentifier = calendarEventIdentifier
+        self.calendarEventTitle = calendarEventTitle
     }
 }
 
