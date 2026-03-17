@@ -235,6 +235,17 @@ struct JobCard: View {
                     }
                 }
 
+                if let badge = interviewCountdownInfo(rounds: job.interviews) {
+                    Label(badge.text, systemImage: "calendar.badge.clock")
+                        .font(.system(size: 10, weight: .medium))
+                        .italic(badge.isItalic)
+                        .foregroundColor(badge.color)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(badge.color.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+
                 HStack {
                     if let applied = job.dateApplied {
                         Label(applied.relativeString, systemImage: "calendar")
@@ -352,6 +363,57 @@ struct TaskPopoverView: View {
         }
         .padding(12)
         .frame(minWidth: 200)
+    }
+}
+
+// MARK: - Interview Countdown
+
+struct InterviewCountdownInfo: Equatable {
+    let text: String
+    let color: Color
+    let isItalic: Bool
+}
+
+func interviewCountdownInfo(rounds: [InterviewRound], now: Date = Date()) -> InterviewCountdownInfo? {
+    let incomplete = rounds.filter { !$0.completed && $0.date != nil }
+    guard !incomplete.isEmpty else { return nil }
+
+    // Prefer nearest future incomplete interview
+    let futureRounds = incomplete.filter { $0.date! > now }
+    if let nearest = futureRounds.min(by: { $0.date! < $1.date! }) {
+        return countdownInfoForFuture(date: nearest.date!, now: now)
+    }
+
+    // Fall back to most recent past incomplete interview
+    let pastRounds = incomplete.filter { $0.date! <= now }
+    if let recent = pastRounds.max(by: { $0.date! < $1.date! }) {
+        let agoInterval = now.timeIntervalSince(recent.date!)
+        let hours = Int(agoInterval / 3600)
+        let minutes = max(0, Int(agoInterval / 60))
+        let agoText = hours > 0 ? "Interview was \(hours)h ago" : "Interview was \(minutes)m ago"
+        return InterviewCountdownInfo(text: agoText, color: .gray, isItalic: true)
+    }
+
+    return nil
+}
+
+private func countdownInfoForFuture(date: Date, now: Date) -> InterviewCountdownInfo {
+    let interval = date.timeIntervalSince(now)
+    if interval > 7 * 24 * 3600 {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return InterviewCountdownInfo(text: "Interview \(formatter.string(from: date))", color: .secondary, isItalic: false)
+    } else if interval >= 24 * 3600 {
+        let days = Int(interval / (24 * 3600))
+        let remainingHours = Int(interval.truncatingRemainder(dividingBy: 24 * 3600) / 3600)
+        let text = remainingHours > 0 ? "Interview in \(days)d \(remainingHours)h" : "Interview in \(days)d"
+        return InterviewCountdownInfo(text: text, color: .secondary, isItalic: false)
+    } else if interval >= 2 * 3600 {
+        let hours = Int(interval / 3600)
+        return InterviewCountdownInfo(text: "Interview in \(hours)h", color: .orange, isItalic: false)
+    } else {
+        let minutes = max(0, Int(interval / 60))
+        return InterviewCountdownInfo(text: "Interview in \(minutes)m", color: .red, isItalic: false)
     }
 }
 
