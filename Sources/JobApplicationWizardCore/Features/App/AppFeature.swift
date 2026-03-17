@@ -1,3 +1,4 @@
+import AppKit
 import ComposableArchitecture
 import Foundation
 
@@ -15,7 +16,7 @@ public enum ViewMode: String, Codable, CaseIterable, Equatable {
 
 @Reducer
 public struct AppFeature {
-    private enum CancelID { case acpCrashMonitor, save, saveSettings, bindingDebounce }
+    private enum CancelID { case acpCrashMonitor, save, saveSettings, bindingDebounce, calendarActivate }
 
     @ObservableState
     public struct State: Equatable {
@@ -51,6 +52,9 @@ public struct AppFeature {
         // Undo/redo stacks
         public var undoStack: [HistoryEvent] = []
         public var redoStack: [HistoryEvent] = []
+
+        // Calendar sync toast
+        public var calendarSyncToast: String? = nil
 
         // Binding debounce tracking
         public var lastBindingJobId: UUID? = nil
@@ -138,6 +142,10 @@ public struct AppFeature {
         case redo
         // History debounce
         case recordBindingEdit(UUID)
+        // Calendar sync
+        case appDidBecomeActive
+        case calendarSyncCompleted(updates: [(jobId: UUID, interviewId: UUID, oldDate: Date?, newDate: Date, jobCompany: String, roundNumber: Int)], missing: [(jobId: UUID, interviewId: UUID)])
+        case dismissCalendarSyncToast
     }
 
     @Dependency(\.persistenceClient) var persistence
@@ -146,6 +154,7 @@ public struct AppFeature {
     @Dependency(\.acpRegistryClient) var acpRegistry
     @Dependency(\.historyClient) var historyClient
     @Dependency(\.documentClient) var documentClient
+    @Dependency(\.calendarClient) var calendarClient
 
     public init() {}
 
@@ -156,14 +165,22 @@ public struct AppFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                return .run { send in
-                    async let jobs = Result { try await persistence.loadJobs() }
-                    async let settings = Result { try await persistence.loadSettings() }
-                    let apiKey = keychain.loadAPIKey()
-                    await send(.jobsLoaded(await jobs))
-                    await send(.settingsLoaded(await settings))
-                    await send(.saveSettingsKey(apiKey))
-                }
+                return .merge(
+                    .run { send in
+                        async let jobs = Result { try await persistence.loadJobs() }
+                        async let settings = Result { try await persistence.loadSettings() }
+                        let apiKey = keychain.loadAPIKey()
+                        await send(.jobsLoaded(await jobs))
+                        await send(.settingsLoaded(await settings))
+                        await send(.saveSettingsKey(apiKey))
+                    },
+                    .run { send in
+                        for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+                            await send(.appDidBecomeActive)
+                        }
+                    }
+                    .cancellable(id: CancelID.calendarActivate, cancelInFlight: true)
+                )
 
             case .jobsLoaded(.success(let jobs)):
                 state.jobs = IdentifiedArray(uniqueElements: jobs)
@@ -880,6 +897,84 @@ public struct AppFeature {
                 }
                 return .none
 
+            // MARK: - Calendar Sync (App-level)
+
+            case .appDidBecomeActive:
+                let linkedRounds = state.jobs.flatMap { job in
+                    job.interviews
+                        .filter { $0.calendarEventIdentifier != nil }
+                        .map { (job: job, round: $0) }
+                }
+                guard !linkedRounds.isEmpty else { return .none }
+                return .run { [linkedRounds] send in
+                    var updates: [(jobId: UUID, interviewId: UUID, oldDate: Date?, newDate: Date, jobCompany: String, roundNumber: Int)] = []
+                    var missing: [(jobId: UUID, interviewId: UUID)] = []
+                    for (job, round) in linkedRounds {
+                        guard let identifier = round.calendarEventIdentifier else { continue }
+                        let event = try? await calendarClient.fetchEvent(identifier)
+                        if let event {
+                            if let roundDate = round.date, abs(event.startDate.timeIntervalSince(roundDate)) > 60 {
+                                updates.append((job.id, round.id, round.date, event.startDate, job.displayCompany, round.round))
+                            }
+                        } else {
+                            missing.append((job.id, round.id))
+                        }
+                    }
+                    await send(.calendarSyncCompleted(updates: updates, missing: missing))
+                }
+
+            case .calendarSyncCompleted(let updates, let missing):
+                var effects: [Effect<Action>] = []
+
+                for update in updates {
+                    if var job = state.jobs[id: update.jobId],
+                       let roundIdx = job.interviews.firstIndex(where: { $0.id == update.interviewId }) {
+                        job.interviews[roundIdx].date = update.newDate
+                        state.jobs[id: update.jobId] = job
+                    }
+                    if state.jobDetail?.job.id == update.jobId,
+                       let roundIdx = state.jobDetail?.interviews.firstIndex(where: { $0.id == update.interviewId }) {
+                        state.jobDetail?.interviews[roundIdx].date = update.newDate
+                        state.jobDetail?.syncJobFromFields()
+                    }
+                    let event = HistoryEvent(
+                        label: "Calendar sync updated Round \(update.roundNumber) for \(update.jobCompany)",
+                        source: .system,
+                        command: .updateInterviewDate(
+                            jobId: update.jobId,
+                            interviewId: update.interviewId,
+                            oldDate: update.oldDate,
+                            newDate: update.newDate
+                        )
+                    )
+                    effects.append(recordEvent(event, state: &state))
+                }
+
+                if updates.count == 1 {
+                    let update = updates[0]
+                    let formatter = DateFormatter()
+                    formatter.dateStyle = .medium
+                    formatter.timeStyle = .short
+                    state.calendarSyncToast = "Round \(update.roundNumber) for \(update.jobCompany) updated to \(formatter.string(from: update.newDate))"
+                } else if updates.count > 1 {
+                    state.calendarSyncToast = "\(updates.count) interview dates updated from Calendar"
+                }
+
+                if !updates.isEmpty {
+                    effects.append(saveJobs(state.jobs))
+                }
+
+                for miss in missing where state.selectedJobID == miss.jobId {
+                    state.jobDetail?.calendarSyncWarnings[miss.interviewId] = .eventMissing
+                }
+
+                if effects.isEmpty { return .none }
+                return .merge(effects)
+
+            case .dismissCalendarSyncToast:
+                state.calendarSyncToast = nil
+                return .none
+
             // MARK: - Undo / Redo
 
             case .undo:
@@ -1020,6 +1115,13 @@ public struct AppFeature {
             for cmd in commands {
                 applyReversedCommand(cmd, state: &state)
             }
+
+        case .updateInterviewDate(let jobId, let interviewId, _, let newDate):
+            if var job = state.jobs[id: jobId],
+               let roundIdx = job.interviews.firstIndex(where: { $0.id == interviewId }) {
+                job.interviews[roundIdx].date = newDate
+                state.jobs[id: jobId] = job
+            }
         }
     }
 
@@ -1091,6 +1193,13 @@ public struct AppFeature {
         case .compound(let commands):
             for cmd in commands {
                 applyForwardCommand(cmd, state: &state)
+            }
+
+        case .updateInterviewDate(let jobId, let interviewId, _, let newDate):
+            if var job = state.jobs[id: jobId],
+               let roundIdx = job.interviews.firstIndex(where: { $0.id == interviewId }) {
+                job.interviews[roundIdx].date = newDate
+                state.jobs[id: jobId] = job
             }
         }
     }

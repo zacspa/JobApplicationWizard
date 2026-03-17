@@ -952,18 +952,21 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertEqual(store.state.calendarSyncWarnings[interviewId], .eventMissing)
     }
 
-    func testRefreshLinkedCalendarEventsWithRescheduledEvent() async {
+    func testRefreshLinkedCalendarEventsWithExistingEvent() async {
+        // Rescheduling is now handled at the AppFeature level; JobDetailFeature
+        // only tracks missing events. A found event (even with a different date)
+        // clears any existing warning.
         let interviewId = UUID()
         let originalDate = Date(timeIntervalSinceReferenceDate: 10000)
         let newDate = Date(timeIntervalSinceReferenceDate: 20000)
         var interview = InterviewRound(id: interviewId, round: 1, date: originalDate)
-        interview.calendarEventIdentifier = "event-rescheduled"
+        interview.calendarEventIdentifier = "event-found"
         let job = JobApplication.mock(interviews: [interview])
         var state = JobDetailFeature.State(job: job)
         state.calendarAccessGranted = true
 
-        let rescheduledEvent = CalendarEvent(
-            id: "event-rescheduled",
+        let foundEvent = CalendarEvent(
+            id: "event-found",
             title: "Interview",
             startDate: newDate,
             endDate: Date(timeIntervalSinceReferenceDate: 23600),
@@ -975,41 +978,32 @@ final class JobDetailFeatureTests: XCTestCase {
         let store = TestStore(initialState: state) {
             JobDetailFeature()
         } withDependencies: {
-            $0.calendarClient.fetchEvent = { _ in rescheduledEvent }
+            $0.calendarClient.fetchEvent = { _ in foundEvent }
         }
 
         await store.send(.refreshLinkedCalendarEvents)
-        await store.receive(\.calendarSyncResult) {
-            $0.calendarSyncWarnings[interviewId] = .eventRescheduled(newDate: newDate)
-        }
+        // Event found: warning is nil, so calendarSyncWarnings is unchanged (no state diff expected).
+        await store.receive(\.calendarSyncResult)
 
-        XCTAssertEqual(store.state.calendarSyncWarnings[interviewId], .eventRescheduled(newDate: newDate))
+        XCTAssertNil(store.state.calendarSyncWarnings[interviewId])
     }
 
-    func testSyncInterviewDateFromCalendar() async {
+    func testSyncInterviewDateFromCalendarIsNoOp() async {
+        // Rescheduling is now handled at the AppFeature level; this action is a no-op.
         let interviewId = UUID()
         let originalDate = Date(timeIntervalSinceReferenceDate: 10000)
-        let newDate = Date(timeIntervalSinceReferenceDate: 20000)
         var interview = InterviewRound(id: interviewId, round: 1, date: originalDate)
         interview.calendarEventIdentifier = "event-rescheduled"
         let job = JobApplication.mock(interviews: [interview])
-        var state = JobDetailFeature.State(job: job)
-        state.calendarAccessGranted = true
-        state.calendarSyncWarnings[interviewId] = .eventRescheduled(newDate: newDate)
+        let state = JobDetailFeature.State(job: job)
 
         let store = TestStore(initialState: state) {
             JobDetailFeature()
         }
 
-        await store.send(.syncInterviewDateFromCalendar(interviewId: interviewId)) {
-            $0.interviews[0].date = newDate
-            $0.job.interviews[0].date = newDate
-            $0.calendarSyncWarnings.removeValue(forKey: interviewId)
-        }
-        await store.receive(\.delegate.jobUpdated)
-
-        XCTAssertEqual(store.state.interviews[0].date, newDate)
-        XCTAssertNil(store.state.calendarSyncWarnings[interviewId])
+        // Action is a no-op: no state changes, no effects.
+        await store.send(.syncInterviewDateFromCalendar(interviewId: interviewId))
+        XCTAssertEqual(store.state.interviews[0].date, originalDate)
     }
 
     func testMultipleRoundsRefreshedIndependently() async {
