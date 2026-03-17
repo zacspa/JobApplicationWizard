@@ -30,6 +30,13 @@ public struct JobDetailFeature {
         public var newTaskText: String = ""
         public var isAddingTask: Bool = false
 
+        // Calendar picker state
+        public var showCalendarPicker: Bool = false
+        public var calendarPickerInterviewId: UUID? = nil
+        public var calendarEvents: [CalendarEvent] = []
+        public var calendarSearchQuery: String = ""
+        public var calendarAccessGranted: Bool? = nil
+
         // PDF state
         public var isGeneratingPDF: Bool = false
         public var pdfError: String? = nil
@@ -139,6 +146,14 @@ public struct JobDetailFeature {
         case copyDescriptionTapped
         case clearCopied
         case pdfSaved(Result<String, Error>)
+        // Calendar
+        case linkCalendarEvent(interviewId: UUID)
+        case unlinkCalendarEvent(interviewId: UUID)
+        case calendarEventSelected(interviewId: UUID, event: CalendarEvent)
+        case calendarAccessResult(Bool)
+        case calendarSearchQueryChanged(String)
+        case dismissCalendarPicker
+        case calendarEventsLoaded([CalendarEvent])
         // Delegate
         case delegate(Delegate)
 
@@ -151,6 +166,7 @@ public struct JobDetailFeature {
     }
 
     @Dependency(\.pdfClient) var pdfClient
+    @Dependency(\.calendarClient) var calendarClient
 
     public init() {}
 
@@ -335,6 +351,65 @@ public struct JobDetailFeature {
             case .addSuggestedTask(let title):
                 state.job.tasks.append(SubTask(title: title, forStatus: state.job.status))
                 return .send(.delegate(.jobUpdated(state.job)))
+
+            case .linkCalendarEvent(let interviewId):
+                state.showCalendarPicker = true
+                state.calendarPickerInterviewId = interviewId
+                if state.calendarAccessGranted == nil {
+                    return .run { [calendarClient] send in
+                        let granted = (try? await calendarClient.requestAccess()) ?? false
+                        await send(.calendarAccessResult(granted))
+                    }
+                }
+                return .none
+
+            case .unlinkCalendarEvent(let interviewId):
+                if let idx = state.interviews.firstIndex(where: { $0.id == interviewId }) {
+                    state.interviews[idx].calendarEventIdentifier = nil
+                    state.interviews[idx].calendarEventTitle = nil
+                }
+                state.syncJobFromFields()
+                return .send(.delegate(.jobUpdated(state.job)))
+
+            case .calendarEventSelected(let interviewId, let event):
+                if let idx = state.interviews.firstIndex(where: { $0.id == interviewId }) {
+                    state.interviews[idx].calendarEventIdentifier = event.id
+                    state.interviews[idx].calendarEventTitle = event.title
+                    if state.interviews[idx].date == nil {
+                        state.interviews[idx].date = event.startDate
+                    }
+                    if state.interviews[idx].type.isEmpty {
+                        state.interviews[idx].type = event.title
+                    }
+                }
+                state.showCalendarPicker = false
+                state.calendarPickerInterviewId = nil
+                state.syncJobFromFields()
+                return .send(.delegate(.jobUpdated(state.job)))
+
+            case .calendarAccessResult(let granted):
+                state.calendarAccessGranted = granted
+                if granted {
+                    let interval = DateInterval(start: Date(), duration: 30 * 24 * 60 * 60)
+                    return .run { [calendarClient] send in
+                        let events = (try? await calendarClient.fetchEvents(interval, nil)) ?? []
+                        await send(.calendarEventsLoaded(events))
+                    }
+                }
+                return .none
+
+            case .calendarSearchQueryChanged(let query):
+                state.calendarSearchQuery = query
+                return .none
+
+            case .dismissCalendarPicker:
+                state.showCalendarPicker = false
+                state.calendarPickerInterviewId = nil
+                return .none
+
+            case .calendarEventsLoaded(let events):
+                state.calendarEvents = events
+                return .none
 
             case .delegate:
                 return .none

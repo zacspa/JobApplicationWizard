@@ -556,6 +556,347 @@ final class JobDetailFeatureTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Interview jobs"))
     }
 
+    // MARK: - Calendar Picker State and Actions
+
+    func testLinkCalendarEventSetsPickerState() async {
+        let interviewId = UUID()
+        let interview = InterviewRound(id: interviewId, round: 1)
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.calendarAccessGranted = true  // already granted, no effect
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.linkCalendarEvent(interviewId: interviewId)) {
+            $0.showCalendarPicker = true
+            $0.calendarPickerInterviewId = interviewId
+        }
+    }
+
+    func testLinkCalendarEventWhenAccessNilTriggersRequestAccess() async {
+        let interviewId = UUID()
+        let interview = InterviewRound(id: interviewId, round: 1)
+        let job = JobApplication.mock(interviews: [interview])
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.calendarClient.requestAccess = { true }
+            $0.calendarClient.fetchEvents = { _, _ in [] }
+        }
+
+        await store.send(.linkCalendarEvent(interviewId: interviewId)) {
+            $0.showCalendarPicker = true
+            $0.calendarPickerInterviewId = interviewId
+        }
+        await store.receive(\.calendarAccessResult) {
+            $0.calendarAccessGranted = true
+        }
+        await store.receive(\.calendarEventsLoaded)
+    }
+
+    func testUnlinkCalendarEventClearsFields() async {
+        let interviewId = UUID()
+        var interview = InterviewRound(id: interviewId, round: 1)
+        interview.calendarEventIdentifier = "event-123"
+        interview.calendarEventTitle = "Phone Screen"
+        let job = JobApplication.mock(interviews: [interview])
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+
+        await store.send(.unlinkCalendarEvent(interviewId: interviewId)) {
+            $0.interviews[0].calendarEventIdentifier = nil
+            $0.interviews[0].calendarEventTitle = nil
+            $0.job.interviews[0].calendarEventIdentifier = nil
+            $0.job.interviews[0].calendarEventTitle = nil
+        }
+        await store.receive(\.delegate.jobUpdated)
+    }
+
+    func testUnlinkCalendarEventOnlyAffectsCorrectRound() async {
+        let interviewId1 = UUID()
+        let interviewId2 = UUID()
+        var interview1 = InterviewRound(id: interviewId1, round: 1)
+        interview1.calendarEventIdentifier = "event-1"
+        interview1.calendarEventTitle = "Phone Screen"
+        var interview2 = InterviewRound(id: interviewId2, round: 2)
+        interview2.calendarEventIdentifier = "event-2"
+        interview2.calendarEventTitle = "Technical"
+        let job = JobApplication.mock(interviews: [interview1, interview2])
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
+            JobDetailFeature()
+        }
+
+        await store.send(.unlinkCalendarEvent(interviewId: interviewId1)) {
+            $0.interviews[0].calendarEventIdentifier = nil
+            $0.interviews[0].calendarEventTitle = nil
+            $0.job.interviews[0].calendarEventIdentifier = nil
+            $0.job.interviews[0].calendarEventTitle = nil
+        }
+        await store.receive(\.delegate.jobUpdated)
+
+        // Second interview still has its calendar info
+        XCTAssertEqual(store.state.interviews[1].calendarEventIdentifier, "event-2")
+        XCTAssertEqual(store.state.interviews[1].calendarEventTitle, "Technical")
+    }
+
+    func testCalendarEventSelectedStoresIdentifierAndTitle() async {
+        let interviewId = UUID()
+        let existingDate = Date(timeIntervalSinceReferenceDate: 5000)
+        let interview = InterviewRound(id: interviewId, round: 1, type: "Technical", date: existingDate)
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.showCalendarPicker = true
+        state.calendarPickerInterviewId = interviewId
+
+        let event = CalendarEvent(
+            id: "event-abc",
+            title: "Technical Interview",
+            startDate: Date(timeIntervalSinceReferenceDate: 10000),
+            endDate: Date(timeIntervalSinceReferenceDate: 13600),
+            calendarName: "Work",
+            calendarColor: "#FF0000",
+            isAllDay: false
+        )
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.calendarEventSelected(interviewId: interviewId, event: event)) {
+            $0.interviews[0].calendarEventIdentifier = "event-abc"
+            $0.interviews[0].calendarEventTitle = "Technical Interview"
+            $0.job.interviews[0].calendarEventIdentifier = "event-abc"
+            $0.job.interviews[0].calendarEventTitle = "Technical Interview"
+            $0.showCalendarPicker = false
+            $0.calendarPickerInterviewId = nil
+        }
+        await store.receive(\.delegate.jobUpdated)
+    }
+
+    func testCalendarEventSelectedAutoFillsDateWhenNil() async {
+        let interviewId = UUID()
+        let interview = InterviewRound(id: interviewId, round: 1, date: nil)
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.showCalendarPicker = true
+        state.calendarPickerInterviewId = interviewId
+
+        let eventDate = Date(timeIntervalSinceReferenceDate: 10000)
+        let event = CalendarEvent(
+            id: "event-xyz",
+            title: "Phone Screen",
+            startDate: eventDate,
+            endDate: Date(timeIntervalSinceReferenceDate: 13600),
+            calendarName: "Work",
+            calendarColor: "#0000FF",
+            isAllDay: false
+        )
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.calendarEventSelected(interviewId: interviewId, event: event)) {
+            $0.interviews[0].calendarEventIdentifier = "event-xyz"
+            $0.interviews[0].calendarEventTitle = "Phone Screen"
+            $0.interviews[0].date = eventDate
+            $0.interviews[0].type = "Phone Screen"
+            $0.job.interviews[0].calendarEventIdentifier = "event-xyz"
+            $0.job.interviews[0].calendarEventTitle = "Phone Screen"
+            $0.job.interviews[0].date = eventDate
+            $0.job.interviews[0].type = "Phone Screen"
+            $0.showCalendarPicker = false
+            $0.calendarPickerInterviewId = nil
+        }
+        await store.receive(\.delegate.jobUpdated)
+    }
+
+    func testCalendarEventSelectedDoesNotOverwriteExistingDate() async {
+        let interviewId = UUID()
+        let existingDate = Date(timeIntervalSinceReferenceDate: 99999)
+        let interview = InterviewRound(id: interviewId, round: 1, type: "Onsite", date: existingDate)
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.showCalendarPicker = true
+        state.calendarPickerInterviewId = interviewId
+
+        let event = CalendarEvent(
+            id: "event-new",
+            title: "Onsite",
+            startDate: Date(timeIntervalSinceReferenceDate: 50000),
+            endDate: Date(timeIntervalSinceReferenceDate: 53600),
+            calendarName: "Work",
+            calendarColor: "#00FF00",
+            isAllDay: false
+        )
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.calendarEventSelected(interviewId: interviewId, event: event)) {
+            $0.interviews[0].calendarEventIdentifier = "event-new"
+            $0.interviews[0].calendarEventTitle = "Onsite"
+            // date stays at existingDate
+            $0.job.interviews[0].calendarEventIdentifier = "event-new"
+            $0.job.interviews[0].calendarEventTitle = "Onsite"
+            $0.showCalendarPicker = false
+            $0.calendarPickerInterviewId = nil
+        }
+        await store.receive(\.delegate.jobUpdated)
+
+        XCTAssertEqual(store.state.interviews[0].date, existingDate)
+    }
+
+    func testCalendarEventSelectedAutoFillsTypeWhenEmpty() async {
+        let interviewId = UUID()
+        let existingDate = Date(timeIntervalSinceReferenceDate: 5000)
+        let interview = InterviewRound(id: interviewId, round: 1, type: "", date: existingDate)
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.showCalendarPicker = true
+        state.calendarPickerInterviewId = interviewId
+
+        let event = CalendarEvent(
+            id: "event-type",
+            title: "Behavioral Round",
+            startDate: Date(timeIntervalSinceReferenceDate: 10000),
+            endDate: Date(timeIntervalSinceReferenceDate: 13600),
+            calendarName: "Work",
+            calendarColor: "#AAAAAA",
+            isAllDay: false
+        )
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.calendarEventSelected(interviewId: interviewId, event: event)) {
+            $0.interviews[0].calendarEventIdentifier = "event-type"
+            $0.interviews[0].calendarEventTitle = "Behavioral Round"
+            $0.interviews[0].type = "Behavioral Round"
+            $0.job.interviews[0].calendarEventIdentifier = "event-type"
+            $0.job.interviews[0].calendarEventTitle = "Behavioral Round"
+            $0.job.interviews[0].type = "Behavioral Round"
+            $0.showCalendarPicker = false
+            $0.calendarPickerInterviewId = nil
+        }
+        await store.receive(\.delegate.jobUpdated)
+    }
+
+    func testCalendarEventSelectedDoesNotOverwriteNonEmptyType() async {
+        let interviewId = UUID()
+        let existingDate = Date(timeIntervalSinceReferenceDate: 5000)
+        let interview = InterviewRound(id: interviewId, round: 1, type: "Technical", date: existingDate)
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.showCalendarPicker = true
+        state.calendarPickerInterviewId = interviewId
+
+        let event = CalendarEvent(
+            id: "event-notype",
+            title: "General Interview",
+            startDate: Date(timeIntervalSinceReferenceDate: 10000),
+            endDate: Date(timeIntervalSinceReferenceDate: 13600),
+            calendarName: "Work",
+            calendarColor: "#BBBBBB",
+            isAllDay: false
+        )
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.calendarEventSelected(interviewId: interviewId, event: event)) {
+            $0.interviews[0].calendarEventIdentifier = "event-notype"
+            $0.interviews[0].calendarEventTitle = "General Interview"
+            // type stays "Technical"
+            $0.job.interviews[0].calendarEventIdentifier = "event-notype"
+            $0.job.interviews[0].calendarEventTitle = "General Interview"
+            $0.showCalendarPicker = false
+            $0.calendarPickerInterviewId = nil
+        }
+        await store.receive(\.delegate.jobUpdated)
+
+        XCTAssertEqual(store.state.interviews[0].type, "Technical")
+    }
+
+    func testCalendarAccessResultFalseSetsGrantedFalseNoFetch() async {
+        let fetchCalled = LockIsolated(false)
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.calendarClient.fetchEvents = { _, _ in
+                fetchCalled.setValue(true)
+                return []
+            }
+        }
+
+        await store.send(.calendarAccessResult(false)) {
+            $0.calendarAccessGranted = false
+        }
+
+        XCTAssertFalse(fetchCalled.value)
+    }
+
+    func testCalendarAccessResultTrueSetsGrantedAndFetchesEvents() async {
+        let mockEvent = CalendarEvent(
+            id: "evt-1",
+            title: "Interview",
+            startDate: Date(timeIntervalSinceReferenceDate: 10000),
+            endDate: Date(timeIntervalSinceReferenceDate: 13600),
+            calendarName: "Work",
+            calendarColor: "#FF0000",
+            isAllDay: false
+        )
+
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.calendarClient.fetchEvents = { _, _ in [mockEvent] }
+        }
+
+        await store.send(.calendarAccessResult(true)) {
+            $0.calendarAccessGranted = true
+        }
+        await store.receive(\.calendarEventsLoaded) {
+            $0.calendarEvents = [mockEvent]
+        }
+    }
+
+    func testDismissCalendarPickerClosesAndClearsId() async {
+        let interviewId = UUID()
+        var state = JobDetailFeature.State(job: .mock())
+        state.showCalendarPicker = true
+        state.calendarPickerInterviewId = interviewId
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.dismissCalendarPicker) {
+            $0.showCalendarPicker = false
+            $0.calendarPickerInterviewId = nil
+        }
+    }
+
+    func testCalendarSearchQueryChangedUpdatesState() async {
+        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
+            JobDetailFeature()
+        }
+
+        await store.send(.calendarSearchQueryChanged("standup")) {
+            $0.calendarSearchQuery = "standup"
+        }
+    }
+
     // MARK: - Chat History Codable
 
     func testChatMessageCodableRoundTrip() throws {
