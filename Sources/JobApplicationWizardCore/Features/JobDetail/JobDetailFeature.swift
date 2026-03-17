@@ -2,6 +2,13 @@ import ComposableArchitecture
 import Foundation
 import AppKit
 
+// MARK: - Calendar Sync Warning
+
+public enum CalendarSyncWarning: Equatable {
+    case eventMissing
+    case eventRescheduled(newDate: Date)
+}
+
 @Reducer
 public struct JobDetailFeature {
     @ObservableState
@@ -36,6 +43,7 @@ public struct JobDetailFeature {
         public var calendarEvents: [CalendarEvent] = []
         public var calendarSearchQuery: String = ""
         public var calendarAccessGranted: Bool? = nil
+        public var calendarSyncWarnings: [UUID: CalendarSyncWarning] = [:]
 
         // PDF state
         public var isGeneratingPDF: Bool = false
@@ -154,6 +162,11 @@ public struct JobDetailFeature {
         case calendarSearchQueryChanged(String)
         case dismissCalendarPicker
         case calendarEventsLoaded([CalendarEvent])
+        // Calendar Sync
+        case refreshLinkedCalendarEvents
+        case calendarSyncResult(interviewId: UUID, warning: CalendarSyncWarning?)
+        case syncInterviewDateFromCalendar(interviewId: UUID)
+        case dismissCalendarSyncWarning(interviewId: UUID)
         // Delegate
         case delegate(Delegate)
 
@@ -409,6 +422,54 @@ public struct JobDetailFeature {
 
             case .calendarEventsLoaded(let events):
                 state.calendarEvents = events
+                return .none
+
+            case .refreshLinkedCalendarEvents:
+                guard state.calendarAccessGranted == true else { return .none }
+                let roundsWithEvents = state.interviews.filter { $0.calendarEventIdentifier != nil }
+                guard !roundsWithEvents.isEmpty else { return .none }
+                return .merge(
+                    roundsWithEvents.map { round in
+                        let interviewId = round.id
+                        let identifier = round.calendarEventIdentifier!
+                        let roundDate = round.date
+                        return .run { [calendarClient] send in
+                            let event = try? await calendarClient.fetchEvent(identifier)
+                            let warning: CalendarSyncWarning?
+                            if let event {
+                                if let roundDate, event.startDate != roundDate {
+                                    warning = .eventRescheduled(newDate: event.startDate)
+                                } else {
+                                    warning = nil
+                                }
+                            } else {
+                                warning = .eventMissing
+                            }
+                            await send(.calendarSyncResult(interviewId: interviewId, warning: warning))
+                        }
+                    }
+                )
+
+            case .calendarSyncResult(let interviewId, let warning):
+                if let warning {
+                    state.calendarSyncWarnings[interviewId] = warning
+                } else {
+                    state.calendarSyncWarnings.removeValue(forKey: interviewId)
+                }
+                return .none
+
+            case .syncInterviewDateFromCalendar(let interviewId):
+                guard let idx = state.interviews.firstIndex(where: { $0.id == interviewId }),
+                      let existingWarning = state.calendarSyncWarnings[interviewId],
+                      case .eventRescheduled(let newDate) = existingWarning
+                else { return .none }
+                state.interviews[idx].date = newDate
+                state.calendarSyncWarnings.removeValue(forKey: interviewId)
+                state.syncJobFromFields()
+                return .send(.delegate(.jobUpdated(state.job)))
+
+            case .dismissCalendarSyncWarning(let interviewId):
+                state.calendarSyncWarnings.removeValue(forKey: interviewId)
                 return .none
 
             case .delegate:

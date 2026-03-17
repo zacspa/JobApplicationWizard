@@ -897,6 +897,186 @@ final class JobDetailFeatureTests: XCTestCase {
         }
     }
 
+    // MARK: - Calendar Sync
+
+    func testRefreshLinkedCalendarEventsWithValidEvent() async {
+        let interviewId = UUID()
+        let eventDate = Date(timeIntervalSinceReferenceDate: 10000)
+        var interview = InterviewRound(id: interviewId, round: 1, date: eventDate)
+        interview.calendarEventIdentifier = "event-123"
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.calendarAccessGranted = true
+
+        let matchingEvent = CalendarEvent(
+            id: "event-123",
+            title: "Interview",
+            startDate: eventDate,
+            endDate: Date(timeIntervalSinceReferenceDate: 13600),
+            calendarName: "Work",
+            calendarColor: "#FF0000",
+            isAllDay: false
+        )
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.calendarClient.fetchEvent = { _ in matchingEvent }
+        }
+
+        await store.send(.refreshLinkedCalendarEvents)
+        await store.receive(\.calendarSyncResult)
+
+        XCTAssertNil(store.state.calendarSyncWarnings[interviewId])
+    }
+
+    func testRefreshLinkedCalendarEventsWithDeletedEvent() async {
+        let interviewId = UUID()
+        var interview = InterviewRound(id: interviewId, round: 1, date: Date(timeIntervalSinceReferenceDate: 10000))
+        interview.calendarEventIdentifier = "event-deleted"
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.calendarAccessGranted = true
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.calendarClient.fetchEvent = { _ in nil }
+        }
+
+        await store.send(.refreshLinkedCalendarEvents)
+        await store.receive(\.calendarSyncResult) {
+            $0.calendarSyncWarnings[interviewId] = .eventMissing
+        }
+
+        XCTAssertEqual(store.state.calendarSyncWarnings[interviewId], .eventMissing)
+    }
+
+    func testRefreshLinkedCalendarEventsWithRescheduledEvent() async {
+        let interviewId = UUID()
+        let originalDate = Date(timeIntervalSinceReferenceDate: 10000)
+        let newDate = Date(timeIntervalSinceReferenceDate: 20000)
+        var interview = InterviewRound(id: interviewId, round: 1, date: originalDate)
+        interview.calendarEventIdentifier = "event-rescheduled"
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.calendarAccessGranted = true
+
+        let rescheduledEvent = CalendarEvent(
+            id: "event-rescheduled",
+            title: "Interview",
+            startDate: newDate,
+            endDate: Date(timeIntervalSinceReferenceDate: 23600),
+            calendarName: "Work",
+            calendarColor: "#FF0000",
+            isAllDay: false
+        )
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.calendarClient.fetchEvent = { _ in rescheduledEvent }
+        }
+
+        await store.send(.refreshLinkedCalendarEvents)
+        await store.receive(\.calendarSyncResult) {
+            $0.calendarSyncWarnings[interviewId] = .eventRescheduled(newDate: newDate)
+        }
+
+        XCTAssertEqual(store.state.calendarSyncWarnings[interviewId], .eventRescheduled(newDate: newDate))
+    }
+
+    func testSyncInterviewDateFromCalendar() async {
+        let interviewId = UUID()
+        let originalDate = Date(timeIntervalSinceReferenceDate: 10000)
+        let newDate = Date(timeIntervalSinceReferenceDate: 20000)
+        var interview = InterviewRound(id: interviewId, round: 1, date: originalDate)
+        interview.calendarEventIdentifier = "event-rescheduled"
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.calendarAccessGranted = true
+        state.calendarSyncWarnings[interviewId] = .eventRescheduled(newDate: newDate)
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.syncInterviewDateFromCalendar(interviewId: interviewId)) {
+            $0.interviews[0].date = newDate
+            $0.job.interviews[0].date = newDate
+            $0.calendarSyncWarnings.removeValue(forKey: interviewId)
+        }
+        await store.receive(\.delegate.jobUpdated)
+
+        XCTAssertEqual(store.state.interviews[0].date, newDate)
+        XCTAssertNil(store.state.calendarSyncWarnings[interviewId])
+    }
+
+    func testMultipleRoundsRefreshedIndependently() async {
+        let idMissing = UUID()
+        let idValid = UUID()
+        let eventDate = Date(timeIntervalSinceReferenceDate: 10000)
+
+        var roundMissing = InterviewRound(id: idMissing, round: 1, date: eventDate)
+        roundMissing.calendarEventIdentifier = "event-missing"
+        var roundValid = InterviewRound(id: idValid, round: 2, date: eventDate)
+        roundValid.calendarEventIdentifier = "event-valid"
+
+        let job = JobApplication.mock(interviews: [roundMissing, roundValid])
+        var state = JobDetailFeature.State(job: job)
+        state.calendarAccessGranted = true
+
+        let validEvent = CalendarEvent(
+            id: "event-valid",
+            title: "Interview",
+            startDate: eventDate,
+            endDate: Date(timeIntervalSinceReferenceDate: 13600),
+            calendarName: "Work",
+            calendarColor: "#FF0000",
+            isAllDay: false
+        )
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.calendarClient.fetchEvent = { identifier in
+                identifier == "event-missing" ? nil : validEvent
+            }
+        }
+        store.exhaustivity = .off
+
+        await store.send(.refreshLinkedCalendarEvents)
+        await store.skipReceivedActions()
+
+        XCTAssertEqual(store.state.calendarSyncWarnings[idMissing], .eventMissing)
+        XCTAssertNil(store.state.calendarSyncWarnings[idValid])
+    }
+
+    func testRefreshSkippedWhenAccessNotGranted() async {
+        let interviewId = UUID()
+        var interview = InterviewRound(id: interviewId, round: 1, date: Date())
+        interview.calendarEventIdentifier = "event-123"
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.calendarAccessGranted = false
+
+        let fetchCalled = LockIsolated(false)
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        } withDependencies: {
+            $0.calendarClient.fetchEvent = { _ in
+                fetchCalled.setValue(true)
+                return nil
+            }
+        }
+
+        await store.send(.refreshLinkedCalendarEvents)
+
+        XCTAssertFalse(fetchCalled.value)
+        XCTAssertTrue(store.state.calendarSyncWarnings.isEmpty)
+    }
+
     // MARK: - Chat History Codable
 
     func testChatMessageCodableRoundTrip() throws {

@@ -972,6 +972,7 @@ struct InterviewsTab: View {
             .padding(.horizontal, 16).padding(.vertical, 8)
             .background(Color(NSColor.controlBackgroundColor))
 
+
             Divider()
 
             if store.interviews.isEmpty {
@@ -1010,6 +1011,9 @@ struct InterviewsTab: View {
                 }
                 .listStyle(.inset)
             }
+        }
+        .task {
+            store.send(.refreshLinkedCalendarEvents)
         }
     }
 }
@@ -1081,6 +1085,35 @@ struct InterviewRoundRow: View {
                     Label("Link Calendar Event", systemImage: "link")
                 }
                 .font(.footnote)
+            }
+            if let warning = store.calendarSyncWarnings[round.id] {
+                switch warning {
+                case .eventMissing:
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.yellow)
+                        Text("Event deleted from Calendar")
+                            .font(.footnote)
+                        Spacer()
+                        Button("Unlink") {
+                            store.send(.unlinkCalendarEvent(interviewId: round.id))
+                            store.send(.dismissCalendarSyncWarning(interviewId: round.id))
+                        }
+                        .font(.footnote)
+                    }
+                case .eventRescheduled(let newDate):
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.yellow)
+                        Text("Event rescheduled to \(newDate.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.footnote)
+                        Spacer()
+                        Button("Update Date") {
+                            store.send(.syncInterviewDateFromCalendar(interviewId: round.id))
+                        }
+                        .font(.footnote)
+                    }
+                }
             }
         }
         .padding(.vertical, 4)
