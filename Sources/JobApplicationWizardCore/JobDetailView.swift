@@ -1012,9 +1012,6 @@ struct InterviewsTab: View {
                 .listStyle(.inset)
             }
         }
-        .task {
-            store.send(.refreshLinkedCalendarEvents)
-        }
     }
 }
 
@@ -1086,33 +1083,18 @@ struct InterviewRoundRow: View {
                 }
                 .font(.footnote)
             }
-            if let warning = store.calendarSyncWarnings[round.id] {
-                switch warning {
-                case .eventMissing:
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.yellow)
-                        Text("Event deleted from Calendar")
-                            .font(.footnote)
-                        Spacer()
-                        Button("Unlink") {
-                            store.send(.unlinkCalendarEvent(interviewId: round.id))
-                            store.send(.dismissCalendarSyncWarning(interviewId: round.id))
-                        }
+            if let warning = store.calendarSyncWarnings[round.id], warning == .eventMissing {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.yellow)
+                    Text("Event deleted from Calendar")
                         .font(.footnote)
+                    Spacer()
+                    Button("Unlink") {
+                        store.send(.unlinkCalendarEvent(interviewId: round.id))
+                        store.send(.dismissCalendarSyncWarning(interviewId: round.id))
                     }
-                case .eventRescheduled(let newDate):
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.yellow)
-                        Text("Event rescheduled to \(newDate.formatted(date: .abbreviated, time: .shortened))")
-                            .font(.footnote)
-                        Spacer()
-                        Button("Update Date") {
-                            store.send(.syncInterviewDateFromCalendar(interviewId: round.id))
-                        }
-                        .font(.footnote)
-                    }
+                    .font(.footnote)
                 }
             }
         }

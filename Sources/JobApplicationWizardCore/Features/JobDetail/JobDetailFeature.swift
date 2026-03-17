@@ -6,7 +6,6 @@ import AppKit
 
 public enum CalendarSyncWarning: Equatable {
     case eventMissing
-    case eventRescheduled(newDate: Date)
 }
 
 @Reducer
@@ -432,19 +431,9 @@ public struct JobDetailFeature {
                     roundsWithEvents.map { round in
                         let interviewId = round.id
                         let identifier = round.calendarEventIdentifier!
-                        let roundDate = round.date
                         return .run { [calendarClient] send in
                             let event = try? await calendarClient.fetchEvent(identifier)
-                            let warning: CalendarSyncWarning?
-                            if let event {
-                                if let roundDate, event.startDate != roundDate {
-                                    warning = .eventRescheduled(newDate: event.startDate)
-                                } else {
-                                    warning = nil
-                                }
-                            } else {
-                                warning = .eventMissing
-                            }
+                            let warning: CalendarSyncWarning? = event == nil ? .eventMissing : nil
                             await send(.calendarSyncResult(interviewId: interviewId, warning: warning))
                         }
                     }
@@ -458,15 +447,9 @@ public struct JobDetailFeature {
                 }
                 return .none
 
-            case .syncInterviewDateFromCalendar(let interviewId):
-                guard let idx = state.interviews.firstIndex(where: { $0.id == interviewId }),
-                      let existingWarning = state.calendarSyncWarnings[interviewId],
-                      case .eventRescheduled(let newDate) = existingWarning
-                else { return .none }
-                state.interviews[idx].date = newDate
-                state.calendarSyncWarnings.removeValue(forKey: interviewId)
-                state.syncJobFromFields()
-                return .send(.delegate(.jobUpdated(state.job)))
+            case .syncInterviewDateFromCalendar:
+                // Rescheduling is now handled at AppFeature level via app-activate sync.
+                return .none
 
             case .dismissCalendarSyncWarning(let interviewId):
                 state.calendarSyncWarnings.removeValue(forKey: interviewId)
