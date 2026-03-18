@@ -76,7 +76,7 @@ public struct CuttleOnboardingFeature {
             case .meetCuttle: return .blob
             case .expandCollapse: return .blob
             case .chatBasics: return .chatWindow
-            case .dragToDock: return .filterBar
+            case .dragToDock: return .dockTargets
             case .carryOrFresh: return .none
             case .resize: return .chatWindow
             case .aiSetup: return .none
@@ -87,7 +87,7 @@ public struct CuttleOnboardingFeature {
     public enum SpotlightTarget: Equatable {
         case blob
         case chatWindow
-        case filterBar
+        case dockTargets
         case none
     }
 
@@ -125,8 +125,8 @@ public struct CuttleOnboardingFeature {
                 if currentIndex < steps.count - 1 {
                     let nextStep = steps[currentIndex + 1]
                     state.currentStep = nextStep
-                    // Auto-expand Cuttle when reaching chatBasics
-                    if nextStep == .chatBasics {
+                    // Auto-expand Cuttle when reaching chatBasics or resize
+                    if nextStep == .chatBasics || nextStep == .resize {
                         return .send(.delegate(.expandCuttle))
                     }
                     // Collapse when leaving chatBasics/resize
@@ -149,8 +149,8 @@ public struct CuttleOnboardingFeature {
                         return .send(.delegate(.collapseCuttle))
                     }
                     state.currentStep = prevStep
-                    // Expand when going back to chatBasics
-                    if prevStep == .chatBasics {
+                    // Expand when going back to chatBasics or resize
+                    if prevStep == .chatBasics || prevStep == .resize {
                         return .send(.delegate(.expandCuttle))
                     }
                 }
