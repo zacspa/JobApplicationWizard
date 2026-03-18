@@ -43,15 +43,30 @@ final class CuttleOnboardingSnapshotTests: XCTestCase {
     private func mockDropZones() -> [DropZone] {
         let statuses: [JobStatus] = [.wishlist, .applied, .phoneScreen, .interview, .offer]
         var zones: [DropZone] = [
-            DropZone(id: "global", frame: CGRect(x: 16, y: 80, width: 80, height: 30), context: .global)
+            // Filter bar "All" pill (short, pill-height)
+            DropZone(id: "global", frame: CGRect(x: 196, y: 88, width: 80, height: 28), context: .global)
         ]
         for (i, status) in statuses.enumerated() {
+            // Filter bar pill for each status (short, pill-height)
+            zones.append(DropZone(
+                id: "filter-\(status.rawValue)",
+                frame: CGRect(x: 290 + CGFloat(i) * 110, y: 88, width: 100, height: 28),
+                context: .status(status)
+            ))
+            // Swim lane header (tall, in left column below filter bar)
             zones.append(DropZone(
                 id: "status-\(status.rawValue)",
-                frame: CGRect(x: 110 + CGFloat(i) * 110, y: 80, width: 100, height: 30),
+                frame: CGRect(x: 196, y: 140 + CGFloat(i) * 90, width: 140, height: 64),
                 context: .status(status)
             ))
         }
+        // Sample job card (right of the swim lane headers, in the first row)
+        let sampleJobId = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        zones.append(DropZone(
+            id: "job-\(sampleJobId.uuidString)",
+            frame: CGRect(x: 360, y: 150, width: 240, height: 110),
+            context: .job(sampleJobId)
+        ))
         return zones
     }
 
