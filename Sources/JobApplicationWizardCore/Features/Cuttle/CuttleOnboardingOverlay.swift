@@ -131,16 +131,47 @@ public struct CuttleOnboardingOverlay: View {
 
     // MARK: - Geometry Helpers
 
+    // Constants matching CuttleView
+    private static let collapsedSize: CGFloat = 48
+    private static let defaultChatWidth: CGFloat = 380
+    private static let defaultChatHeight: CGFloat = 480
+    private static let margin: CGFloat = 8
+    private static let topInset: CGFloat = 52
+
+    /// The clamped chat window frame, mirroring CuttleView.expandedPosition exactly.
+    private var chatWindowFrame: CGRect {
+        let w = Self.defaultChatWidth
+        let h = Self.defaultChatHeight
+        let blobOverhead = Self.collapsedSize / 2 + 4
+        let minChatCenterY = Self.topInset + blobOverhead + h / 2
+
+        var cx = cuttlePosition.x + w / 2 - Self.collapsedSize / 2
+        var cy = cuttlePosition.y + h / 2 + Self.collapsedSize
+
+        if cx + w / 2 > windowSize.width - Self.margin {
+            cx = windowSize.width - Self.margin - w / 2
+        }
+        if cx - w / 2 < Self.margin {
+            cx = Self.margin + w / 2
+        }
+        if cy + h / 2 > windowSize.height - Self.margin {
+            cy = cuttlePosition.y - h / 2 - Self.collapsedSize
+        }
+        if cy < minChatCenterY {
+            cy = minChatCenterY
+        }
+
+        return CGRect(x: cx - w / 2, y: cy - h / 2, width: w, height: h)
+    }
+
     /// The blob's visual center, accounting for the expanded offset.
+    /// When expanded, derives from the clamped chat position (not the raw cuttlePosition).
     private var blobCenter: CGPoint {
         if cuttleIsExpanded {
-            // When expanded, the blob sits above the chat window.
-            // Mirrors CuttleView.blobExpandedPosition logic.
-            let chatHeight: CGFloat = 480
-            let blobSize: CGFloat = 48
+            let frame = chatWindowFrame
             return CGPoint(
-                x: cuttlePosition.x,
-                y: cuttlePosition.y - chatHeight / 2 - blobSize / 2 - 4
+                x: frame.midX,
+                y: frame.minY - Self.collapsedSize / 2 - 4
             )
         }
         return cuttlePosition
@@ -158,37 +189,7 @@ public struct CuttleOnboardingOverlay: View {
                 height: size
             )
         case .chatWindow:
-            // Mirror CuttleView.expandedPosition clamping logic
-            let chatWidth: CGFloat = 380
-            let chatHeight: CGFloat = 480
-            let blobSize: CGFloat = 48
-            let margin: CGFloat = 8
-            let topInset: CGFloat = 52
-            let blobOverhead = blobSize / 2 + 4
-            let minChatCenterY = topInset + blobOverhead + chatHeight / 2
-
-            var cx = cuttlePosition.x + chatWidth / 2 - blobSize / 2
-            var cy = cuttlePosition.y + chatHeight / 2 + blobSize
-
-            if cx + chatWidth / 2 > windowSize.width - margin {
-                cx = windowSize.width - margin - chatWidth / 2
-            }
-            if cx - chatWidth / 2 < margin {
-                cx = margin + chatWidth / 2
-            }
-            if cy + chatHeight / 2 > windowSize.height - margin {
-                cy = cuttlePosition.y - chatHeight / 2 - blobSize
-            }
-            if cy < minChatCenterY {
-                cy = minChatCenterY
-            }
-
-            return CGRect(
-                x: cx - chatWidth / 2,
-                y: cy - chatHeight / 2,
-                width: chatWidth,
-                height: chatHeight
-            )
+            return chatWindowFrame
         case .filterBar:
             // Union all status/global drop zone frames to cover the full filter bar
             let filterFrames = dropZones.filter { zone in
