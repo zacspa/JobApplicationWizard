@@ -114,10 +114,6 @@ public struct ContentView: View {
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
                     .padding(.bottom, 16)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .task {
-                        try? await Task.sleep(for: .seconds(4))
-                        store.send(.dismissCalendarSyncToast, animation: .easeOut)
-                    }
             }
         }
         .animation(.spring, value: store.calendarSyncToast)

@@ -16,7 +16,7 @@ public enum ViewMode: String, Codable, CaseIterable, Equatable {
 
 @Reducer
 public struct AppFeature {
-    private enum CancelID { case acpCrashMonitor, save, saveSettings, bindingDebounce, calendarActivate }
+    private enum CancelID { case acpCrashMonitor, save, saveSettings, bindingDebounce, calendarActivate, calendarToastDismiss }
 
     @ObservableState
     public struct State: Equatable {
@@ -964,6 +964,16 @@ public struct AppFeature {
                     effects.append(saveJobs(state.jobs))
                 }
 
+                if state.calendarSyncToast != nil {
+                    effects.append(
+                        .run { send in
+                            try await Task.sleep(for: .seconds(4))
+                            await send(.dismissCalendarSyncToast)
+                        }
+                        .cancellable(id: CancelID.calendarToastDismiss, cancelInFlight: true)
+                    )
+                }
+
                 for miss in missing where state.selectedJobID == miss.jobId {
                     state.jobDetail?.calendarSyncWarnings[miss.interviewId] = .eventMissing
                 }
@@ -1122,6 +1132,11 @@ public struct AppFeature {
                 job.interviews[roundIdx].date = newDate
                 state.jobs[id: jobId] = job
             }
+            if state.jobDetail?.job.id == jobId,
+               let roundIdx = state.jobDetail?.interviews.firstIndex(where: { $0.id == interviewId }) {
+                state.jobDetail?.interviews[roundIdx].date = newDate
+                state.jobDetail?.syncJobFromFields()
+            }
         }
     }
 
@@ -1200,6 +1215,11 @@ public struct AppFeature {
                let roundIdx = job.interviews.firstIndex(where: { $0.id == interviewId }) {
                 job.interviews[roundIdx].date = newDate
                 state.jobs[id: jobId] = job
+            }
+            if state.jobDetail?.job.id == jobId,
+               let roundIdx = state.jobDetail?.interviews.firstIndex(where: { $0.id == interviewId }) {
+                state.jobDetail?.interviews[roundIdx].date = newDate
+                state.jobDetail?.syncJobFromFields()
             }
         }
     }
