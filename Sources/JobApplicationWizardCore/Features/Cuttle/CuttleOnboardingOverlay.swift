@@ -5,21 +5,31 @@ public struct CuttleOnboardingOverlay: View {
     let store: StoreOf<CuttleOnboardingFeature>
     let cuttlePosition: CGPoint
     let cuttleIsExpanded: Bool
+    let chatSize: CGSize
+    let isResizing: Bool
     let windowSize: CGSize
     let dropZones: [DropZone]
+    let safeAreaTopInset: CGFloat
+    @Environment(\.openSettings) private var openSettings
 
     public init(
         store: StoreOf<CuttleOnboardingFeature>,
         cuttlePosition: CGPoint,
         cuttleIsExpanded: Bool,
+        chatSize: CGSize = CGSize(width: 380, height: 480),
+        isResizing: Bool = false,
         windowSize: CGSize,
-        dropZones: [DropZone]
+        dropZones: [DropZone],
+        safeAreaTopInset: CGFloat = 0
     ) {
         self.store = store
         self.cuttlePosition = cuttlePosition
         self.cuttleIsExpanded = cuttleIsExpanded
+        self.chatSize = chatSize
+        self.isResizing = isResizing
         self.windowSize = windowSize
         self.dropZones = dropZones
+        self.safeAreaTopInset = safeAreaTopInset
     }
 
     public var body: some View {
@@ -31,32 +41,32 @@ public struct CuttleOnboardingOverlay: View {
             // Tooltip card
             tooltipCard
         }
+        .opacity(isResizing ? 0 : 1)
         .animation(.easeInOut(duration: 0.3), value: store.currentStep)
+        .animation(.easeInOut(duration: 0.2), value: isResizing)
     }
 
     // MARK: - Dimming Layer
 
     @ViewBuilder
     private var dimmingLayer: some View {
-        let spotlightRect = spotlightFrame(for: store.currentStep)
-        Canvas { context, size in
-            // Full dim
-            context.fill(
-                Path(CGRect(origin: .zero, size: size)),
-                with: .color(.black.opacity(0.4))
-            )
-            // Cut out the spotlight with rounded corners
-            if spotlightRect != .zero {
-                let inset: CGFloat = -12
-                let expanded = spotlightRect.insetBy(dx: inset, dy: inset)
-                context.blendMode = .destinationOut
-                context.fill(
-                    Path(roundedRect: expanded, cornerRadius: 12),
-                    with: .color(.white)
-                )
+        let rects = spotlightFrames(for: store.currentStep)
+        Color.black.opacity(0.4)
+            .mask {
+                Rectangle()
+                    .overlay {
+                        ForEach(Array(rects.enumerated()), id: \.offset) { _, rect in
+                            if rect != .zero {
+                                let expanded = rect.insetBy(dx: -12, dy: -12)
+                                RoundedRectangle(cornerRadius: 12)
+                                    .frame(width: expanded.width, height: expanded.height)
+                                    .position(x: expanded.midX, y: expanded.midY)
+                                    .blendMode(.destinationOut)
+                            }
+                        }
+                    }
+                    .compositingGroup()
             }
-        }
-        .compositingGroup()
     }
 
     // MARK: - Tooltip Card
@@ -77,7 +87,13 @@ public struct CuttleOnboardingOverlay: View {
 
             if step == .aiSetup {
                 Button("Open Settings") {
-                    store.send(.delegate(.openSettings))
+                    openSettings()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        NotificationCenter.default.post(
+                            name: .selectSettingsTab,
+                            object: SettingsTab.aiProvider
+                        )
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -133,15 +149,13 @@ public struct CuttleOnboardingOverlay: View {
 
     // Constants matching CuttleView
     private static let collapsedSize: CGFloat = 48
-    private static let defaultChatWidth: CGFloat = 380
-    private static let defaultChatHeight: CGFloat = 480
     private static let margin: CGFloat = 8
     private static let topInset: CGFloat = 52
 
     /// The clamped chat window frame, mirroring CuttleView.expandedPosition exactly.
     private var chatWindowFrame: CGRect {
-        let w = Self.defaultChatWidth
-        let h = Self.defaultChatHeight
+        let w = chatSize.width
+        let h = chatSize.height
         let blobOverhead = Self.collapsedSize / 2 + 4
         let minChatCenterY = Self.topInset + blobOverhead + h / 2
 
@@ -177,38 +191,85 @@ public struct CuttleOnboardingOverlay: View {
         return cuttlePosition
     }
 
-    private func spotlightFrame(for step: CuttleOnboardingFeature.OnboardingStep) -> CGRect {
+    private func spotlightFrames(for step: CuttleOnboardingFeature.OnboardingStep) -> [CGRect] {
         switch step.spotlightTarget {
         case .blob:
             let size: CGFloat = 64
             let center = blobCenter
-            return CGRect(
+            return [CGRect(
                 x: center.x - size / 2,
                 y: center.y - size / 2,
                 width: size,
                 height: size
-            )
+            )]
         case .chatWindow:
-            return chatWindowFrame
-        case .filterBar:
-            // Union all status/global drop zone frames to cover the full filter bar
-            let filterFrames = dropZones.filter { zone in
-                if case .global = zone.context { return true }
-                if case .status = zone.context { return true }
-                return false
-            }.map(\.frame)
-            guard let first = filterFrames.first else {
-                return CGRect(x: 200, y: 80, width: windowSize.width - 220, height: 40)
-            }
-            let union = filterFrames.dropFirst().reduce(first) { $0.union($1) }
-            return union
+            return [chatWindowFrame]
+        case .dockTargets:
+            return dockTargetFrames()
         case .none:
-            return .zero
+            return [.zero]
         }
     }
 
+    /// Adjusts a drop zone frame from the cuttle-window coordinate space to the overlay's
+    /// local coordinate space by subtracting the macOS toolbar safe area offset.
+    private func adjustedFrame(_ frame: CGRect) -> CGRect {
+        frame.offsetBy(dx: 0, dy: -safeAreaTopInset)
+    }
+
+    /// Returns separate spotlight rects for the filter bar, swim lane headers, and a sample job card.
+    /// All drop zone frames are adjusted from the cuttle-window coordinate space to the overlay's
+    /// local coordinate space.
+    private func dockTargetFrames() -> [CGRect] {
+        var frames: [CGRect] = []
+
+        let statusGlobalZones = dropZones.filter { zone in
+            if case .global = zone.context { return true }
+            if case .status = zone.context { return true }
+            return false
+        }
+
+        // Filter pills are short capsules (< 45pt tall); kanban headers are taller
+        let pillHeight: CGFloat = 45
+
+        // 1. Filter bar: union of short pill-sized zones (filter row at the top)
+        let filterFrames = statusGlobalZones.filter { $0.frame.height < pillHeight }.map(\.frame)
+        if let first = filterFrames.first {
+            let union = filterFrames.dropFirst().reduce(first) { $0.union($1) }
+            frames.append(adjustedFrame(union))
+        } else {
+            frames.append(CGRect(x: 180, y: 80, width: windowSize.width - 200, height: 40))
+        }
+
+        // 2. Swim lane headers: union of taller status zones (excluding sidebar global)
+        let headerFrames = statusGlobalZones.filter { zone in
+            if case .status = zone.context { return zone.frame.height >= pillHeight }
+            return false
+        }.map(\.frame)
+        if let first = headerFrames.first {
+            let union = headerFrames.dropFirst().reduce(first) { $0.union($1) }
+            frames.append(adjustedFrame(union))
+        }
+
+        // 3. A sample job card: first job drop zone, or a placeholder for fresh users
+        if let firstJob = dropZones.first(where: { if case .job = $0.context { return true }; return false }) {
+            frames.append(adjustedFrame(firstJob.frame))
+        } else {
+            frames.append(CGRect(x: 170, y: 140, width: 240, height: 120))
+        }
+
+        return frames
+    }
+
+    /// Bounding rect of all spotlights, used for tooltip placement.
+    private func spotlightBounds(for step: CuttleOnboardingFeature.OnboardingStep) -> CGRect {
+        let rects = spotlightFrames(for: step).filter { $0 != .zero }
+        guard let first = rects.first else { return .zero }
+        return rects.dropFirst().reduce(first) { $0.union($1) }
+    }
+
     private func tooltipPosition(for step: CuttleOnboardingFeature.OnboardingStep) -> CGPoint {
-        let spotlight = spotlightFrame(for: step)
+        let spotlight = spotlightBounds(for: step)
 
         if spotlight == .zero {
             // Centered card

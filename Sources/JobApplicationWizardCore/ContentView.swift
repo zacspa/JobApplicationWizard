@@ -82,17 +82,20 @@ public struct ContentView: View {
                     .onAppear {
                         store.send(.cuttle(.windowSizeChanged(geo.size)))
                     }
-            }
 
-            // Cuttle onboarding overlay
-            if store.cuttleOnboarding.isActive {
-                CuttleOnboardingOverlay(
-                    store: store.scope(state: \.cuttleOnboarding, action: \.cuttleOnboarding),
-                    cuttlePosition: store.cuttle.position,
-                    cuttleIsExpanded: store.cuttle.isExpanded,
-                    windowSize: store.cuttle.windowSize,
-                    dropZones: store.cuttle.dropZones
-                )
+                // Cuttle onboarding overlay (same GeometryReader for safe area measurement)
+                if store.cuttleOnboarding.isActive {
+                    CuttleOnboardingOverlay(
+                        store: store.scope(state: \.cuttleOnboarding, action: \.cuttleOnboarding),
+                        cuttlePosition: store.cuttle.position,
+                        cuttleIsExpanded: store.cuttle.isExpanded,
+                        chatSize: store.cuttle.chatSize,
+                        isResizing: store.cuttle.isResizing,
+                        windowSize: store.cuttle.windowSize,
+                        dropZones: store.cuttle.dropZones,
+                        safeAreaTopInset: geo.safeAreaInsets.top
+                    )
+                }
             }
         }
         .coordinateSpace(name: "cuttle-window")
