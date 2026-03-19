@@ -219,6 +219,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
     public var chatHistory: [ChatMessage] = []
     public var documents: [JobDocument] = []
     public var tasks: [SubTask] = []
+    public var atsProvider: ATSProvider?
 
     public var displayTitle: String {
         title.isEmpty ? "Untitled Position" : title
@@ -244,7 +245,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         case id, company, title, url, status, dateAdded, dateApplied
         case salary, location, jobDescription, noteCards
         case resumeUsed, coverLetter, labels, contacts, interviews
-        case isFavorite, excitement, hasPDF, pdfPath, chatHistory, documents, tasks
+        case isFavorite, excitement, hasPDF, pdfPath, chatHistory, documents, tasks, atsProvider
         case legacyNotes = "notes"
     }
 
@@ -272,6 +273,7 @@ public struct JobApplication: Codable, Identifiable, Equatable {
         chatHistory  = try c.decodeIfPresent([ChatMessage].self,   forKey: .chatHistory)  ?? []
         documents    = try c.decodeIfPresent([JobDocument].self,  forKey: .documents)    ?? []
         tasks        = try c.decodeIfPresent([SubTask].self,        forKey: .tasks)        ?? []
+        atsProvider  = try c.decodeIfPresent(ATSProvider.self,   forKey: .atsProvider)
 
         if let cards = try c.decodeIfPresent([Note].self, forKey: .noteCards) {
             noteCards = cards
@@ -311,6 +313,37 @@ public struct JobApplication: Codable, Identifiable, Equatable {
             try c.encode(documents, forKey: .documents)
         }
         try c.encode(tasks,          forKey: .tasks)
+        try c.encodeIfPresent(atsProvider, forKey: .atsProvider)
+    }
+}
+
+// MARK: - Company Profile
+
+public struct CompanyProfile: Codable, Identifiable, Equatable {
+    public var id: UUID = UUID()
+    public var name: String
+    public var website: String = ""
+    public var industry: String = ""
+    public var size: String = ""
+    public var description: String = ""
+    public var atsProvider: ATSProvider?
+
+    public init(
+        id: UUID = UUID(),
+        name: String,
+        website: String = "",
+        industry: String = "",
+        size: String = "",
+        description: String = "",
+        atsProvider: ATSProvider? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.website = website
+        self.industry = industry
+        self.size = size
+        self.description = description
+        self.atsProvider = atsProvider
     }
 }
 
@@ -387,11 +420,12 @@ public struct AppSettings: Codable, Equatable {
     public var statusChatHistories: [String: [ChatMessage]] = [:]
     public var agentActionMode: AgentActionMode = .applyImmediately
     public var autoProcessDocuments: Bool = false
+    public var companyProfiles: [CompanyProfile] = []
 
     private enum CodingKeys: String, CodingKey {
         case userProfile, defaultViewMode, aiProvider, selectedACPAgentId
         case cuttleContext, globalChatHistory, statusChatHistories
-        case agentActionMode, autoProcessDocuments
+        case agentActionMode, autoProcessDocuments, companyProfiles
     }
 
     public init() {}
@@ -407,6 +441,7 @@ public struct AppSettings: Codable, Equatable {
         statusChatHistories  = try c.decodeIfPresent([String: [ChatMessage]].self, forKey: .statusChatHistories) ?? [:]
         agentActionMode      = try c.decodeIfPresent(AgentActionMode.self,        forKey: .agentActionMode)      ?? .applyImmediately
         autoProcessDocuments = try c.decodeIfPresent(Bool.self,                    forKey: .autoProcessDocuments) ?? false
+        companyProfiles      = try c.decodeIfPresent([CompanyProfile].self,       forKey: .companyProfiles)      ?? []
     }
 }
 

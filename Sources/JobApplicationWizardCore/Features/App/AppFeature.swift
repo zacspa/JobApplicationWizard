@@ -294,7 +294,11 @@ public struct AppFeature {
                 return .merge(saveJobs(state.jobs), recordEvent(event, state: &state))
 
             case .prepareAddJob:
-                state.addJob = AddJobFeature.State()
+                var addState = AddJobFeature.State()
+                addState.apiKey = state.claudeAPIKey
+                addState.aiProvider = state.settings.aiProvider
+                addState.entryMode = addState.hasAIAgent ? .aiImport : .manual
+                state.addJob = addState
                 return .none
 
             case .addJob(.delegate(.save(let job))):
@@ -305,6 +309,22 @@ public struct AppFeature {
                 )
                 state.addJob = AddJobFeature.State()
                 state.cuttle.jobs = Array(state.jobs)
+
+                // Upsert CompanyProfile
+                if !job.company.isEmpty {
+                    if let idx = state.settings.companyProfiles.firstIndex(where: {
+                        $0.name.lowercased() == job.company.lowercased()
+                    }) {
+                        if let ats = job.atsProvider {
+                            state.settings.companyProfiles[idx].atsProvider = ats
+                        }
+                    } else {
+                        state.settings.companyProfiles.append(
+                            CompanyProfile(name: job.company, atsProvider: job.atsProvider)
+                        )
+                    }
+                }
+
                 let event = HistoryEvent(
                     label: "Added \(job.displayCompany) \(job.displayTitle)",
                     source: .user,
