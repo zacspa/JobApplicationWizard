@@ -70,13 +70,15 @@ public struct CalendarClient {
 
 // MARK: - CGColor Helper
 
-private func cgColorToHex(_ cgColor: CGColor) -> String {
-    guard let components = cgColor.components, components.count >= 3 else {
+func cgColorToHex(_ cgColor: CGColor) -> String {
+    let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
+    guard let converted = cgColor.converted(to: srgb, intent: .defaultIntent, options: nil),
+          let components = converted.components, components.count >= 3 else {
         return "#808080"
     }
-    let r = Int((components[0] * 255).rounded())
-    let g = Int((components[1] * 255).rounded())
-    let b = Int((components[2] * 255).rounded())
+    let r = Int(min(max(components[0], 0), 1) * 255)
+    let g = Int(min(max(components[1], 0), 1) * 255)
+    let b = Int(min(max(components[2], 0), 1) * 255)
     return String(format: "#%02X%02X%02X", r, g, b)
 }
 

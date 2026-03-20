@@ -2,6 +2,20 @@ import AppKit
 import ComposableArchitecture
 import Foundation
 
+public struct CalendarSyncUpdate: Equatable, Sendable {
+    public let jobId: UUID
+    public let interviewId: UUID
+    public let oldDate: Date?
+    public let newDate: Date
+    public let jobCompany: String
+    public let roundNumber: Int
+}
+
+public struct CalendarSyncMissing: Equatable, Sendable {
+    public let jobId: UUID
+    public let interviewId: UUID
+}
+
 public enum ViewMode: String, Codable, CaseIterable, Equatable {
     case kanban = "Kanban"
     case list = "List"
@@ -144,7 +158,7 @@ public struct AppFeature {
         case recordBindingEdit(UUID)
         // Calendar sync
         case appDidBecomeActive
-        case calendarSyncCompleted(updates: [(jobId: UUID, interviewId: UUID, oldDate: Date?, newDate: Date, jobCompany: String, roundNumber: Int)], missing: [(jobId: UUID, interviewId: UUID)])
+        case calendarSyncCompleted(updates: [CalendarSyncUpdate], missing: [CalendarSyncMissing])
         case dismissCalendarSyncToast
     }
 
@@ -907,17 +921,17 @@ public struct AppFeature {
                 }
                 guard !linkedRounds.isEmpty else { return .none }
                 return .run { [linkedRounds] send in
-                    var updates: [(jobId: UUID, interviewId: UUID, oldDate: Date?, newDate: Date, jobCompany: String, roundNumber: Int)] = []
-                    var missing: [(jobId: UUID, interviewId: UUID)] = []
+                    var updates: [CalendarSyncUpdate] = []
+                    var missing: [CalendarSyncMissing] = []
                     for (job, round) in linkedRounds {
                         guard let identifier = round.calendarEventIdentifier else { continue }
                         let event = try? await calendarClient.fetchEvent(identifier)
                         if let event {
                             if let roundDate = round.date, abs(event.startDate.timeIntervalSince(roundDate)) > 60 {
-                                updates.append((job.id, round.id, round.date, event.startDate, job.displayCompany, round.round))
+                                updates.append(CalendarSyncUpdate(jobId: job.id, interviewId: round.id, oldDate: round.date, newDate: event.startDate, jobCompany: job.displayCompany, roundNumber: round.round))
                             }
                         } else {
-                            missing.append((job.id, round.id))
+                            missing.append(CalendarSyncMissing(jobId: job.id, interviewId: round.id))
                         }
                     }
                     await send(.calendarSyncCompleted(updates: updates, missing: missing))

@@ -1092,7 +1092,6 @@ struct InterviewRoundRow: View {
                     Spacer()
                     Button("Unlink") {
                         store.send(.unlinkCalendarEvent(interviewId: round.id))
-                        store.send(.dismissCalendarSyncWarning(interviewId: round.id))
                     }
                     .font(.footnote)
                 }

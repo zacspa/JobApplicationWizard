@@ -617,6 +617,31 @@ final class JobDetailFeatureTests: XCTestCase {
         await store.receive(\.delegate.jobUpdated)
     }
 
+    func testUnlinkCalendarEventAlsoClearsSyncWarning() async {
+        let interviewId = UUID()
+        var interview = InterviewRound(id: interviewId, round: 1)
+        interview.calendarEventIdentifier = "event-missing"
+        let job = JobApplication.mock(interviews: [interview])
+        var state = JobDetailFeature.State(job: job)
+        state.calendarSyncWarnings[interviewId] = .eventMissing
+
+        let store = TestStore(initialState: state) {
+            JobDetailFeature()
+        }
+
+        await store.send(.unlinkCalendarEvent(interviewId: interviewId)) {
+            $0.interviews[0].calendarEventIdentifier = nil
+            $0.interviews[0].calendarEventTitle = nil
+            $0.job.interviews[0].calendarEventIdentifier = nil
+            $0.job.interviews[0].calendarEventTitle = nil
+            $0.calendarSyncWarnings[interviewId] = nil
+        }
+        await store.receive(\.delegate.jobUpdated)
+
+        XCTAssertNil(store.state.calendarSyncWarnings[interviewId])
+        XCTAssertNil(store.state.interviews[0].calendarEventIdentifier)
+    }
+
     func testUnlinkCalendarEventOnlyAffectsCorrectRound() async {
         let interviewId1 = UUID()
         let interviewId2 = UUID()

@@ -174,7 +174,7 @@ final class AppFeatureCalendarSyncTests: XCTestCase {
         store.exhaustivity = .off
 
         await store.send(.calendarSyncCompleted(
-            updates: [(jobId: jobId, interviewId: interviewId, oldDate: nil, newDate: syncedDate, jobCompany: "Acme Corp", roundNumber: 1)],
+            updates: [CalendarSyncUpdate(jobId: jobId, interviewId: interviewId, oldDate: nil, newDate: syncedDate, jobCompany: "Acme Corp", roundNumber: 1)],
             missing: []
         )) { state in
             XCTAssertEqual(state.jobs[id: self.jobId]?.interviews.first?.date, syncedDate)
@@ -229,12 +229,12 @@ final class AppFeatureCalendarSyncTests: XCTestCase {
         store.exhaustivity = .off
 
         await store.send(.calendarSyncCompleted(
-            updates: [(jobId: jobId, interviewId: interviewId, oldDate: now, newDate: rescheduledDate1, jobCompany: "Acme Corp", roundNumber: 1)],
+            updates: [CalendarSyncUpdate(jobId: jobId, interviewId: interviewId, oldDate: now, newDate: rescheduledDate1, jobCompany: "Acme Corp", roundNumber: 1)],
             missing: []
         ))
         // Second sync immediately cancels the first toast dismiss timer
         await store.send(.calendarSyncCompleted(
-            updates: [(jobId: jobId, interviewId: interviewId2, oldDate: now, newDate: rescheduledDate2, jobCompany: "Acme Corp", roundNumber: 2)],
+            updates: [CalendarSyncUpdate(jobId: jobId, interviewId: interviewId2, oldDate: now, newDate: rescheduledDate2, jobCompany: "Acme Corp", roundNumber: 2)],
             missing: []
         )) { state in
             XCTAssertTrue(state.calendarSyncToast?.contains("Round 2") == true)
@@ -262,8 +262,8 @@ final class AppFeatureCalendarSyncTests: XCTestCase {
 
         await store.send(.calendarSyncCompleted(
             updates: [
-                (jobId: jobId, interviewId: interviewId, oldDate: now, newDate: rescheduledDate, jobCompany: "Acme Corp", roundNumber: 1),
-                (jobId: jobId, interviewId: interviewId2, oldDate: now, newDate: rescheduledDate, jobCompany: "Acme Corp", roundNumber: 2),
+                CalendarSyncUpdate(jobId: jobId, interviewId: interviewId, oldDate: now, newDate: rescheduledDate, jobCompany: "Acme Corp", roundNumber: 1),
+                CalendarSyncUpdate(jobId: jobId, interviewId: interviewId2, oldDate: now, newDate: rescheduledDate, jobCompany: "Acme Corp", roundNumber: 2),
             ],
             missing: []
         )) { state in

@@ -380,6 +380,7 @@ public struct JobDetailFeature {
                     state.interviews[idx].calendarEventIdentifier = nil
                     state.interviews[idx].calendarEventTitle = nil
                 }
+                state.calendarSyncWarnings.removeValue(forKey: interviewId)
                 state.syncJobFromFields()
                 return .send(.delegate(.jobUpdated(state.job)))
 

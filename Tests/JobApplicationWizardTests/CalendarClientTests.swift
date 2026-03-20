@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import CoreGraphics
 import XCTest
 @testable import JobApplicationWizardCore
 
@@ -185,6 +186,25 @@ final class CalendarClientTests: XCTestCase {
         await store.receive(\.saveSettingsKey)
 
         XCTAssertFalse(requestAccessCalled.value, "Calendar permission must not be requested on app launch")
+    }
+
+    // MARK: - cgColorToHex P3 clamping
+
+    func testCgColorToHexClampsP3ComponentsToSRGB() {
+        // Extended-sRGB allows component values outside [0, 1]. The old code
+        // multiplied those directly by 255, producing values like 382 which
+        // overflowed the two-digit hex format. Verify the fix clamps correctly.
+        guard let extendedSRGB = CGColorSpace(name: CGColorSpace.extendedSRGB),
+              let outOfGamutColor = CGColor(colorSpace: extendedSRGB, components: [1.5, 0.5, -0.2, 1.0]) else {
+            XCTFail("Could not create extended-sRGB test color")
+            return
+        }
+
+        let hex = cgColorToHex(outOfGamutColor)
+
+        XCTAssertEqual(hex.count, 7, "Hex string must be exactly 7 characters (#RRGGBB)")
+        XCTAssertTrue(hex.hasPrefix("#"))
+        XCTAssertTrue(String(hex.dropFirst()).allSatisfy { $0.isHexDigit }, "All characters after # must be hex digits")
     }
 
     // MARK: - fetchEvent
