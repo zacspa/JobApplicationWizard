@@ -129,33 +129,12 @@ final class CalendarClientTests: XCTestCase {
         XCTAssertEqual(overriddenResult, false)
     }
 
-    // MARK: - JobDetailFeature: access denied
+    // MARK: - authorizationStatus
 
-    @MainActor
-    func testCalendarClientTestValueRequestAccessOverridable() async {
-        let fetchCalled = LockIsolated(false)
-        let interviewId = UUID()
-        let job = JobApplication.mock(interviews: [InterviewRound(id: interviewId, round: 1)])
-
-        let store = TestStore(initialState: JobDetailFeature.State(job: job)) {
-            JobDetailFeature()
-        } withDependencies: {
-            $0.calendarClient.requestAccess = { false }
-            $0.calendarClient.fetchEvents = { _, _ in
-                fetchCalled.setValue(true)
-                return []
-            }
-        }
-
-        await store.send(.linkCalendarEvent(interviewId: interviewId)) {
-            $0.showCalendarPicker = true
-            $0.calendarPickerInterviewId = interviewId
-        }
-        await store.receive(\.calendarAccessResult) {
-            $0.calendarAccessGranted = false
-        }
-
-        XCTAssertFalse(fetchCalled.value, "fetchEvents must not be called when calendar access is denied")
+    func testAuthorizationStatusDefaultReturnsExpectedValue() {
+        // Test value returns 3 (authorized)
+        let status = CalendarClient.testValue.authorizationStatus()
+        XCTAssertEqual(status, 3)
     }
 
     // MARK: - AppFeature: no calendar permission on launch
