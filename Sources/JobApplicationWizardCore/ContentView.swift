@@ -37,7 +37,7 @@ public struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 420, ideal: 540)
             } detail: {
                 if let detailStore = store.scope(state: \.jobDetail, action: \.jobDetail) {
-                    JobDetailView(store: detailStore)
+                    JobDetailView(store: detailStore, calendarStore: store.scope(state: \.calendar, action: \.calendar))
                         .modifier(DetailColumnWidth())
                         .id(store.selectedJobID)
                 } else {
@@ -108,7 +108,7 @@ public struct ContentView: View {
         }
         .onAppear { store.send(.onAppear) }
         .overlay(alignment: .bottom) {
-            if let toast = store.calendarSyncToast {
+            if let toast = store.calendar.syncToast {
                 Text(toast)
                     .padding(.horizontal, 16).padding(.vertical, 10)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
@@ -116,7 +116,7 @@ public struct ContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring, value: store.calendarSyncToast)
+        .animation(.spring, value: store.calendar.syncToast)
         .alert("Data Error", isPresented: Binding(
             get: { store.saveError != nil },
             set: { if !$0 { store.send(.dismissSaveError) } }
