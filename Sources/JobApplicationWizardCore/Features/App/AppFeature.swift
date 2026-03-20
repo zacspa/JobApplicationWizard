@@ -2,20 +2,6 @@ import AppKit
 import ComposableArchitecture
 import Foundation
 
-public struct CalendarSyncUpdate: Equatable, Sendable {
-    public let jobId: UUID
-    public let interviewId: UUID
-    public let oldDate: Date?
-    public let newDate: Date
-    public let jobCompany: String
-    public let roundNumber: Int
-}
-
-public struct CalendarSyncMissing: Equatable, Sendable {
-    public let jobId: UUID
-    public let interviewId: UUID
-}
-
 public enum ViewMode: String, Codable, CaseIterable, Equatable {
     case kanban = "Kanban"
     case list = "List"
@@ -30,7 +16,7 @@ public enum ViewMode: String, Codable, CaseIterable, Equatable {
 
 @Reducer
 public struct AppFeature {
-    private enum CancelID { case acpCrashMonitor, save, saveSettings, bindingDebounce, calendarActivate, calendarToastDismiss }
+    private enum CancelID { case acpCrashMonitor, save, saveSettings, bindingDebounce }
 
     @ObservableState
     public struct State: Equatable {
@@ -67,8 +53,8 @@ public struct AppFeature {
         public var undoStack: [HistoryEvent] = []
         public var redoStack: [HistoryEvent] = []
 
-        // Calendar sync toast
-        public var calendarSyncToast: String? = nil
+        // Calendar
+        public var calendar: CalendarFeature.State = CalendarFeature.State()
 
         // Binding debounce tracking
         public var lastBindingJobId: UUID? = nil
@@ -156,10 +142,8 @@ public struct AppFeature {
         case redo
         // History debounce
         case recordBindingEdit(UUID)
-        // Calendar sync
-        case appDidBecomeActive
-        case calendarSyncCompleted(updates: [CalendarSyncUpdate], missing: [CalendarSyncMissing])
-        case dismissCalendarSyncToast
+        // Calendar
+        case calendar(CalendarFeature.Action)
     }
 
     @Dependency(\.persistenceClient) var persistence
@@ -168,7 +152,6 @@ public struct AppFeature {
     @Dependency(\.acpRegistryClient) var acpRegistry
     @Dependency(\.historyClient) var historyClient
     @Dependency(\.documentClient) var documentClient
-    @Dependency(\.calendarClient) var calendarClient
 
     public init() {}
 
@@ -176,6 +159,7 @@ public struct AppFeature {
         Scope(state: \.addJob, action: \.addJob) { AddJobFeature() }
         Scope(state: \.cuttle, action: \.cuttle) { CuttleFeature() }
         Scope(state: \.history, action: \.history) { HistoryFeature() }
+        Scope(state: \.calendar, action: \.calendar) { CalendarFeature() }
         Reduce { state, action in
             switch action {
             case .onAppear:
@@ -188,12 +172,7 @@ public struct AppFeature {
                         await send(.settingsLoaded(await settings))
                         await send(.saveSettingsKey(apiKey))
                     },
-                    .run { send in
-                        for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
-                            await send(.appDidBecomeActive)
-                        }
-                    }
-                    .cancellable(id: CancelID.calendarActivate, cancelInFlight: true)
+                    .send(.calendar(.startListening))
                 )
 
             case .jobsLoaded(.success(let jobs)):
@@ -911,35 +890,44 @@ public struct AppFeature {
                 }
                 return .none
 
-            // MARK: - Calendar Sync (App-level)
+            // MARK: - Calendar Delegates
 
-            case .appDidBecomeActive:
-                let linkedRounds = state.jobs.flatMap { job in
-                    job.interviews
-                        .filter { $0.calendarEventIdentifier != nil }
-                        .map { (job: job, round: $0) }
-                }
-                guard !linkedRounds.isEmpty else { return .none }
-                return .run { [linkedRounds] send in
-                    var updates: [CalendarSyncUpdate] = []
-                    var missing: [CalendarSyncMissing] = []
-                    for (job, round) in linkedRounds {
-                        guard let identifier = round.calendarEventIdentifier else { continue }
-                        let event = try? await calendarClient.fetchEvent(identifier)
-                        if let event {
-                            if let roundDate = round.date, abs(event.startDate.timeIntervalSince(roundDate)) > 60 {
-                                updates.append(CalendarSyncUpdate(jobId: job.id, interviewId: round.id, oldDate: round.date, newDate: event.startDate, jobCompany: job.displayCompany, roundNumber: round.round))
-                            }
-                        } else {
-                            missing.append(CalendarSyncMissing(jobId: job.id, interviewId: round.id))
-                        }
+            case .calendar(.delegate(.eventLinked(let jobId, let interviewId, let event))):
+                if var job = state.jobs[id: jobId],
+                   let idx = job.interviews.firstIndex(where: { $0.id == interviewId }) {
+                    job.interviews[idx].calendarEventIdentifier = event.id
+                    job.interviews[idx].calendarEventTitle = event.title
+                    job.interviews[idx].date = event.startDate
+                    if job.interviews[idx].type.isEmpty {
+                        job.interviews[idx].type = event.title
                     }
-                    await send(.calendarSyncCompleted(updates: updates, missing: missing))
+                    state.jobs[id: jobId] = job
+                    if state.jobDetail?.job.id == jobId {
+                        state.jobDetail = JobDetailFeature.State(
+                            job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                        )
+                    }
                 }
+                state.cuttle.jobs = Array(state.jobs)
+                return saveJobs(state.jobs)
 
-            case .calendarSyncCompleted(let updates, let missing):
+            case .calendar(.delegate(.eventUnlinked(let jobId, let interviewId))):
+                if var job = state.jobs[id: jobId],
+                   let idx = job.interviews.firstIndex(where: { $0.id == interviewId }) {
+                    job.interviews[idx].calendarEventIdentifier = nil
+                    job.interviews[idx].calendarEventTitle = nil
+                    state.jobs[id: jobId] = job
+                    if state.jobDetail?.job.id == jobId {
+                        state.jobDetail = JobDetailFeature.State(
+                            job: job, apiKey: state.claudeAPIKey, userProfile: state.settings.userProfile
+                        )
+                    }
+                }
+                state.cuttle.jobs = Array(state.jobs)
+                return saveJobs(state.jobs)
+
+            case .calendar(.delegate(.interviewDatesUpdated(let updates))):
                 var effects: [Effect<Action>] = []
-
                 for update in updates {
                     if var job = state.jobs[id: update.jobId],
                        let roundIdx = job.interviews.firstIndex(where: { $0.id == update.interviewId }) {
@@ -963,40 +951,17 @@ public struct AppFeature {
                     )
                     effects.append(recordEvent(event, state: &state))
                 }
-
-                if updates.count == 1 {
-                    let update = updates[0]
-                    let formatter = DateFormatter()
-                    formatter.dateStyle = .medium
-                    formatter.timeStyle = .short
-                    state.calendarSyncToast = "Round \(update.roundNumber) for \(update.jobCompany) updated to \(formatter.string(from: update.newDate))"
-                } else if updates.count > 1 {
-                    state.calendarSyncToast = "\(updates.count) interview dates updated from Calendar"
-                }
-
-                if !updates.isEmpty {
-                    effects.append(saveJobs(state.jobs))
-                }
-
-                if state.calendarSyncToast != nil {
-                    effects.append(
-                        .run { send in
-                            try await Task.sleep(for: .seconds(4))
-                            await send(.dismissCalendarSyncToast)
-                        }
-                        .cancellable(id: CancelID.calendarToastDismiss, cancelInFlight: true)
-                    )
-                }
-
-                for miss in missing where state.selectedJobID == miss.jobId {
-                    state.jobDetail?.calendarSyncWarnings[miss.interviewId] = .eventMissing
-                }
-
-                if effects.isEmpty { return .none }
+                effects.append(saveJobs(state.jobs))
                 return .merge(effects)
 
-            case .dismissCalendarSyncToast:
-                state.calendarSyncToast = nil
+            case .calendar(.delegate(.missingEventsDetected)):
+                // Warnings are stored in CalendarFeature.State.syncWarnings
+                return .none
+
+            case .calendar(.delegate(.needsJobsForSync)):
+                return .send(.calendar(.performSync(state.jobs)))
+
+            case .calendar:
                 return .none
 
             // MARK: - Undo / Redo

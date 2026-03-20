@@ -5,9 +5,11 @@ import ComposableArchitecture
 
 public struct JobDetailView: View {
     @Bindable var store: StoreOf<JobDetailFeature>
+    let calendarStore: StoreOf<CalendarFeature>
 
-    public init(store: StoreOf<JobDetailFeature>) {
+    public init(store: StoreOf<JobDetailFeature>, calendarStore: StoreOf<CalendarFeature>) {
         self.store = store
+        self.calendarStore = calendarStore
     }
 
     public var body: some View {
@@ -67,7 +69,7 @@ public struct JobDetailView: View {
         case .description: DescriptionTab(store: store)
         case .notes: NotesTab(store: store)
         case .contacts: ContactsTab(store: store)
-        case .interviews: InterviewsTab(store: store)
+        case .interviews: InterviewsTab(store: store, calendarStore: calendarStore)
         case .documents: DocumentsTab(store: store)
         }
     }
@@ -958,6 +960,7 @@ struct ContactRow: View {
 
 struct InterviewsTab: View {
     @Bindable var store: StoreOf<JobDetailFeature>
+    let calendarStore: StoreOf<CalendarFeature>
 
     var body: some View {
         VStack(spacing: 0) {
@@ -994,7 +997,7 @@ struct InterviewsTab: View {
                                     store.send(.binding(.set(\.interviews, copy)))
                                 }
                             }
-                        ), store: store)
+                        ), jobId: store.job.id, calendarStore: calendarStore)
                         .contextMenu {
                             Button(role: .destructive) {
                                 if let idx = store.interviews.firstIndex(where: { $0.id == round.id }) {
@@ -1017,7 +1020,8 @@ struct InterviewsTab: View {
 
 struct InterviewRoundRow: View {
     @Binding var round: InterviewRound
-    let store: StoreOf<JobDetailFeature>
+    let jobId: UUID
+    let calendarStore: StoreOf<CalendarFeature>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -1067,23 +1071,23 @@ struct InterviewRoundRow: View {
                             .font(.footnote).foregroundColor(.secondary)
                     }
                     Button("Unlink") {
-                        store.send(.unlinkCalendarEvent(interviewId: round.id))
+                        calendarStore.send(.unlinkEvent(jobId: jobId, interviewId: round.id))
                     }
                     .font(.footnote)
                 }
-            } else if store.calendarAccessGranted == false {
+            } else if calendarStore.accessGranted == false {
                 Text("Calendar access required in System Settings to link events.")
                     .foregroundColor(.secondary)
                     .font(.footnote)
             } else {
                 Button {
-                    store.send(.linkCalendarEvent(interviewId: round.id))
+                    calendarStore.send(.openPicker(jobId: jobId, interviewId: round.id))
                 } label: {
                     Label("Link Calendar Event", systemImage: "link")
                 }
                 .font(.footnote)
             }
-            if let warning = store.calendarSyncWarnings[round.id], warning == .eventMissing {
+            if let warning = calendarStore.syncWarnings[InterviewKey(jobId: jobId, interviewId: round.id)], warning == .eventMissing {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.yellow)
@@ -1091,7 +1095,7 @@ struct InterviewRoundRow: View {
                         .font(.footnote)
                     Spacer()
                     Button("Unlink") {
-                        store.send(.unlinkCalendarEvent(interviewId: round.id))
+                        calendarStore.send(.unlinkEvent(jobId: jobId, interviewId: round.id))
                     }
                     .font(.footnote)
                 }
@@ -1099,17 +1103,17 @@ struct InterviewRoundRow: View {
         }
         .padding(.vertical, 4)
         .popover(isPresented: Binding(
-            get: { store.showCalendarPicker && store.calendarPickerInterviewId == round.id },
-            set: { if !$0 { store.send(.dismissCalendarPicker) } }
+            get: { calendarStore.showPicker && calendarStore.pickerInterviewId == round.id },
+            set: { if !$0 { calendarStore.send(.dismissPicker) } }
         )) {
             CalendarEventPickerView(
-                events: store.calendarEvents,
+                events: calendarStore.events,
                 searchQuery: Binding(
-                    get: { store.calendarSearchQuery },
-                    set: { store.send(.calendarSearchQueryChanged($0)) }
+                    get: { calendarStore.searchQuery },
+                    set: { calendarStore.send(.searchQueryChanged($0)) }
                 ),
-                onSelect: { event in store.send(.calendarEventSelected(interviewId: round.id, event: event)) },
-                onCancel: { store.send(.dismissCalendarPicker) }
+                onSelect: { event in calendarStore.send(.eventSelected(event)) },
+                onCancel: { calendarStore.send(.dismissPicker) }
             )
         }
     }
