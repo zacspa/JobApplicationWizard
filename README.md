@@ -186,4 +186,4 @@ Sources/
 
 ## License
 
-MIT
+GPLv3
