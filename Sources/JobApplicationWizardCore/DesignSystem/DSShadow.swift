@@ -13,7 +13,7 @@ extension DS {
         /// Floating panel shadow (Cuttle expanded, popovers)
         public static let floating = ShadowStyle(color: SwiftUI.Color.black.opacity(0.3), radius: 12, y: 4)
         /// No shadow
-        public static let none = ShadowStyle(color: SwiftUI.Color.clear, radius: 0, y: 0)
+        public static let noShadow = ShadowStyle(color: SwiftUI.Color.clear, radius: 0, y: 0)
     }
 }
 

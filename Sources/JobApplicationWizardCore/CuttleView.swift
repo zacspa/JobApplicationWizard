@@ -42,6 +42,7 @@ public struct CuttleView: View {
             // Main Cuttle content
             if store.isExpanded {
                 expandedView
+                    .compositingGroup()
                     .position(expandedPosition)
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
             }
@@ -260,8 +261,9 @@ public struct CuttleView: View {
             }
         }
         .frame(width: chatSize.width, height: chatSize.height)
-        .glassSurface(radius: DS.Radius.xxl)
+        .glassSurface(radius: DS.Radius.xxl, shadow: DS.Shadow.noShadow)
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xxl))
+        .dsShadow(DS.Shadow.floating)
         .overlay(alignment: .bottomTrailing) {
             resizeHandle
         }

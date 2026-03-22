@@ -284,7 +284,7 @@ struct ShadowsShowcase: View {
                     RoundedRectangle(cornerRadius: DS.Radius.medium)
                         .fill(DS.Color.controlBackground)
                         .frame(width: 160, height: 100)
-                        .dsShadow(DS.Shadow.none)
+                        .dsShadow(DS.Shadow.noShadow)
                     Text("none").font(DS.Typography.caption)
                     Text("Flat elements").font(DS.Typography.micro)
                         .foregroundColor(DS.Color.textSecondary)
