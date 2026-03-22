@@ -119,7 +119,7 @@ public struct CuttleView: View {
     // MARK: - Blob View (collapsed bubble)
 
     private var blobView: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: DS.Spacing.xxs) {
             JitterCircle(
                 size: store.isDragging ? Self.expandedSize : Self.collapsedSize,
                 mood: store.mood
@@ -127,11 +127,11 @@ public struct CuttleView: View {
 
             // Context label
             Text(store.currentContext.displayLabel(jobs: store.jobs))
-                .font(.system(size: 9, weight: .medium))
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 6)
+                .font(DS.Typography.micro)
+                .foregroundColor(DS.Color.textSecondary)
+                .padding(.horizontal, DS.Spacing.xs)
                 .padding(.vertical, 2)
-                .background(.ultraThinMaterial, in: Capsule())
+                .background(DS.Glass.surface, in: Capsule())
                 .lineLimit(1)
                 .frame(maxWidth: 120)
         }
@@ -197,11 +197,11 @@ public struct CuttleView: View {
             Divider()
 
             if store.acpConnection.isConnecting {
-                VStack(spacing: 12) {
+                VStack(spacing: DS.Spacing.md) {
                     Spacer()
                     ProgressView().controlSize(.regular)
                     Text("Connecting to AI agent...")
-                        .font(.subheadline).foregroundColor(.secondary)
+                        .font(DS.Typography.subheadline).foregroundColor(DS.Color.textSecondary)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
@@ -211,7 +211,7 @@ public struct CuttleView: View {
                 // Chat messages
                 ScrollViewReader { proxy in
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: DS.Spacing.md) {
                             if store.chatMessages.isEmpty {
                                 emptyStateView
                             } else {
@@ -230,7 +230,7 @@ public struct CuttleView: View {
                             }
                             Color.clear.frame(height: 1).id("bottom")
                         }
-                        .padding(16)
+                        .padding(DS.Spacing.lg)
                     }
                     .onChange(of: store.chatMessages.count) { _, _ in
                         Task { @MainActor in
@@ -260,16 +260,11 @@ public struct CuttleView: View {
             }
         }
         .frame(width: chatSize.width, height: chatSize.height)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-        )
+        .glassSurface(radius: DS.Radius.xxl)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xxl))
         .overlay(alignment: .bottomTrailing) {
             resizeHandle
         }
-        .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
     }
 
     // MARK: - Resize Handle
@@ -300,15 +295,15 @@ public struct CuttleView: View {
                         )
                     }
             )
-            .padding(6)
+            .padding(DS.Spacing.xs)
     }
 
     // MARK: - Header Bar
 
     private var headerBar: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DS.Spacing.xs) {
             Text(store.currentContext.displayLabel(jobs: store.jobs))
-                .font(.caption).fontWeight(.semibold)
+                .font(DS.Typography.caption).fontWeight(.semibold)
                 .lineLimit(1)
 
             Spacer()
@@ -316,17 +311,17 @@ public struct CuttleView: View {
             if store.acpConnection.aiProvider == .acpAgent, let name = store.acpConnection.connectedAgentName {
                 Circle().fill(Color.green).frame(width: 6, height: 6)
                 Text(name)
-                    .font(.caption2).foregroundColor(.secondary)
+                    .font(DS.Typography.caption2).foregroundColor(DS.Color.textSecondary)
                     .lineLimit(1)
             } else if store.acpConnection.aiProvider == .claudeAPI && store.tokenUsage.totalTokens > 0 {
                 Text("\(store.tokenUsage.totalTokens.formatted()) tok")
-                    .font(.caption2).foregroundColor(.secondary)
+                    .font(DS.Typography.caption2).foregroundColor(DS.Color.textSecondary)
                 Text(String(format: "~$%.4f", store.tokenUsage.estimatedCost))
-                    .font(.caption2).foregroundColor(.secondary)
+                    .font(DS.Typography.caption2).foregroundColor(DS.Color.textSecondary)
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 8)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        .padding(.horizontal, DS.Spacing.lg).padding(.vertical, DS.Spacing.sm)
+        .background(DS.Color.controlBackground.opacity(0.5))
         .contentShape(Rectangle())
         .gesture(
             DragGesture(coordinateSpace: .named("cuttle-window"))
@@ -342,18 +337,18 @@ public struct CuttleView: View {
     // MARK: - Empty State
 
     private var emptyStateView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DS.Spacing.md) {
             if store.acpConnection.aiProvider == .acpAgent, let name = store.acpConnection.connectedAgentName {
                 Text("Connected to \(name)")
-                    .font(.subheadline).fontWeight(.medium)
+                    .font(DS.Typography.subheadline).fontWeight(.medium)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text("AI Assistant")
-                    .font(.subheadline).fontWeight(.medium)
+                    .font(DS.Typography.subheadline).fontWeight(.medium)
             }
 
             Text(contextHelpText)
-                .font(.caption).foregroundColor(.secondary)
+                .font(DS.Typography.caption).foregroundColor(DS.Color.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 300)
@@ -424,20 +419,20 @@ public struct CuttleView: View {
             Spacer()
             Image(systemName: store.acpConnection.aiProvider == .claudeAPI ? "key.fill" : "cpu")
                 .font(.system(size: 32))
-                .foregroundColor(.secondary)
+                .foregroundColor(DS.Color.textSecondary)
 
             if store.acpConnection.aiProvider == .acpAgent {
                 Text("Connect an AI Agent")
-                    .font(.headline)
+                    .font(DS.Typography.heading3)
                 Text("Open Settings to connect an ACP-compatible agent.")
-                    .font(.subheadline).foregroundColor(.secondary)
+                    .font(DS.Typography.subheadline).foregroundColor(DS.Color.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 300)
             } else {
                 Text("Add Your API Key")
-                    .font(.headline)
+                    .font(DS.Typography.heading3)
                 Text("Enter your Claude API key in Settings.")
-                    .font(.subheadline).foregroundColor(.secondary)
+                    .font(DS.Typography.subheadline).foregroundColor(DS.Color.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 300)
             }
@@ -454,7 +449,7 @@ public struct CuttleView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, DS.Spacing.lg)
     }
 
     // MARK: - Helpers

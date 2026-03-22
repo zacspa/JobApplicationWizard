@@ -13,7 +13,7 @@ public struct AddJobView: View {
         VStack(spacing: 0) {
             HStack {
                 Text("New Job Application")
-                    .font(.headline)
+                    .font(DS.Typography.heading3)
                 Spacer()
                 Button("Cancel") {
                     store.send(.cancelTapped)
@@ -27,18 +27,23 @@ public struct AddJobView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(!store.canSave)
             }
-            .padding(16)
-            .background(Color(NSColor.windowBackgroundColor))
+            .padding(DS.Spacing.lg)
+            .background(DS.Color.windowBackground)
 
             Divider()
 
             Form {
                 Section("Basic Info") {
-                    TextField("Company", text: $store.company)
-                    TextField("Job Title", text: $store.title)
-                    TextField("Job URL", text: $store.url)
-                    TextField("Location", text: $store.location)
-                    TextField("Salary Range", text: $store.salary)
+                    DSTextField("Company", text: $store.company)
+                        .outlinedField("Company", isEmpty: store.company.isEmpty)
+                    DSTextField("Job Title", text: $store.title)
+                        .outlinedField("Job Title", isEmpty: store.title.isEmpty)
+                    DSTextField("Job URL", text: $store.url)
+                        .outlinedField("URL", isEmpty: store.url.isEmpty)
+                    DSTextField("Location", text: $store.location)
+                        .outlinedField("Location", isEmpty: store.location.isEmpty)
+                    DSTextField("Salary Range", text: $store.salary)
+                        .outlinedField("Salary", isEmpty: store.salary.isEmpty)
                 }
 
                 Section("Status & Excitement") {
@@ -59,20 +64,20 @@ public struct AddJobView: View {
                 }
 
                 Section("Labels") {
-                    FlowLayout(spacing: 6) {
+                    FlowLayout(spacing: DS.Spacing.xs) {
                         ForEach(JobLabel.presets) { label in
                             let selected = store.selectedLabelNames.contains(label.name)
                             Button { store.send(.toggleLabel(label.name)) } label: {
-                                HStack(spacing: 4) {
+                                HStack(spacing: DS.Spacing.xxs) {
                                     if selected {
                                         Image(systemName: "checkmark")
                                             .font(.system(size: 9, weight: .bold))
                                     }
-                                    Text(label.name).font(.caption)
+                                    Text(label.name).font(DS.Typography.caption)
                                 }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(selected ? label.color.opacity(0.25) : Color.secondary.opacity(0.08))
+                                .padding(.horizontal, DS.Spacing.sm)
+                                .padding(.vertical, DS.Spacing.xxs)
+                                .background(selected ? label.color.opacity(DS.Color.Opacity.strong) : Color.secondary.opacity(DS.Color.Opacity.subtle))
                                 .foregroundColor(selected ? label.color : .secondary)
                                 .clipShape(Capsule())
                                 .overlay(Capsule().strokeBorder(selected ? label.color : Color.clear, lineWidth: 1))
@@ -80,16 +85,14 @@ public struct AddJobView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, DS.Spacing.xxs)
                 }
 
                 Section {
-                    Text("Paste the full JD here — it may get taken down later!")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    TextEditor(text: $store.jobDescription)
-                        .frame(minHeight: 120)
-                        .font(.body)
+                    Text("Paste the full JD here; it may get taken down later!")
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
+                    DSOutlinedTextEditor("Job Description", text: $store.jobDescription, minHeight: 120)
                 } header: {
                     Text("Job Description")
                 }

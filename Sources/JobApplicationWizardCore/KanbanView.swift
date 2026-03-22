@@ -22,7 +22,7 @@ public struct KanbanView: View {
 
     public var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 8) {
+            VStack(spacing: DS.Spacing.sm) {
                 let visibleStatuses = store.filterStatus.map { [$0] } ?? JobStatus.allCases
                 ForEach(visibleStatuses) { status in
                     KanbanRow(
@@ -38,10 +38,10 @@ public struct KanbanView: View {
                     )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, DS.Spacing.lg)
+            .padding(.vertical, DS.Spacing.md)
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(DS.Color.windowBackground)
     }
 }
 
@@ -63,35 +63,35 @@ struct KanbanRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             // Status header — fixed left column
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: DS.Spacing.xxs) {
+                HStack(spacing: DS.Spacing.xs) {
                     Image(systemName: status.icon)
                         .foregroundColor(status.color)
                     Text(status.rawValue)
-                        .font(.headline)
+                        .font(DS.Typography.heading3)
                 }
                 Text("\(jobs.count)")
-                    .font(.caption)
+                    .font(DS.Typography.caption)
                     .fontWeight(.semibold)
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, DS.Spacing.sm)
                     .padding(.vertical, 2)
                     .background(status.color.opacity(0.15))
                     .foregroundColor(status.color)
                     .clipShape(Capsule())
             }
             .frame(minWidth: 100, idealWidth: 130, maxWidth: 150, alignment: .leading)
-            .padding(.vertical, 12)
+            .padding(.vertical, DS.Spacing.md)
             .padding(.leading, 12)
             .cuttleDockable(context: .status(status))
 
             Rectangle()
                 .fill(status.color)
                 .frame(width: 2)
-                .padding(.vertical, 8)
+                .padding(.vertical, DS.Spacing.sm)
 
             // Cards scroll horizontally
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 8) {
+                LazyHStack(spacing: DS.Spacing.sm) {
                     ForEach(jobs) { job in
                         JobCard(
                             job: job,
@@ -104,15 +104,15 @@ struct KanbanRow: View {
                         .frame(width: 240)
                         .overlay {
                             if processingJobIds.contains(job.id) {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(.ultraThinMaterial)
+                                RoundedRectangle(cornerRadius: DS.Radius.medium)
+                                    .fill(DS.Glass.surface)
                                     .overlay {
-                                        VStack(spacing: 6) {
+                                        VStack(spacing: DS.Spacing.xs) {
                                             ProgressView()
                                                 .controlSize(.small)
                                             Text("Processing document…")
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
+                                                .font(DS.Typography.caption2)
+                                                .foregroundColor(DS.Color.textSecondary)
                                         }
                                     }
                             }
@@ -141,17 +141,17 @@ struct KanbanRow: View {
                             .frame(width: 220)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.horizontal, DS.Spacing.md)
+                .padding(.vertical, DS.Spacing.sm)
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: DS.Radius.large)
                 .fill(isTargeted
                       ? status.color.opacity(0.08)
-                      : Color(NSColor.controlBackgroundColor))
+                      : DS.Color.controlBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: DS.Radius.large)
                         .strokeBorder(isTargeted ? status.color : Color.clear, lineWidth: 2)
                 )
         )
@@ -181,39 +181,39 @@ struct JobCard: View {
 
     var body: some View {
         Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: DS.Spacing.xs) {
                 HStack {
                     Text(job.displayCompany)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
                     Spacer()
                     if job.isFavorite {
                         Image(systemName: "star.fill")
-                            .font(.caption2)
+                            .font(DS.Typography.caption2)
                             .foregroundColor(.yellow)
                     }
                     ExcitementDots(level: job.excitement)
                 }
 
                 Text(job.displayTitle)
-                    .font(.subheadline)
+                    .font(DS.Typography.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 if !job.location.isEmpty || !job.salary.isEmpty {
-                    HStack(spacing: 4) {
+                    HStack(spacing: DS.Spacing.xxs) {
                         if !job.location.isEmpty {
                             Label(job.location, systemImage: "mappin.circle")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .font(DS.Typography.caption2)
+                                .foregroundColor(DS.Color.textSecondary)
                                 .lineLimit(1)
                         }
                         if !job.salary.isEmpty {
                             Spacer()
                             Text(job.salary)
-                                .font(.caption2)
+                                .font(DS.Typography.caption2)
                                 .foregroundColor(.green)
                         }
                     }
@@ -221,13 +221,13 @@ struct JobCard: View {
 
                 if !job.labels.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: DS.Spacing.xxs) {
                             ForEach(job.labels.prefix(3)) { label in
                                 Text(label.name)
-                                    .font(.system(size: 9, weight: .medium))
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .background(label.color.opacity(0.18))
+                                    .font(DS.Typography.micro)
+                                    .padding(.horizontal, DS.Spacing.xs)
+                                    .padding(.vertical, DS.Spacing.xxxs)
+                                    .background(label.color.opacity(DS.Color.Opacity.medium))
                                     .foregroundColor(label.color)
                                     .clipShape(Capsule())
                             }
@@ -238,12 +238,12 @@ struct JobCard: View {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
                     if let badge = interviewCountdownInfo(rounds: job.interviews, now: context.date) {
                         Label(badge.text, systemImage: "calendar.badge.clock")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(DS.Typography.badge)
                             .italic(badge.isItalic)
                             .foregroundColor(badge.color)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(badge.color.opacity(0.12))
+                            .padding(.horizontal, DS.Spacing.xs)
+                            .padding(.vertical, DS.Spacing.xxxs)
+                            .background(badge.color.opacity(DS.Color.Opacity.wash))
                             .clipShape(Capsule())
                     }
                 }
@@ -251,12 +251,12 @@ struct JobCard: View {
                 HStack {
                     if let applied = job.dateApplied {
                         Label(applied.relativeString, systemImage: "calendar")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .font(DS.Typography.caption2)
+                            .foregroundColor(DS.Color.textSecondary)
                     } else {
                         Label(job.dateAdded.relativeString, systemImage: "plus.circle")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .font(DS.Typography.caption2)
+                            .foregroundColor(DS.Color.textSecondary)
                     }
                     Spacer()
                     if !job.currentTasks.isEmpty {
@@ -264,32 +264,23 @@ struct JobCard: View {
                         let total = job.currentTasks.count
                         let allDone = done == total
                         Label("\(done)/\(total)", systemImage: allDone ? "checkmark.circle.fill" : "checklist")
-                            .font(.caption2)
+                            .font(DS.Typography.caption2)
                             .foregroundColor(allDone ? .green : .secondary)
                     }
                     if !job.contacts.isEmpty {
                         Label("\(job.contacts.count)", systemImage: "person.circle")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .font(DS.Typography.caption2)
+                            .foregroundColor(DS.Color.textSecondary)
                     }
                 }
             }
-            .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected
-                          ? job.status.color.opacity(0.12)
-                          : Color(NSColor.textBackgroundColor))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(
-                                isSelected ? job.status.color : (isHovered ? Color.secondary.opacity(0.3) : Color.clear),
-                                lineWidth: isSelected ? 1.5 : 1
-                            )
-                    )
+            .cardStyle(
+                isSelected: isSelected,
+                isHovered: isHovered,
+                tintColor: job.status.color,
+                backgroundColor: DS.Color.textBackground
             )
-            .shadow(color: .black.opacity(0.04), radius: 2, y: 1)
         }
         .buttonStyle(.plain)
         .popover(isPresented: $showTaskPopover, arrowEdge: .bottom) {
@@ -345,25 +336,25 @@ struct TaskPopoverView: View {
     let job: JobApplication
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DS.Spacing.xs) {
             Text("\(job.status.rawValue) Tasks")
-                .font(.caption)
+                .font(DS.Typography.caption)
                 .fontWeight(.semibold)
-                .foregroundColor(.secondary)
+                .foregroundColor(DS.Color.textSecondary)
                 .padding(.bottom, 2)
             ForEach(job.currentTasks) { task in
-                HStack(spacing: 6) {
+                HStack(spacing: DS.Spacing.xs) {
                     Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                         .foregroundColor(task.isCompleted ? .green : .secondary)
-                        .font(.caption)
+                        .font(DS.Typography.caption)
                     Text(task.title)
-                        .font(.caption)
+                        .font(DS.Typography.caption)
                         .foregroundColor(task.isCompleted ? .secondary : .primary)
                         .strikethrough(task.isCompleted)
                 }
             }
         }
-        .padding(12)
+        .padding(DS.Spacing.md)
         .frame(minWidth: 200)
     }
 }
@@ -439,13 +430,13 @@ struct ExcitementDots: View {
 struct EmptyColumnView: View {
     let status: JobStatus
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DS.Spacing.sm) {
             Image(systemName: status.icon)
                 .font(.largeTitle)
                 .foregroundColor(status.color.opacity(0.3))
             Text("No \(status.rawValue) jobs")
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Color.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 32)
