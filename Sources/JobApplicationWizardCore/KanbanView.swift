@@ -235,15 +235,17 @@ struct JobCard: View {
                     }
                 }
 
-                if let badge = interviewCountdownInfo(rounds: job.interviews) {
-                    Label(badge.text, systemImage: "calendar.badge.clock")
-                        .font(.system(size: 10, weight: .medium))
-                        .italic(badge.isItalic)
-                        .foregroundColor(badge.color)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(badge.color.opacity(0.12))
-                        .clipShape(Capsule())
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    if let badge = interviewCountdownInfo(rounds: job.interviews, now: context.date) {
+                        Label(badge.text, systemImage: "calendar.badge.clock")
+                            .font(.system(size: 10, weight: .medium))
+                            .italic(badge.isItalic)
+                            .foregroundColor(badge.color)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(badge.color.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
                 }
 
                 HStack {

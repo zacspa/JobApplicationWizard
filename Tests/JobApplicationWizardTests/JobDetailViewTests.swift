@@ -3,7 +3,7 @@ import XCTest
 @testable import JobApplicationWizardCore
 
 /// View-behavior tests for the calendar UI in InterviewRoundRow.
-/// Feature-level reducer tests for calendar actions live in JobDetailFeatureTests.swift.
+/// These now use CalendarFeature.State since calendar state moved there.
 @MainActor
 final class JobDetailViewTests: XCTestCase {
 
@@ -27,58 +27,32 @@ final class JobDetailViewTests: XCTestCase {
         XCTAssertEqual(displayTitle, "Phone Screen")
     }
 
-    // MARK: - Access Denied State
+    // MARK: - Picker Visibility Binding Logic (CalendarFeature state)
 
-    /// When calendarAccessGranted == false and linkCalendarEvent is dispatched anyway,
-    /// the reducer still opens the picker (the View prevents showing the button, but
-    /// the action itself remains functional).
-    func testLinkCalendarEventWhenAccessDeniedStillOpensPicker() async {
-        let interviewId = UUID()
-        let interview = InterviewRound(id: interviewId, round: 1)
-        let job = JobApplication.mock(interviews: [interview])
-        var state = JobDetailFeature.State(job: job)
-        state.calendarAccessGranted = false
-
-        let store = TestStore(initialState: state) {
-            JobDetailFeature()
-        }
-
-        await store.send(.linkCalendarEvent(interviewId: interviewId)) {
-            $0.showCalendarPicker = true
-            $0.calendarPickerInterviewId = interviewId
-        }
-    }
-
-    // MARK: - Picker Visibility Binding Logic
-
-    /// The popover binding uses: showCalendarPicker && calendarPickerInterviewId == round.id.
-    /// If showCalendarPicker is true but the id belongs to a different interview,
-    /// the picker for this row should NOT be shown (computed binding returns false).
     func testPickerBindingFalseWhenInterviewIdMismatch() {
         let interviewId1 = UUID()
         let interviewId2 = UUID()
-        var state = JobDetailFeature.State(job: .mock())
-        state.showCalendarPicker = true
-        state.calendarPickerInterviewId = interviewId1
+        var state = CalendarFeature.State()
+        state.showPicker = true
+        state.pickerInterviewId = interviewId1
 
-        // Simulate the binding get logic for interviewId2's row
-        let isShownForRow2 = state.showCalendarPicker && state.calendarPickerInterviewId == interviewId2
+        let isShownForRow2 = state.showPicker && state.pickerInterviewId == interviewId2
         XCTAssertFalse(isShownForRow2)
     }
 
     func testPickerBindingTrueWhenInterviewIdMatches() {
         let interviewId = UUID()
-        var state = JobDetailFeature.State(job: .mock())
-        state.showCalendarPicker = true
-        state.calendarPickerInterviewId = interviewId
+        var state = CalendarFeature.State()
+        state.showPicker = true
+        state.pickerInterviewId = interviewId
 
-        let isShownForRow = state.showCalendarPicker && state.calendarPickerInterviewId == interviewId
+        let isShownForRow = state.showPicker && state.pickerInterviewId == interviewId
         XCTAssertTrue(isShownForRow)
     }
 
-    // MARK: - calendarEventsLoaded Direct Action
+    // MARK: - CalendarFeature eventsLoaded
 
-    func testCalendarEventsLoadedDirectlyUpdatesState() async {
+    func testEventsLoadedUpdatesState() async {
         let events = [
             CalendarEvent(
                 id: "evt-1",
@@ -100,39 +74,64 @@ final class JobDetailViewTests: XCTestCase {
             ),
         ]
 
-        let store = TestStore(initialState: JobDetailFeature.State(job: .mock())) {
-            JobDetailFeature()
+        let store = TestStore(initialState: CalendarFeature.State()) {
+            CalendarFeature()
         }
 
-        await store.send(.calendarEventsLoaded(events)) {
-            $0.calendarEvents = events
+        await store.send(.eventsLoaded(events)) {
+            $0.events = events
         }
     }
 
-    // MARK: - No requestAccess When Already Granted
+    // MARK: - openPicker with access denied
 
-    func testLinkCalendarEventWhenAlreadyGrantedDoesNotCallRequestAccess() async {
-        let requestCalled = LockIsolated(false)
+    func testOpenPickerWhenAccessDenied() async {
+        var state = CalendarFeature.State()
+        state.accessGranted = false
+        state.lastAccessCheck = Date(timeIntervalSinceReferenceDate: 0)
+
+        let jobId = UUID()
         let interviewId = UUID()
-        let interview = InterviewRound(id: interviewId, round: 1)
-        let job = JobApplication.mock(interviews: [interview])
-        var state = JobDetailFeature.State(job: job)
-        state.calendarAccessGranted = true
 
         let store = TestStore(initialState: state) {
-            JobDetailFeature()
+            CalendarFeature()
         } withDependencies: {
-            $0.calendarClient.requestAccess = {
-                requestCalled.setValue(true)
-                return true
-            }
+            $0.date = .constant(Date(timeIntervalSinceReferenceDate: 100))
+            $0.calendarClient.authorizationStatus = { 2 } // denied
+            $0.calendarClient.fetchEvents = { _, _ in [] }
         }
+        store.exhaustivity = .off
 
-        await store.send(.linkCalendarEvent(interviewId: interviewId)) {
-            $0.showCalendarPicker = true
-            $0.calendarPickerInterviewId = interviewId
+        await store.send(.openPicker(jobId: jobId, interviewId: interviewId)) {
+            $0.showPicker = true
+            $0.pickerInterviewId = interviewId
+            $0.pickerJobId = jobId
         }
+    }
 
-        XCTAssertFalse(requestCalled.value, "requestAccess should not be called when access is already granted")
+    // MARK: - openPicker when already granted
+
+    func testOpenPickerWhenAlreadyGrantedSkipsAccessCheck() async {
+        let now = Date(timeIntervalSinceReferenceDate: 100)
+        var state = CalendarFeature.State()
+        state.accessGranted = true
+        state.lastAccessCheck = now // recent check, within 5 min
+
+        let jobId = UUID()
+        let interviewId = UUID()
+
+        let store = TestStore(initialState: state) {
+            CalendarFeature()
+        } withDependencies: {
+            $0.date = .constant(now)
+            $0.calendarClient.fetchEvents = { _, _ in [] }
+        }
+        store.exhaustivity = .off
+
+        await store.send(.openPicker(jobId: jobId, interviewId: interviewId)) {
+            $0.showPicker = true
+            $0.pickerInterviewId = interviewId
+            $0.pickerJobId = jobId
+        }
     }
 }

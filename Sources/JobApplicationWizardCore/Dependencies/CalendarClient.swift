@@ -54,17 +54,20 @@ public struct CalendarClient {
     public var fetchEvents: @Sendable (DateInterval, String?) async throws -> [CalendarEvent]
     public var fetchEvent: @Sendable (String) async throws -> CalendarEvent?
     public var fetchCalendars: @Sendable () async throws -> [CalendarInfo]
+    public var authorizationStatus: @Sendable () -> Int
 
     public init(
         requestAccess: @escaping @Sendable () async throws -> Bool,
         fetchEvents: @escaping @Sendable (DateInterval, String?) async throws -> [CalendarEvent],
         fetchEvent: @escaping @Sendable (String) async throws -> CalendarEvent?,
-        fetchCalendars: @escaping @Sendable () async throws -> [CalendarInfo]
+        fetchCalendars: @escaping @Sendable () async throws -> [CalendarInfo],
+        authorizationStatus: @escaping @Sendable () -> Int = { 0 }
     ) {
         self.requestAccess = requestAccess
         self.fetchEvents = fetchEvents
         self.fetchEvent = fetchEvent
         self.fetchCalendars = fetchCalendars
+        self.authorizationStatus = authorizationStatus
     }
 }
 
@@ -140,6 +143,9 @@ extension CalendarClient: DependencyKey {
                         colorHex: cgColorToHex(calendar.cgColor)
                     )
                 }
+            },
+            authorizationStatus: {
+                EKEventStore.authorizationStatus(for: .event).rawValue
             }
         )
     }
@@ -152,7 +158,8 @@ extension CalendarClient: TestDependencyKey {
         requestAccess: { true },
         fetchEvents: { _, _ in [] },
         fetchEvent: { _ in nil },
-        fetchCalendars: { [] }
+        fetchCalendars: { [] },
+        authorizationStatus: { 3 }
     )
 }
 
