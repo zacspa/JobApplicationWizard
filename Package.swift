@@ -20,6 +20,10 @@ let package = Package(
         .package(
             url: "https://github.com/gonzalezreal/swift-markdown-ui",
             from: "2.4.0"
+        ),
+        .package(
+            url: "https://github.com/pointfreeco/swift-snapshot-testing",
+            from: "1.17.0"
         )
     ],
     targets: [
@@ -54,7 +58,8 @@ let package = Package(
             name: "JobApplicationWizardTests",
             dependencies: [
                 "JobApplicationWizardCore",
-                .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+                .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
             ],
             path: "Tests/JobApplicationWizardTests"
         )
