@@ -36,8 +36,7 @@ let package = Package(
                 .product(name: "ACPModel", package: "swift-sdk"),
                 .product(name: "MarkdownUI", package: "swift-markdown-ui")
             ],
-            path: "Sources/JobApplicationWizardCore",
-            resources: [.process("Resources")]
+            path: "Sources/JobApplicationWizardCore"
         ),
         .executableTarget(
             name: "JobApplicationWizard",

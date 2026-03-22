@@ -69,7 +69,7 @@ public enum HistoryCommand: Codable, Equatable {
         case .addJob(let jobId):
             // Cannot fully reverse without snapshot; caller must handle
             return .addJob(jobId: jobId)
-        case .deleteJob(let jobId, let snapshot):
+        case .deleteJob(let jobId, _):
             return .addJob(jobId: jobId)
         case .addDocument(let jobId, let documentId):
             return .addDocument(jobId: jobId, documentId: documentId)
