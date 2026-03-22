@@ -43,6 +43,13 @@ let package = Package(
             ],
             path: "Sources/JobApplicationWizard"
         ),
+        .executableTarget(
+            name: "DesignSystemShowcase",
+            dependencies: [
+                "JobApplicationWizardCore"
+            ],
+            path: "Sources/DesignSystemShowcase"
+        ),
         .testTarget(
             name: "JobApplicationWizardTests",
             dependencies: [
