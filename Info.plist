@@ -30,5 +30,7 @@
 	<string>https://raw.githubusercontent.com/zacspa/JobApplicationWizard/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>YY0EyAJ+Ce21J9m6kGnRDWaRGJSbLvnrStmrXLpiEto=</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Job Application Wizard reads your calendar to let you tag existing events as interview rounds.</string>
 </dict>
 </plist>

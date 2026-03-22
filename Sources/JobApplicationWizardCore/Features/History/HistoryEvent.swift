@@ -36,6 +36,7 @@ public enum HistoryCommand: Codable, Equatable {
     case deleteDocument(jobId: UUID, snapshot: JobDocument)
     case replaceJob(jobId: UUID, oldSnapshot: JobApplication, newSnapshot: JobApplication)
     case compound([HistoryCommand])
+    case updateInterviewDate(jobId: UUID, interviewId: UUID, oldDate: Date?, newDate: Date?)
 
     /// Returns the reversed command (for undo).
     public func reversed() -> HistoryCommand {
@@ -78,6 +79,8 @@ public enum HistoryCommand: Codable, Equatable {
             return .replaceJob(jobId: jobId, oldSnapshot: newSnapshot, newSnapshot: oldSnapshot)
         case .compound(let commands):
             return .compound(commands.reversed().map { $0.reversed() })
+        case .updateInterviewDate(let jobId, let interviewId, let oldDate, let newDate):
+            return .updateInterviewDate(jobId: jobId, interviewId: interviewId, oldDate: newDate, newDate: oldDate)
         }
     }
 }

@@ -150,6 +150,42 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual("  hello   world  ".wordCount, 2)
     }
 
+    // MARK: - InterviewRound Calendar Fields
+
+    func testInterviewRoundDecodesWithoutCalendarFields() throws {
+        let json = """
+        {"id":"00000000-0000-0000-0000-000000000001","round":1,"type":"Phone","interviewers":"","notes":"","completed":false}
+        """
+        let round = try JSONDecoder().decode(InterviewRound.self, from: Data(json.utf8))
+        XCTAssertNil(round.calendarEventIdentifier)
+        XCTAssertNil(round.calendarEventTitle)
+    }
+
+    func testInterviewRoundDecodesWithCalendarFields() throws {
+        let json = """
+        {"id":"00000000-0000-0000-0000-000000000001","round":1,"type":"Phone","interviewers":"","notes":"","completed":false,"calendarEventIdentifier":"ABC-123","calendarEventTitle":"Phone Screen"}
+        """
+        let round = try JSONDecoder().decode(InterviewRound.self, from: Data(json.utf8))
+        XCTAssertEqual(round.calendarEventIdentifier, "ABC-123")
+        XCTAssertEqual(round.calendarEventTitle, "Phone Screen")
+    }
+
+    func testInterviewRoundCodableRoundTripWithCalendarFields() throws {
+        let original = InterviewRound(round: 2, type: "Onsite", calendarEventIdentifier: "EV-456", calendarEventTitle: "Onsite Interview")
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(InterviewRound.self, from: data)
+        XCTAssertEqual(decoded.id, original.id)
+        XCTAssertEqual(decoded.calendarEventIdentifier, "EV-456")
+        XCTAssertEqual(decoded.calendarEventTitle, "Onsite Interview")
+    }
+
+    func testInterviewRoundEqualityDiffersOnCalendarEventIdentifier() {
+        let base = InterviewRound(round: 1)
+        var other = base
+        other.calendarEventIdentifier = "SOME-ID"
+        XCTAssertNotEqual(base, other)
+    }
+
     // MARK: - AITokenUsage
 
     func testAITokenUsageEstimatedCost() {

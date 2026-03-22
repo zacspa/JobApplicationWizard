@@ -107,6 +107,16 @@ public struct ContentView: View {
             .frame(minWidth: 560, minHeight: 700)
         }
         .onAppear { store.send(.onAppear) }
+        .overlay(alignment: .bottom) {
+            if let toast = store.calendarSyncToast {
+                Text(toast)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    .padding(.bottom, 16)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring, value: store.calendarSyncToast)
         .alert("Data Error", isPresented: Binding(
             get: { store.saveError != nil },
             set: { if !$0 { store.send(.dismissSaveError) } }

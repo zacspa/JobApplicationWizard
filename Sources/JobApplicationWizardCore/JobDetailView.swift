@@ -972,6 +972,7 @@ struct InterviewsTab: View {
             .padding(.horizontal, 16).padding(.vertical, 8)
             .background(Color(NSColor.controlBackgroundColor))
 
+
             Divider()
 
             if store.interviews.isEmpty {
@@ -993,7 +994,7 @@ struct InterviewsTab: View {
                                     store.send(.binding(.set(\.interviews, copy)))
                                 }
                             }
-                        ))
+                        ), store: store)
                         .contextMenu {
                             Button(role: .destructive) {
                                 if let idx = store.interviews.firstIndex(where: { $0.id == round.id }) {
@@ -1016,6 +1017,7 @@ struct InterviewsTab: View {
 
 struct InterviewRoundRow: View {
     @Binding var round: InterviewRound
+    let store: StoreOf<JobDetailFeature>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -1056,8 +1058,60 @@ struct InterviewRoundRow: View {
                             .allowsHitTesting(false)
                     }
                 }
+            if round.calendarEventIdentifier != nil {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label(round.calendarEventTitle ?? "Linked event", systemImage: "calendar")
+                        .font(.footnote)
+                    if let date = round.date {
+                        Text(date.formatted(date: .abbreviated, time: .shortened))
+                            .font(.footnote).foregroundColor(.secondary)
+                    }
+                    Button("Unlink") {
+                        store.send(.unlinkCalendarEvent(interviewId: round.id))
+                    }
+                    .font(.footnote)
+                }
+            } else if store.calendarAccessGranted == false {
+                Text("Calendar access required in System Settings to link events.")
+                    .foregroundColor(.secondary)
+                    .font(.footnote)
+            } else {
+                Button {
+                    store.send(.linkCalendarEvent(interviewId: round.id))
+                } label: {
+                    Label("Link Calendar Event", systemImage: "link")
+                }
+                .font(.footnote)
+            }
+            if let warning = store.calendarSyncWarnings[round.id], warning == .eventMissing {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.yellow)
+                    Text("Event deleted from Calendar")
+                        .font(.footnote)
+                    Spacer()
+                    Button("Unlink") {
+                        store.send(.unlinkCalendarEvent(interviewId: round.id))
+                    }
+                    .font(.footnote)
+                }
+            }
         }
         .padding(.vertical, 4)
+        .popover(isPresented: Binding(
+            get: { store.showCalendarPicker && store.calendarPickerInterviewId == round.id },
+            set: { if !$0 { store.send(.dismissCalendarPicker) } }
+        )) {
+            CalendarEventPickerView(
+                events: store.calendarEvents,
+                searchQuery: Binding(
+                    get: { store.calendarSearchQuery },
+                    set: { store.send(.calendarSearchQueryChanged($0)) }
+                ),
+                onSelect: { event in store.send(.calendarEventSelected(interviewId: round.id, event: event)) },
+                onCancel: { store.send(.dismissCalendarPicker) }
+            )
+        }
     }
 }
 

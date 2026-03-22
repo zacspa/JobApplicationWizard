@@ -91,6 +91,12 @@ public struct ListView: View {
                             Text(job.displayTitle)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                            if let badge = interviewCountdownInfo(rounds: job.interviews) {
+                                Label(badge.text, systemImage: "calendar.badge.clock")
+                                    .font(.caption2)
+                                    .foregroundColor(badge.color)
+                                    .italic(badge.isItalic)
+                            }
                         }
                         .padding(.vertical, 2)
                         .cuttleDockable(context: .job(job.id))
