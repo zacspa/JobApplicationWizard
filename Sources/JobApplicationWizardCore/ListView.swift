@@ -4,28 +4,17 @@ import ComposableArchitecture
 public struct ListView: View {
     let store: StoreOf<AppFeature>
     let onDocumentDrop: (UUID, [URL]) -> Void
-    @State private var sortOrder = SortOrder.dateDesc
+
+    @State
+    private var sortOrder: [KeyPathComparator<JobApplication>] = [KeyPathComparator(\.dateAdded, order: .reverse)]
 
     public init(store: StoreOf<AppFeature>, onDocumentDrop: @escaping (UUID, [URL]) -> Void = { _, _ in }) {
         self.store = store
         self.onDocumentDrop = onDocumentDrop
     }
 
-    enum SortOrder: String, CaseIterable {
-        case dateDesc = "Newest First"
-        case dateAsc  = "Oldest First"
-        case company  = "Company A–Z"
-        case excitement = "Most Excited"
-    }
-
     var sortedJobs: [JobApplication] {
-        let base = store.filteredJobs
-        switch sortOrder {
-        case .dateDesc:   return base.sorted { $0.dateAdded > $1.dateAdded }
-        case .dateAsc:    return base.sorted { $0.dateAdded < $1.dateAdded }
-        case .company:    return base.sorted { $0.company < $1.company }
-        case .excitement: return base.sorted { $0.excitement > $1.excitement }
-        }
+        store.filteredJobs.sorted(using: sortOrder)
     }
 
     var selectionBinding: Binding<UUID?> {
@@ -42,12 +31,6 @@ public struct ListView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
-                Picker("Sort", selection: $sortOrder) {
-                    ForEach(SortOrder.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.menu)
-                .font(.caption)
-                .controlSize(.small)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -64,8 +47,8 @@ public struct ListView: View {
                         : "Try a different search")
                 )
             } else {
-                Table(sortedJobs, selection: selectionBinding) {
-                    TableColumn("Company / Role") { job in
+                Table(sortedJobs, selection: selectionBinding, sortOrder: $sortOrder) {
+                    TableColumn("Company / Role", value: \.company) { job in
                         VStack(alignment: .leading, spacing: 2) {
                             // Note: cuttleDockable is applied to the whole VStack below
                             HStack(spacing: 5) {
@@ -109,12 +92,12 @@ public struct ListView: View {
                         }
                     }
 
-                    TableColumn("Excitement") { job in
+                    TableColumn("Excitement", value: \.excitement) { job in
                         ExcitementDots(level: job.excitement)
                     }
                     .width(70)
 
-                    TableColumn("Status") { job in
+                    TableColumn("Status", value: \.status) { job in
                         Text(job.status.rawValue)
                             .font(.caption)
                             .padding(.horizontal, 7).padding(.vertical, 2)
@@ -124,19 +107,25 @@ public struct ListView: View {
                     }
                     .width(110)
 
-                    TableColumn("Location") { job in
+                    TableColumn("Location", value: \.location) { job in
                         Text(job.location.isEmpty ? "—" : job.location)
                             .foregroundColor(job.location.isEmpty ? Color.secondary.opacity(0.3) : .secondary)
                             .lineLimit(1)
                     }
                     .width(90)
 
-                    TableColumn("Salary") { job in
+                    TableColumn("Salary", value: \.salary) { job in
                         Text(job.salary.isEmpty ? "—" : job.salary)
                             .foregroundColor(job.salary.isEmpty ? Color.secondary.opacity(0.3) : .green)
                             .lineLimit(1)
                     }
                     .width(160)
+
+                    TableColumn("Date Added", value: \.dateAdded) { job in
+                        Text(job.dateAdded.formatted(date: .abbreviated, time: .omitted))
+                            .foregroundColor(.secondary)
+                    }
+                    .width(90)
                 }
                 .contextMenu(forSelectionType: UUID.self) { ids in
                     if let id = ids.first,

@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Job Status
 
-public enum JobStatus: String, Codable, CaseIterable, Identifiable, Equatable {
+public enum JobStatus: String, Codable, CaseIterable, Identifiable, Comparable {
     case wishlist = "Wishlist"
     case applied = "Applied"
     case phoneScreen = "Phone Screen"
@@ -47,6 +47,22 @@ public enum JobStatus: String, Codable, CaseIterable, Identifiable, Equatable {
         case .offer:       return ["Review offer details", "Research market salary", "Negotiate or accept"]
         case .rejected, .withdrawn: return []
         }
+    }
+
+    private var sortIndex: Int {
+        switch self {
+        case .wishlist:    0
+        case .applied:     1
+        case .phoneScreen: 2
+        case .interview:   3
+        case .offer:       4
+        case .rejected:    5
+        case .withdrawn:   6
+        }
+    }
+
+    public static func < (lhs: JobStatus, rhs: JobStatus) -> Bool {
+        lhs.sortIndex < rhs.sortIndex
     }
 }
 
