@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soap Bubble Physics for UI Animation</title>
+    <meta name="description" content="Designing a coalescence animation for merging parallel AI agent blobs in SwiftUI. Soap bubble physics, additive RGB color mixing, and interactive parameter tuning.">
+    <meta name="author" content="Zack Sparks">
+    <meta name="date" content="2026-03-23">
+    <meta property="og:title" content="Soap Bubble Physics for UI Animation">
+    <meta property="og:description" content="Designing a coalescence animation for merging parallel AI agent blobs in SwiftUI Canvas.">
+    <meta property="og:type" content="article">
+    <link rel="stylesheet" href="blog.css">
+    <style>
+        canvas { border-radius: 12px; background: #000; display: block; margin: 0 auto; }
+        .canvas-wrap { display: flex; justify-content: center; margin: 1.5rem 0; }
+        /* Slider panel */
+        .slider-panel {
+            background: var(--surface, #161b22);
+            border: 1px solid var(--border, #30363d);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        .slider-toggle {
+            width: 100%;
+            background: var(--surface, #161b22);
+            border: none;
+            color: var(--accent, #58a6ff);
+            font-size: 0.82rem;
+            padding: 0.6rem 1.25rem;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .slider-toggle:hover { background: var(--code-bg, #1c2128); }
+        .slider-toggle .arrow { transition: transform 0.2s; display: inline-block; }
+        .slider-toggle .arrow.open { transform: rotate(90deg); }
+        .slider-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 1.5rem;
+            padding: 0 1.25rem 1rem;
+        }
+        .slider-grid.hidden { display: none; }
+        .slider-panel .slider-group { min-width: 0; }
+        .slider-panel h4 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--accent, #58a6ff);
+            margin: 0.75rem 0 0.35rem;
+        }
+        .slider-panel h4:first-child { margin-top: 0; }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.25rem;
+        }
+        .slider-row label {
+            font-size: 0.75rem;
+            color: var(--text-muted, #8b949e);
+            min-width: 72px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .slider-row input[type="range"] {
+            flex: 1;
+            accent-color: var(--accent, #58a6ff);
+            height: 4px;
+            min-width: 0;
+        }
+        .slider-row .val {
+            font-size: 0.72rem;
+            color: var(--text-muted, #8b949e);
+            min-width: 38px;
+            font-family: "SF Mono", "Fira Code", monospace;
+            flex-shrink: 0;
+        }
+        .slider-panel .reset-row {
+            grid-column: 1 / -1;
+            margin-top: 0.5rem;
+        }
+        .slider-panel .reset-btn {
+            background: var(--code-bg, #1c2128);
+            border: 1px solid var(--border, #30363d);
+            color: var(--text, #e6edf3);
+            border-radius: 6px;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.78rem;
+            cursor: pointer;
+        }
+        .slider-panel .reset-btn:hover { border-color: var(--accent, #58a6ff); }
+        /* Iteration log (collapsible) */
+        .iter-toggle {
+            background: var(--surface, #161b22);
+            border: 1px solid var(--border, #30363d);
+            border-radius: 8px;
+            color: var(--accent, #58a6ff);
+            font-size: 0.9rem;
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .iter-toggle:hover { background: var(--code-bg, #1c2128); }
+        .iter-toggle .arrow { transition: transform 0.2s; display: inline-block; }
+        .iter-toggle .arrow.open { transform: rotate(90deg); }
+        .iter-log { margin-bottom: 1.5rem; }
+        .iter-log.hidden { display: none; }
+        .iter-compare {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+        }
+        .iter-compare figure { text-align: center; }
+        .iter-compare figcaption {
+            font-size: 0.78rem;
+            color: var(--text-muted, #8b949e);
+            margin-top: 0.3rem;
+        }
+        @media (max-width: 640px) {
+            .slider-grid { grid-template-columns: 1fr; }
+            .iter-compare { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <a class="back-link" href="index.html">&larr; All posts</a>
+
+    <article>
+        <p class="post-meta">
+            Published March 23, 2026 &middot; Zack Sparks &middot;
+            <a href="https://github.com/zacspa/JobApplicationWizard">github.com/zacspa/JobApplicationWizard</a>
+        </p>
+
+        <div class="tags">
+            <span class="tag">SwiftUI</span>
+            <span class="tag">animation</span>
+            <span class="tag">physics</span>
+            <span class="tag">agents</span>
+            <span class="tag">design</span>
+        </div>
+
+        <h1>Soap Bubble Physics for UI Animation</h1>
+        <p class="subtitle">Designing a coalescence animation for parallel AI agents.</p>
+
+        <!-- 1. The Result (lead with the final thing) -->
+
+        <div class="canvas-wrap"><canvas id="final" width="500" height="220"></canvas></div>
+        <p class="caption">Two AI agent blobs coalescing via soap bubble physics. Click to replay.</p>
+
+        <div class="slider-panel" id="sliderPanel">
+            <button class="slider-toggle" id="sliderToggle">
+                <span class="arrow" id="sliderArrow">&#9654;</span>
+                Tune the parameters yourself
+            </button>
+            <div class="slider-grid hidden" id="sliderGrid">
+                <div class="slider-group">
+                    <h4>Timing</h4>
+                    <div class="slider-row">
+                        <label>Approach</label>
+                        <input type="range" id="s_approachDur" min="0.1" max="1.5" step="0.05" value="0.6">
+                        <span class="val" id="v_approachDur">0.60s</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Resist</label>
+                        <input type="range" id="s_resistDur" min="0.1" max="1.2" step="0.05" value="0.4">
+                        <span class="val" id="v_resistDur">0.40s</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Snap</label>
+                        <input type="range" id="s_snapDur" min="0.02" max="0.3" step="0.01" value="0.08">
+                        <span class="val" id="v_snapDur">0.08s</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Settle</label>
+                        <input type="range" id="s_settleDur" min="0.2" max="2.0" step="0.05" value="0.8">
+                        <span class="val" id="v_settleDur">0.80s</span>
+                    </div>
+                    <h4>Approach</h4>
+                    <div class="slider-row">
+                        <label>Start gap</label>
+                        <input type="range" id="s_startGap" min="2.0" max="4.0" step="0.1" value="2.8">
+                        <span class="val" id="v_startGap">2.8r</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Contact gap</label>
+                        <input type="range" id="s_contactGap" min="1.5" max="2.5" step="0.05" value="2.08">
+                        <span class="val" id="v_contactGap">2.08r</span>
+                    </div>
+                    <h4>Resist</h4>
+                    <div class="slider-row">
+                        <label>Flatten</label>
+                        <input type="range" id="s_flatten" min="0" max="0.6" step="0.01" value="0.20">
+                        <span class="val" id="v_flatten">0.20</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Bulge</label>
+                        <input type="range" id="s_bulge" min="0" max="0.6" step="0.01" value="0.18">
+                        <span class="val" id="v_bulge">0.18</span>
+                    </div>
+                </div>
+                <div class="slider-group">
+                    <h4>Resist (cont.)</h4>
+                    <div class="slider-row">
+                        <label>Tremor amp</label>
+                        <input type="range" id="s_tremorAmp" min="0" max="0.1" step="0.005" value="0.02">
+                        <span class="val" id="v_tremorAmp">0.020</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Tremor Hz</label>
+                        <input type="range" id="s_tremorHz" min="2" max="20" step="0.5" value="8">
+                        <span class="val" id="v_tremorHz">8.0</span>
+                    </div>
+                    <h4>Snap</h4>
+                    <div class="slider-row">
+                        <label>Flash opacity</label>
+                        <input type="range" id="s_flashOp" min="0" max="1.0" step="0.05" value="0.6">
+                        <span class="val" id="v_flashOp">0.60</span>
+                    </div>
+                    <h4>Settle</h4>
+                    <div class="slider-row">
+                        <label>Wobble amp</label>
+                        <input type="range" id="s_wobbleAmp" min="0" max="0.6" step="0.01" value="0.30">
+                        <span class="val" id="v_wobbleAmp">0.30</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Wobble decay</label>
+                        <input type="range" id="s_wobbleDecay" min="1" max="15" step="0.5" value="6">
+                        <span class="val" id="v_wobbleDecay">6.0</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Stretch</label>
+                        <input type="range" id="s_stretch" min="0" max="0.4" step="0.01" value="0.15">
+                        <span class="val" id="v_stretch">0.15</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Stretch decay</label>
+                        <input type="range" id="s_stretchDecay" min="1" max="15" step="0.5" value="5">
+                        <span class="val" id="v_stretchDecay">5.0</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Cycles</label>
+                        <input type="range" id="s_cycles" min="1" max="8" step="0.5" value="3">
+                        <span class="val" id="v_cycles">3.0</span>
+                    </div>
+                </div>
+                <div class="reset-row">
+                    <button class="reset-btn" id="resetSliders">Reset defaults</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Context: what is this and why does it exist -->
+        <h2>What This Is</h2>
+
+        <p>
+            <a href="https://github.com/zacspa/JobApplicationWizard">Job Application Wizard</a> is a
+            macOS app for tracking job applications. Its AI assistant, Cuttle, is rendered as an animated
+            blob: three overlapping circular fins with additive RGB color mixing. Where all three fins
+            overlap, the colors add to white. (The <a href="cuttlefin/index.html">previous post</a>
+            covers how that logo was built from the wave equation up.)
+        </p>
+
+        <p>
+            The next feature is <strong>parallel agents</strong>: Cuttle can spawn sub-agents that work
+            on different parts of a complex task simultaneously. When those subtasks finish, the blobs
+            need to rejoin. That means merging two animated blobs into one.
+        </p>
+
+        <p>
+            A crossfade would be cheap and forgettable. A snap-cut would be confusing. I wanted something
+            that felt <em>physical</em>: resistance, deformation, release. Like two soap bubbles touching
+            and coalescing.
+        </p>
+
+        <hr>
+
+        <!-- 3. The Physics Model -->
+        <h2>Why Soap Bubbles</h2>
+
+        <p>Real bubble coalescence has three phases with dramatically different timescales:</p>
+
+        <ol>
+            <li>
+                <strong>Resistance and bulging</strong> (~100ms): surface tension resists coalescence. The
+                contact region flattens; the far sides bulge outward as internal pressure redistributes.
+                High-frequency tremor vibrates the contact film.
+            </li>
+            <li>
+                <strong>Film rupture</strong> (~1ms): the thin film between the bubbles snaps. Surface
+                tension retracts the film edge at meters per second. A brief brightness flash at the
+                rupture point.
+            </li>
+            <li>
+                <strong>Settling</strong> (~500ms): the merged bubble oscillates as a damped harmonic
+                system, overshooting in alternating axes before converging to a sphere.
+            </li>
+        </ol>
+
+        <p>
+            The key insight: <strong>three orders of magnitude separate these timescales.</strong>
+            Resistance is slow and tense; rupture is instant; settling is a gentle ring-down. That
+            contrast is what makes coalescence feel physical rather than procedural.
+        </p>
+
+        <p>
+            For animation, I exaggerated these ratios for readability (0.4s resist, 0.08s snap, 0.8s settle)
+            while preserving the essential shape: the resist phase is 5&times; the snap. Try flattening
+            these in the sliders above and watch the physicality disappear.
+        </p>
+
+        <hr>
+
+        <!-- 4. The Architecture -->
+        <h2>The Architecture</h2>
+
+        <p>
+            The merge animation reuses <code>JitterCircle.blobPath()</code>, the same static function that
+            renders every idle Cuttle blob. The key addition: a <code>deformation</code> closure that lets
+            the merge view inject per-angle radial offsets without changing the base renderer.
+        </p>
+
+<pre><code><span class="kw">static func</span> <span class="fn">blobPath</span>(
+    center: <span class="type">CGPoint</span>,
+    bodyRadius: <span class="type">Double</span>,
+    amplitude: <span class="type">Double</span>,
+    elapsed: <span class="type">Double</span>,
+    rotation: <span class="type">Double</span>,
+    deformation: ((<span class="type">Double</span>, <span class="type">CGPoint</span>) -> <span class="type">Double</span>)? = <span class="kw">nil</span>
+) -> <span class="type">Path</span></code></pre>
+
+        <p>
+            This means the idle blob, the thinking-pulse blob, and the merging blob all share one
+            renderer. The merge view never builds its own path math; it just provides a closure that
+            says "at this angle, push the surface inward (flatten) or outward (bulge) by this much."
+        </p>
+
+        <p>
+            During the resist phase, the deformation closure uses cosine weighting to concentrate
+            deformation on the contact hemisphere:
+        </p>
+
+<pre><code><span class="kw">let</span> flatten = -resistStrength * <span class="fn">cos</span>(angle - angleToPeer)
+<span class="kw">let</span> tremor = tremorAmp * <span class="fn">sin</span>(tremorFreq * elapsed) * <span class="fn">max</span>(<span class="num">0</span>, <span class="fn">cos</span>(angle - angleToPeer))
+<span class="kw">return</span> flatten + tremor</code></pre>
+
+        <p>
+            The <code>cos(angle - angleToPeer)</code> term is positive on the contact side and negative
+            on the far side. Multiplying tremor by <code>max(0, cos(...))</code> ensures only the contact
+            face vibrates; the far side bulges smoothly.
+        </p>
+
+        <p>
+            After the snap, a damped spring drives the settling oscillation:
+        </p>
+
+<pre><code><span class="kw">let</span> scaleX = <span class="num">1.0</span> + <span class="num">0.15</span> * <span class="fn">exp</span>(-<span class="num">5</span> * t) * <span class="fn">cos</span>(<span class="num">6</span> * .pi * t)
+<span class="kw">let</span> scaleY = <span class="num">1.0</span> - <span class="num">0.15</span> * <span class="fn">exp</span>(-<span class="num">5</span> * t) * <span class="fn">cos</span>(<span class="num">6</span> * .pi * t)</code></pre>
+
+        <p>
+            The horizontal and vertical scales oscillate in antiphase: when the blob stretches wide, it
+            compresses vertically, and vice versa. The exponential decay produces about three visible
+            cycles before the blob reads as settled.
+        </p>
+
+        <hr>
+
+        <!-- 5. The Sign Problem -->
+        <h2>The Deformation Sign Problem</h2>
+
+        <p>
+            The hardest bug was invisible in the math. When the flatten coefficient exceeded ~40% of the
+            radius, the cosine-weighted deformation pushed the contact surface past the center of the blob,
+            creating a concavity. Two concavities facing each other produced a pinched, inverted shape:
+        </p>
+
+        <div class="canvas-wrap"><canvas id="concavity" width="400" height="180"></canvas></div>
+        <p class="caption">Flatten at 65%: the contact side inverts, creating opposing concavities.</p>
+
+        <p>
+            The fix was not "less deformation." It was separating flatten from bulge directionally.
+            Flatten uses <code>max(0, cos(angle))</code>: it only pushes <em>inward</em> on the contact
+            hemisphere, never inverts. Bulge uses <code>max(0, -cos(angle))</code>: it only pushes
+            <em>outward</em> on the far hemisphere. The deformation budget goes to the far-side bulge and
+            the contact-side tremor, not the flatten depth.
+        </p>
+
+        <p>
+            This is a general principle for radial deformation: <strong>clamp directionally, not by
+            magnitude.</strong> Reducing the coefficient does not prevent inversion at all values; clamping
+            to a half-space does.
+        </p>
+
+        <hr>
+
+        <!-- 6. Tuning Methodology -->
+        <h2>Why Sliders, Not Code</h2>
+
+        <p>
+            The animation has 15 interdependent parameters. Changing the resist duration affects how much
+            deformation is visible. Changing the flatten strength affects how tight the contact gap needs
+            to be. Changing the settle wobble affects whether the merged blob feels "alive" or
+            "overshooting."
+        </p>
+
+        <p>
+            Tuning these by editing constants and recompiling does not work. The feedback loop is too slow
+            and the parameter interactions are nonlinear. Instead, I built a standalone demo app with a
+            looping merge animation and a slider for every dependent variable, grouped by phase.
+        </p>
+
+        <p>
+            The slider demo paid for itself in the first minute. Parameters that seemed reasonable in
+            isolation (50% flatten, 40% bulge) produced opposing concavities when combined. Values that felt
+            too subtle alone (2% tremor amplitude) became essential for selling the resist phase as
+            physical rather than static. The right values were found by watching, not by calculating.
+        </p>
+
+        <p>
+            The interactive sliders above are the same tool, ported to the browser. Drag them; the
+            animation restarts on every change.
+        </p>
+
+        <hr>
+
+        <!-- 7. What I Learned -->
+        <h2>What I Learned</h2>
+
+        <p>
+            <strong>Timescale contrast is everything.</strong> The animation feels physical because the
+            resist phase is 5&times; the snap. If all phases have equal duration, it reads as a morph,
+            not a coalescence. Try setting all four timing sliders to the same value above.
+        </p>
+
+        <p>
+            <strong>Clamp directionally, not by magnitude.</strong> Reducing a coefficient prevents
+            artifacts at the current value but not at all values. Clamping to a half-space (flatten only
+            inward, bulge only outward) eliminates the entire class of sign-inversion bugs.
+        </p>
+
+        <p>
+            <strong>Build the tuning tool first.</strong> Twelve parameters interacting nonlinearly cannot
+            be tuned by reading code. A slider panel with a looping preview is the fastest path to
+            good-feeling animation.
+        </p>
+
+        <p>
+            <strong>Reuse the idle renderer.</strong> By making <code>blobPath()</code> static with a
+            deformation hook, the merge animation produces the exact same visual language as the idle blob.
+            No shader swap, no separate renderer. The blob looks like the same creature because it
+            <em>is</em> the same creature, just with different inputs.
+        </p>
+
+        <p style="margin-top:2rem; color:var(--text-muted);">
+            The complete merge animation is about 250 lines of Swift. Same tools as the
+            <a href="cuttlefin/index.html">logo</a>: Canvas, Path, sin(), exp(), and a TimelineView.
+            Every animation on this page is the same math, ported to HTML5 Canvas.
+        </p>
+
+        <hr>
+
+        <!-- 8. Iteration log (collapsible) -->
+        <h2>Iteration Log</h2>
+
+        <p>
+            The final parameters were reached through five rounds of visual feedback. This section
+            shows each iteration frozen at peak deformation so the differences are visible. I built
+            this animation collaboratively with Claude Code, using a prompt-driven feedback loop:
+            describe what's wrong visually, get a new build, evaluate, repeat.
+        </p>
+
+        <button class="iter-toggle" id="iterToggle">
+            <span class="arrow" id="iterArrow">&#9654;</span>
+            Show the iteration history
+        </button>
+
+        <div class="iter-log hidden" id="iterLog">
+
+            <h3>Round 1: First build</h3>
+            <p>
+                Five-phase state machine with hardcoded durations. Flatten at 5% of radius; no far-side
+                bulge; no settling shrink-back. The deformation was invisible at 48px, and the merged blob
+                stayed permanently oversized.
+            </p>
+
+            <h3>Round 2: Visible deformation + shrink-back</h3>
+            <p>
+                Flatten to 20%, bulge to 12%, tremor added. Post-merge blob now starts at &radic;2&times;
+                radius and shrinks back over 1.8s. The animation reads as "something happened" for the
+                first time.
+            </p>
+
+            <h3>Round 3: Tighter gap</h3>
+            <p>
+                Flatten to 35%, bulge to 25%. Pressed gap tightened from 1.7r to 1.2r so the blobs
+                visibly press against each other. Now the squish is unmistakable.
+            </p>
+
+            <h3>Round 4: The sign problem</h3>
+            <p>
+                Added pressure-driven deformation that ramped with proximity (up to 2.5&times; at peak
+                squeeze). Flatten hit 65%, inverted, created opposing concavities. Fix: clamped flatten to
+                the contact hemisphere only, moved deformation energy to far-side bulge.
+            </p>
+
+            <div class="iter-compare">
+                <figure>
+                    <canvas id="iterA" width="200" height="140"></canvas>
+                    <figcaption>Round 1: subtle</figcaption>
+                </figure>
+                <figure>
+                    <canvas id="iterB" width="200" height="140"></canvas>
+                    <figcaption>Round 3: visible squish</figcaption>
+                </figure>
+                <figure>
+                    <canvas id="iterC" width="200" height="140"></canvas>
+                    <figcaption>Round 4: concavity inversion</figcaption>
+                </figure>
+            </div>
+            <p class="caption">Each iteration frozen at peak resist phase for comparison.</p>
+
+            <h3>Round 5: Slider tuning</h3>
+            <p>
+                Built a standalone demo app with 15 sliders. Spent ten minutes dragging and watching.
+                Converged on the final values: 20% flatten, 18% bulge, 2% tremor at 8Hz, 0.08s snap with
+                60% flash, damped spring settle at 30% wobble decaying over 3 cycles.
+            </p>
+        </div>
+
+        <hr>
+
+        <h2>Source</h2>
+
+        <div class="cta">
+            <p>
+                <strong><a href="https://github.com/zacspa/JobApplicationWizard/blob/main/Sources/JobApplicationWizardCore/Components/JitterCircle.swift">JitterCircle.swift</a></strong>:
+                shared <code>blobPath()</code> static function with the deformation hook.
+            </p>
+            <p>
+                <strong>BubbleMergeView.swift</strong>: the five-phase merge animation (~250 lines).
+            </p>
+            <p>
+                <strong>Demo/BubbleMergeDemo</strong>: the slider-equipped tuning app.
+            </p>
+        </div>
+
+    </article>
+
+<script>
+// ============================================================
+// Shared blob math (ported from JitterCircle.blobPath)
+// ============================================================
+var FREQ = 1.1, WL = 0.46, WSPEED = -0.7, TTAPER = 0.0, TCURVE = 3.8;
+
+function blobPath(cx, cy, bodyRadius, amplitude, elapsed, rotation, segments, deformation) {
+    segments = segments || 200;
+    var numWaves = Math.max(1, Math.round(1.0 / WL));
+    var k = 2 * Math.PI * numWaves;
+    var omega = 2 * Math.PI * FREQ * WSPEED;
+    var pts = [];
+    for (var i = 0; i < segments; i++) {
+        var t = i / segments;
+        var angle = rotation - Math.PI / 2 + 2 * Math.PI * t;
+        var ax = cx + bodyRadius * Math.cos(angle);
+        var ay = cy + bodyRadius * Math.sin(angle);
+        var nx = Math.cos(angle), ny = Math.sin(angle);
+        var wp = t <= 0.5 ? t * 2 : (1 - t) * 2;
+        var taper = 1.0 - TTAPER * Math.pow(wp, TCURVE);
+        var poleFade = Math.sin(Math.PI * wp);
+        var wave = Math.sin(k * wp - omega * elapsed);
+        var d = amplitude * taper * wave * poleFade;
+        var baseW = amplitude * 0.6;
+        var offset = baseW * taper * poleFade + d;
+        if (deformation) offset += deformation(angle, ax, ay);
+        pts.push([ax + offset * nx, ay + offset * ny]);
+    }
+    return pts;
+}
+
+function fillBlob(ctx, pts, color) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+}
+
+var INSTANCES = [
+    {rot: 0,            color: 'rgb(255,0,0)'},
+    {rot: 2*Math.PI/3,  color: 'rgb(0,255,0)'},
+    {rot: 4*Math.PI/3,  color: 'rgb(0,0,255)'},
+];
+
+function drawIdleBlob(ctx, cx, cy, radius, elapsed, ampFrac) {
+    ampFrac = ampFrac || 0.08;
+    var amp = radius * ampFrac;
+    for (var ii = 0; ii < INSTANCES.length; ii++) {
+        var inst = INSTANCES[ii];
+        fillBlob(ctx, blobPath(cx, cy, radius, amp, elapsed, inst.rot), inst.color);
+    }
+}
+
+// ============================================================
+// Slider toggle
+// ============================================================
+document.getElementById('sliderToggle').addEventListener('click', function() {
+    var grid = document.getElementById('sliderGrid');
+    var arrow = document.getElementById('sliderArrow');
+    grid.classList.toggle('hidden');
+    arrow.classList.toggle('open');
+});
+
+// ============================================================
+// Iteration log toggle
+// ============================================================
+document.getElementById('iterToggle').addEventListener('click', function() {
+    var log = document.getElementById('iterLog');
+    var arrow = document.getElementById('iterArrow');
+    log.classList.toggle('hidden');
+    arrow.classList.toggle('open');
+});
+
+// ============================================================
+// Final: interactive version driven by sliders
+// ============================================================
+(function() {
+    var c = document.getElementById('final');
+    var ctx = c.getContext('2d');
+    var start = performance.now() / 1000;
+    var R = 36;
+    c.style.cursor = 'pointer';
+    c.addEventListener('click', function() { start = performance.now() / 1000; });
+
+    var DEFAULTS = {
+        approachDur: 0.6, resistDur: 0.4, snapDur: 0.08, settleDur: 0.8,
+        startGap: 2.8, contactGap: 2.08,
+        flatten: 0.20, bulge: 0.18, tremorAmp: 0.02, tremorHz: 8,
+        flashOp: 0.6,
+        wobbleAmp: 0.30, wobbleDecay: 6, stretch: 0.15, stretchDecay: 5, cycles: 3
+    };
+
+    function sl(id) { return document.getElementById('s_' + id); }
+    function vl(id) { return document.getElementById('v_' + id); }
+    function S(id) { return parseFloat(sl(id).value); }
+
+    var sliderIds = Object.keys(DEFAULTS);
+    var fmts = {
+        approachDur: function(v){return v.toFixed(2)+'s';},
+        resistDur:   function(v){return v.toFixed(2)+'s';},
+        snapDur:     function(v){return v.toFixed(2)+'s';},
+        settleDur:   function(v){return v.toFixed(2)+'s';},
+        startGap:    function(v){return v.toFixed(1)+'r';},
+        contactGap:  function(v){return v.toFixed(2)+'r';},
+        flatten:     function(v){return v.toFixed(2);},
+        bulge:       function(v){return v.toFixed(2);},
+        tremorAmp:   function(v){return v.toFixed(3);},
+        tremorHz:    function(v){return v.toFixed(1);},
+        flashOp:     function(v){return v.toFixed(2);},
+        wobbleAmp:   function(v){return v.toFixed(2);},
+        wobbleDecay: function(v){return v.toFixed(1);},
+        stretch:     function(v){return v.toFixed(2);},
+        stretchDecay:function(v){return v.toFixed(1);},
+        cycles:      function(v){return v.toFixed(1);}
+    };
+
+    sliderIds.forEach(function(id) {
+        var s = sl(id);
+        if (!s) return;
+        s.addEventListener('input', function() {
+            vl(id).textContent = fmts[id](parseFloat(s.value));
+            start = performance.now() / 1000;
+        });
+    });
+
+    document.getElementById('resetSliders').addEventListener('click', function() {
+        sliderIds.forEach(function(id) {
+            var s = sl(id);
+            if (!s) return;
+            s.value = DEFAULTS[id];
+            vl(id).textContent = fmts[id](DEFAULTS[id]);
+        });
+        start = performance.now() / 1000;
+    });
+
+    function getPhaseS(elapsed) {
+        var ad = S('approachDur'), rd = S('resistDur'), sd = S('snapDur'), sed = S('settleDur');
+        var t1 = ad, t2 = t1 + rd, t3 = t2 + sd, t4 = t3 + sed;
+        if (elapsed < t1) return {phase:'approach', p: elapsed / ad};
+        if (elapsed < t2) return {phase:'resist', p: (elapsed - t1) / rd};
+        if (elapsed < t3) return {phase:'snap', p: (elapsed - t2) / sd};
+        if (elapsed < t4) return {phase:'settle', p: (elapsed - t3) / sed};
+        return {phase:'merged', p: 1};
+    }
+
+    function totalDur() {
+        return S('approachDur') + S('resistDur') + S('snapDur') + S('settleDur');
+    }
+
+    function draw() {
+        var now = performance.now() / 1000;
+        var loopDur = totalDur() + 1.5;
+        var elapsed = (now - start) % loopDur;
+        ctx.clearRect(0, 0, c.width, c.height);
+        ctx.globalCompositeOperation = 'lighter';
+        var cx = c.width/2, cy = c.height/2;
+        var amp = R * 0.08;
+        var ph = getPhaseS(elapsed);
+        var spacing = R * S('startGap');
+        var contactGap = R * S('contactGap');
+        var mergedR = R * Math.SQRT2;
+
+        if (ph.phase === 'approach') {
+            var t = ph.p * ph.p * ph.p;
+            var gap = spacing - (spacing - contactGap) * t;
+            var ampScale = 1 + 0.25 * t;
+            drawIdleBlob(ctx, cx - gap/2, cy, R, elapsed, 0.08 * ampScale);
+            drawIdleBlob(ctx, cx + gap/2, cy, R, elapsed, 0.08 * ampScale);
+        } else if (ph.phase === 'resist') {
+            var t = 1-(1-ph.p)*(1-ph.p);
+            var flatStr = R * S('flatten') * t;
+            var bulgeStr = R * S('bulge') * t;
+            var ta = R * S('tremorAmp') * t;
+            var tHz = S('tremorHz') * 2 * Math.PI;
+            for (var ii=0; ii<INSTANCES.length; ii++) {
+                var inst = INSTANCES[ii];
+                var deformL = (function(fs,bs,ta2,tHz2) { return function(angle) {
+                    var ca = Math.cos(angle);
+                    return -fs * Math.max(0,ca) + bs * Math.max(0, -ca) + ta2 * Math.sin(tHz2*elapsed) * Math.max(0,ca);
+                };})(flatStr,bulgeStr,ta,tHz);
+                fillBlob(ctx, blobPath(cx - contactGap/2, cy, R, amp*1.25, elapsed, inst.rot, 200, deformL), inst.color);
+                var deformR = (function(fs,bs,ta2,tHz2) { return function(angle) {
+                    var ca = Math.cos(angle - Math.PI);
+                    return -fs * Math.max(0,ca) + bs * Math.max(0, -ca) + ta2 * Math.sin(tHz2*elapsed+Math.PI) * Math.max(0,ca);
+                };})(flatStr,bulgeStr,ta,tHz);
+                fillBlob(ctx, blobPath(cx + contactGap/2, cy, R, amp*1.25, elapsed, inst.rot, 200, deformR), inst.color);
+            }
+        } else if (ph.phase === 'snap') {
+            var remain = contactGap/2*(1-ph.p);
+            var neckW = mergedR * ph.p;
+            if (neckW > 1) {
+                ctx.beginPath();
+                var nl = cx - remain - neckW*0.3, nr = cx + remain + neckW*0.3;
+                ctx.ellipse(cx, cy, (nr-nl)/2, neckW, 0, 0, 2*Math.PI);
+                for (var ii=0;ii<INSTANCES.length;ii++) { ctx.fillStyle = INSTANCES[ii].color; ctx.fill(); }
+            }
+            var finOp = 1 - ph.p * 0.5;
+            ctx.globalAlpha = finOp;
+            for (var ii=0;ii<INSTANCES.length;ii++) {
+                var inst = INSTANCES[ii];
+                fillBlob(ctx, blobPath(cx-remain, cy, R, amp, elapsed, inst.rot), inst.color);
+                fillBlob(ctx, blobPath(cx+remain, cy, R, amp, elapsed, inst.rot), inst.color);
+            }
+            ctx.globalAlpha = 1;
+            var flashOp = S('flashOp');
+            if (ph.p < 0.25 && flashOp > 0) {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.beginPath(); ctx.arc(cx,cy,mergedR*0.15,0,2*Math.PI);
+                ctx.fillStyle = 'rgba(255,255,255,'+(flashOp*(1-ph.p/0.25))+')'; ctx.fill();
+                ctx.globalCompositeOperation = 'lighter';
+            }
+        } else if (ph.phase === 'settle') {
+            var sd = S('settleDur');
+            var t = ph.p * sd;
+            var wAmp = S('wobbleAmp'), wDecay = S('wobbleDecay'), cyc = S('cycles');
+            var str = S('stretch'), sDecay = S('stretchDecay');
+            var wobble = wAmp*Math.exp(-wDecay*t)*Math.cos(cyc*2*Math.PI*t/sd);
+            var sx = 1+str*Math.exp(-sDecay*t)*Math.cos(cyc*2*Math.PI*t/sd);
+            var sy = 1-str*Math.exp(-sDecay*t)*Math.cos(cyc*2*Math.PI*t/sd);
+            var sAmp = amp*(1+wobble);
+            for (var ii=0;ii<INSTANCES.length;ii++) {
+                var inst = INSTANCES[ii];
+                var deform = (function(ssx,ssy,mr){ return function(angle) {
+                    return (ssx-1)*mr*Math.abs(Math.cos(angle)) + (ssy-1)*mr*Math.abs(Math.sin(angle));
+                };})(sx,sy,mergedR);
+                fillBlob(ctx, blobPath(cx, cy, mergedR, sAmp, elapsed, inst.rot, 200, deform), inst.color);
+            }
+        } else {
+            drawIdleBlob(ctx, cx, cy, mergedR, elapsed);
+        }
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
+
+// ============================================================
+// "Butt thing" demo: frozen at peak resist with excessive flatten
+// ============================================================
+(function() {
+    var c = document.getElementById('concavity');
+    var ctx = c.getContext('2d');
+    var start = performance.now() / 1000;
+    var R = 28;
+    function draw() {
+        var now = performance.now() / 1000;
+        var elapsed = now - start;
+        ctx.clearRect(0, 0, c.width, c.height);
+        ctx.globalCompositeOperation = 'lighter';
+        var cx = c.width/2, cy = c.height/2;
+        var amp = R * 0.08;
+        var contactGap = R * 1.2;
+        var pressure = 2.5;
+        var flatStr = R * 0.40 * pressure;
+        var bulgeStr = R * 0.30 * pressure;
+        var tremorAmp = R * 0.04;
+        for (var ii=0; ii<INSTANCES.length; ii++) {
+            var inst = INSTANCES[ii];
+            var deformL = (function(fs,bs,ta) { return function(angle) {
+                var ca = Math.cos(angle);
+                return -fs * ca + bs * Math.max(0, -ca) + ta * Math.sin(50*elapsed) * Math.max(0,ca);
+            };})(flatStr,bulgeStr,tremorAmp);
+            fillBlob(ctx, blobPath(cx - contactGap/2, cy, R, amp*1.4, elapsed, inst.rot, 200, deformL), inst.color);
+            var deformR = (function(fs,bs,ta) { return function(angle) {
+                var ca = Math.cos(angle - Math.PI);
+                return -fs * ca + bs * Math.max(0, -ca) + ta * Math.sin(50*elapsed+Math.PI) * Math.max(0,ca);
+            };})(flatStr,bulgeStr,tremorAmp);
+            fillBlob(ctx, blobPath(cx + contactGap/2, cy, R, amp*1.4, elapsed, inst.rot, 200, deformR), inst.color);
+        }
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
+
+// ============================================================
+// Iteration comparison: frozen at peak resist for each round
+// ============================================================
+(function() {
+    // Round 1: subtle (5% flatten, no bulge)
+    var cA = document.getElementById('iterA');
+    var ctxA = cA ? cA.getContext('2d') : null;
+    // Round 3: visible squish (35% flatten, 25% bulge, tight gap)
+    var cB = document.getElementById('iterB');
+    var ctxB = cB ? cB.getContext('2d') : null;
+    // Round 4: concavity inversion (65% flatten)
+    var cC = document.getElementById('iterC');
+    var ctxC = cC ? cC.getContext('2d') : null;
+
+    var R = 22;
+    var start = performance.now() / 1000;
+
+    function drawFrozenResist(ctx, cw, ch, flatPct, bulgePct, gap, elapsed) {
+        if (!ctx) return;
+        ctx.clearRect(0, 0, cw, ch);
+        ctx.globalCompositeOperation = 'lighter';
+        var cx = cw/2, cy = ch/2;
+        var amp = R * 0.08;
+        var flatStr = R * flatPct;
+        var bulgeStr = R * bulgePct;
+        var tremorAmp = R * 0.02;
+        var contactGap = R * gap;
+        for (var ii=0; ii<INSTANCES.length; ii++) {
+            var inst = INSTANCES[ii];
+            var dL = (function(fs,bs,ta){ return function(angle) {
+                var ca = Math.cos(angle);
+                return -fs*ca + bs*Math.max(0,-ca) + ta*Math.sin(50*elapsed)*Math.max(0,ca);
+            };})(flatStr,bulgeStr,tremorAmp);
+            fillBlob(ctx, blobPath(cx-contactGap/2, cy, R, amp*1.25, elapsed, inst.rot, 200, dL), inst.color);
+            var dR = (function(fs,bs,ta){ return function(angle) {
+                var ca = Math.cos(angle-Math.PI);
+                return -fs*ca + bs*Math.max(0,-ca) + ta*Math.sin(50*elapsed+Math.PI)*Math.max(0,ca);
+            };})(flatStr,bulgeStr,tremorAmp);
+            fillBlob(ctx, blobPath(cx+contactGap/2, cy, R, amp*1.25, elapsed, inst.rot, 200, dR), inst.color);
+        }
+    }
+
+    function draw() {
+        var elapsed = performance.now() / 1000 - start;
+        drawFrozenResist(ctxA, 200, 140, 0.05, 0.0, 2.15, elapsed);
+        drawFrozenResist(ctxB, 200, 140, 0.35, 0.25, 1.6, elapsed);
+        drawFrozenResist(ctxC, 200, 140, 0.65, 0.40, 1.2, elapsed);
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
+</script>
+
+</body>
+</html>
