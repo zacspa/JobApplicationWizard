@@ -49,9 +49,9 @@ private struct GeneralSettingsTab: View {
     var body: some View {
         Form {
             Section("Appearance") {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                     Text("Default launch view")
-                        .font(.subheadline)
+                        .font(DS.Typography.subheadline)
                         .fontWeight(.medium)
                     Picker("Default view", selection: Binding(
                         get: { store.settings.defaultViewMode },
@@ -68,8 +68,8 @@ private struct GeneralSettingsTab: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
+        .padding(.horizontal, DS.Spacing.lg)
+        .padding(.vertical, DS.Spacing.lg)
     }
 }
 
@@ -103,9 +103,9 @@ private struct AIProviderSettingsTab: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
+                .padding(.horizontal, DS.Spacing.lg)
+                .padding(.top, DS.Spacing.lg)
+                .padding(.bottom, DS.Spacing.sm)
             }
 
             Form {
@@ -122,7 +122,7 @@ private struct AIProviderSettingsTab: View {
                 }
 
                 Section("Agent Actions") {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                         Picker("When AI proposes changes", selection: Binding(
                             get: { store.settings.agentActionMode },
                             set: { store.send(.agentActionModeChanged($0)) }
@@ -134,20 +134,20 @@ private struct AIProviderSettingsTab: View {
                         .pickerStyle(.segmented)
 
                         Text("\"Apply Immediately\" lets the AI modify job data directly. \"Require Approval\" shows a review sheet first.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(DS.Typography.caption)
+                            .foregroundColor(DS.Color.textSecondary)
                     }
                 }
 
                 if store.acpConnection.aiProvider == .claudeAPI {
                     Section("Claude API") {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                             Text("Claude API Key")
-                                .font(.subheadline)
+                                .font(DS.Typography.subheadline)
                                 .fontWeight(.medium)
                             Text("Used for resume tailoring, cover letters, and interview prep.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .font(DS.Typography.caption)
+                                .foregroundColor(DS.Color.textSecondary)
                             HStack {
                                 Group {
                                     if showKey {
@@ -162,19 +162,19 @@ private struct AIProviderSettingsTab: View {
                                 } label: {
                                     Image(systemName: showKey ? "eye.slash" : "eye")
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(GhostButtonStyle())
                             }
                             Text("Your key is stored in the system Keychain — never written to disk.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .font(DS.Typography.caption)
+                                .foregroundColor(DS.Color.textSecondary)
                         }
                     }
                 } else {
                     Section("ACP Agent") {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                             HStack {
                                 Text("Available Agents")
-                                    .font(.subheadline)
+                                    .font(DS.Typography.subheadline)
                                     .fontWeight(.medium)
                                 Spacer()
                                 if store.isLoadingAgents {
@@ -184,15 +184,14 @@ private struct AIProviderSettingsTab: View {
                                 Button("Refresh") {
                                     store.send(.fetchACPRegistry)
                                 }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
+                                .buttonStyle(DSActionButtonStyle())
                                 .disabled(store.isLoadingAgents)
                             }
 
                             if store.availableACPAgents.isEmpty && !store.isLoadingAgents {
                                 Text("No agents found. Click Refresh to load the registry.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(DS.Typography.caption)
+                                    .foregroundColor(DS.Color.textSecondary)
                             } else {
                                 Picker("Agent", selection: Binding(
                                     get: { store.settings.selectedACPAgentId ?? "" },
@@ -203,8 +202,8 @@ private struct AIProviderSettingsTab: View {
                                         VStack(alignment: .leading) {
                                             Text(agent.name)
                                             Text(agent.description)
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
+                                                .font(DS.Typography.caption)
+                                                .foregroundColor(DS.Color.textSecondary)
                                         }
                                         .tag(agent.id)
                                     }
@@ -213,25 +212,25 @@ private struct AIProviderSettingsTab: View {
                         }
 
                         // Connection status
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 6) {
+                        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+                            HStack(spacing: DS.Spacing.xs) {
                                 if store.acpConnection.isConnecting {
                                     ProgressView()
                                         .controlSize(.small)
                                     Text("Connecting...")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
+                                        .font(DS.Typography.subheadline)
+                                        .foregroundColor(DS.Color.textSecondary)
                                 } else {
                                     Circle()
                                         .fill(store.acpConnection.isConnected ? Color.green : Color.gray)
-                                        .frame(width: 8, height: 8)
+                                        .frame(width: DS.Spacing.sm, height: DS.Spacing.sm)
                                     if let name = store.acpConnection.connectedAgentName {
                                         Text("Connected: \(name)")
-                                            .font(.subheadline)
+                                            .font(DS.Typography.subheadline)
                                     } else {
                                         Text("Disconnected")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
+                                            .font(DS.Typography.subheadline)
+                                            .foregroundColor(DS.Color.textSecondary)
                                     }
                                 }
                             }
@@ -241,8 +240,7 @@ private struct AIProviderSettingsTab: View {
                                     Button("Disconnect") {
                                         store.send(.disconnectACPAgent)
                                     }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
+                                    .buttonStyle(DSActionButtonStyle())
                                 } else {
                                     Button("Connect") {
                                         store.send(.connectACPAgent)
@@ -255,7 +253,7 @@ private struct AIProviderSettingsTab: View {
 
                             if let error = store.acpConnection.error {
                                 Text(error)
-                                    .font(.caption)
+                                    .font(DS.Typography.caption)
                                     .foregroundColor(.red)
                                     .onTapGesture {
                                         NSPasteboard.general.clearContents()
@@ -265,14 +263,14 @@ private struct AIProviderSettingsTab: View {
                             }
 
                             Text("Some agents require Node.js (for npx) or are macOS-only binaries.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .font(DS.Typography.caption)
+                                .foregroundColor(DS.Color.textSecondary)
                         }
                     }
                 }
             }
             .formStyle(.grouped)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, DS.Spacing.lg)
         }
         .onAppear { apiKey = store.claudeAPIKey }
     }
@@ -298,7 +296,7 @@ private struct DataSettingsTab: View {
 
                 Divider()
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                     Button("Export Full Backup") {
                         store.send(.exportAll)
                     }
@@ -306,28 +304,28 @@ private struct DataSettingsTab: View {
                         store.send(.importAll)
                     }
                     Text("Includes all jobs, chat history, contacts, notes, profile, and settings. API keys are never included.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
                 }
             }
 
             Section("CSV Format") {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                     Text("Share this format with other tools so they can export files compatible with Job Application Wizard.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         Text(csvHeader)
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(.primary)
                             .textSelection(.enabled)
-                            .padding(8)
-                            .background(Color(NSColor.textBackgroundColor))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .padding(DS.Spacing.sm)
+                            .background(DS.Color.textBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
                     }
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: DS.Spacing.sm) {
                         Button(copiedTemplate ? "Copied!" : "Copy CSV Template") {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(csvTemplateWithSample, forType: .string)
@@ -346,10 +344,10 @@ private struct DataSettingsTab: View {
                     }
 
                     Text("The conversion prompt lets you paste data from any tool into Claude and get back a ready-to-import CSV.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, DS.Spacing.xxs)
             }
 
             Section("Danger Zone") {
@@ -368,8 +366,8 @@ private struct DataSettingsTab: View {
             }
         }
         .formStyle(.grouped)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
+        .padding(.horizontal, DS.Spacing.lg)
+        .padding(.vertical, DS.Spacing.lg)
         .alert(
             "Replace All Data?",
             isPresented: Binding(
@@ -434,26 +432,26 @@ private struct AboutSettingsTab: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: DS.Spacing.xl) {
             Spacer()
             Image(systemName: "briefcase.fill")
                 .font(.system(size: 56))
                 .foregroundColor(.accentColor)
-            VStack(spacing: 6) {
+            VStack(spacing: DS.Spacing.xs) {
                 Text("Job Application Wizard")
-                    .font(.title2)
+                    .font(DS.Typography.heading1)
                     .fontWeight(.bold)
                 Text("Version \(appVersion) (\(buildNumber))")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .font(DS.Typography.subheadline)
+                    .foregroundColor(DS.Color.textSecondary)
                 Text("Your personal job search command center.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 4)
+                    .font(DS.Typography.caption)
+                    .foregroundColor(DS.Color.textSecondary)
+                    .padding(.top, DS.Spacing.xxs)
             }
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
+        .padding(.vertical, DS.Spacing.xxxl)
     }
 }

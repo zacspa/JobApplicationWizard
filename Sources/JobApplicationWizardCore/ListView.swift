@@ -39,19 +39,19 @@ public struct ListView: View {
         VStack(spacing: 0) {
             HStack {
                 Text("\(sortedJobs.count) jobs")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DS.Typography.caption)
+                    .foregroundColor(DS.Color.textSecondary)
                 Spacer()
                 Picker("Sort", selection: $sortOrder) {
                     ForEach(SortOrder.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.menu)
-                .font(.caption)
+                .font(DS.Typography.caption)
                 .controlSize(.small)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(.horizontal, DS.Spacing.lg)
+            .padding(.vertical, DS.Spacing.sm)
+            .background(DS.Color.controlBackground)
 
             Divider()
 
@@ -68,33 +68,33 @@ public struct ListView: View {
                     TableColumn("Company / Role") { job in
                         VStack(alignment: .leading, spacing: 2) {
                             // Note: cuttleDockable is applied to the whole VStack below
-                            HStack(spacing: 5) {
+                            HStack(spacing: DS.Spacing.xs) {
                                 Image(systemName: job.status.icon)
                                     .foregroundColor(job.status.color)
-                                    .font(.subheadline)
+                                    .font(DS.Typography.subheadline)
                                 Text(job.displayCompany)
                                     .fontWeight(.semibold)
                                 if job.isFavorite {
                                     Image(systemName: "star.fill")
                                         .foregroundColor(.yellow)
-                                        .font(.caption2)
+                                        .font(DS.Typography.caption2)
                                 }
                                 ForEach(job.labels.prefix(2)) { label in
                                     Text(label.name)
-                                        .font(.system(size: 9))
-                                        .padding(.horizontal, 5).padding(.vertical, 1)
-                                        .background(label.color.opacity(0.15))
+                                        .font(DS.Typography.micro)
+                                        .padding(.horizontal, DS.Spacing.xs).padding(.vertical, 1)
+                                        .background(label.color.opacity(DS.Color.Opacity.tint))
                                         .foregroundColor(label.color)
                                         .clipShape(Capsule())
                                 }
                             }
                             Text(job.displayTitle)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .font(DS.Typography.subheadline)
+                                .foregroundColor(DS.Color.textSecondary)
                             TimelineView(.periodic(from: .now, by: 60)) { context in
                                 if let badge = interviewCountdownInfo(rounds: job.interviews, now: context.date) {
                                     Label(badge.text, systemImage: "calendar.badge.clock")
-                                        .font(.caption2)
+                                        .font(DS.Typography.caption2)
                                         .foregroundColor(badge.color)
                                         .italic(badge.isItalic)
                                 }
@@ -116,9 +116,9 @@ public struct ListView: View {
 
                     TableColumn("Status") { job in
                         Text(job.status.rawValue)
-                            .font(.caption)
-                            .padding(.horizontal, 7).padding(.vertical, 2)
-                            .background(job.status.color.opacity(0.12))
+                            .font(DS.Typography.caption)
+                            .padding(.horizontal, DS.Spacing.sm).padding(.vertical, DS.Spacing.xxxs)
+                            .background(job.status.color.opacity(DS.Color.Opacity.wash))
                             .foregroundColor(job.status.color)
                             .clipShape(Capsule())
                     }

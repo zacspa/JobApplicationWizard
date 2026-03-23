@@ -343,7 +343,7 @@ public struct AppFeature {
                     .cancellable(id: CancelID.bindingDebounce, cancelInFlight: true)
                 )
 
-            case .recordBindingEdit(let jobId):
+            case .recordBindingEdit(_):
                 // The debounce timer fired; the job state is already saved.
                 // We don't record individual field-level events for bindings to keep history clean.
                 state.lastBindingJobId = nil
@@ -1050,7 +1050,7 @@ public struct AppFeature {
         case .setStatus(let jobId, _, let newStatus):
             state.jobs[id: jobId]?.status = newStatus
 
-        case .addNote(let jobId, let noteId):
+        case .addNote(_, _):
             // "Add note" as a reversed command means we need to restore the note
             // This is a limitation; for now we just skip
             break
@@ -1137,20 +1137,20 @@ public struct AppFeature {
         case .setStatus(let jobId, _, let newStatus):
             state.jobs[id: jobId]?.status = newStatus
 
-        case .addNote(let jobId, _):
+        case .addNote(_, _):
             // Re-adding a note without a snapshot; limited
             break
 
         case .deleteNote(let jobId, let snapshot):
             state.jobs[id: jobId]?.noteCards.removeAll { $0.id == snapshot.id }
 
-        case .addContact(let jobId, _):
+        case .addContact(_, _):
             break
 
         case .deleteContact(let jobId, let snapshot):
             state.jobs[id: jobId]?.contacts.removeAll { $0.id == snapshot.id }
 
-        case .addInterview(let jobId, _):
+        case .addInterview(_, _):
             break
 
         case .deleteInterview(let jobId, let snapshot):
@@ -1168,7 +1168,7 @@ public struct AppFeature {
         case .toggleFavorite(let jobId, _, let newVal):
             state.jobs[id: jobId]?.isFavorite = newVal
 
-        case .addJob(let jobId):
+        case .addJob(_):
             // Can't fully re-add without snapshot
             break
 

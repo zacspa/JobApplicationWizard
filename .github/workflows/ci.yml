@@ -22,3 +22,9 @@ jobs:
         run: swift build
       - name: Test
         run: swift test
+      - name: Upload failed snapshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-snapshots
+          path: Tests/**/__Snapshots__/**

@@ -13,7 +13,7 @@ public struct HistoryTimelineView: View {
             // Header
             HStack {
                 Label("History", systemImage: "clock.arrow.circlepath")
-                    .font(.headline)
+                    .font(DS.Typography.heading3)
                 Spacer()
                 if store.isTimeTraveling {
                     Button("Revert to Here") {
@@ -26,32 +26,31 @@ public struct HistoryTimelineView: View {
                     Button("Cancel") {
                         store.send(.cancelTimeTraveling)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .buttonStyle(DSActionButtonStyle())
                 }
                 Button {
                     store.send(.toggleTimeline)
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DS.Color.textSecondary)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(.horizontal, DS.Spacing.md)
+            .padding(.vertical, DS.Spacing.sm)
+            .background(DS.Color.controlBackground)
 
             Divider()
 
             // Event list
             if store.visibleEvents.isEmpty {
-                VStack(spacing: 8) {
+                VStack(spacing: DS.Spacing.sm) {
                     Image(systemName: "clock")
                         .font(.largeTitle)
                         .foregroundColor(.secondary.opacity(0.4))
                     Text("No history yet")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -68,12 +67,12 @@ public struct HistoryTimelineView: View {
                             }
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, DS.Spacing.xxs)
                 }
             }
         }
         .frame(width: 280)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(DS.Color.windowBackground)
     }
 }
 
@@ -84,27 +83,27 @@ private struct HistoryEventRow: View {
     let isRevertTarget: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: DS.Spacing.sm) {
             // Source badge
             sourceBadge
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.label)
-                    .font(.caption)
+                    .font(DS.Typography.caption)
                     .foregroundColor(.primary)
                     .lineLimit(2)
 
                 Text(event.timestamp.relativeString)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(DS.Typography.caption2)
+                    .foregroundColor(DS.Color.textSecondary)
             }
 
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(isRevertTarget ? Color.orange.opacity(0.12) : Color.clear)
+        .padding(.horizontal, DS.Spacing.md)
+        .padding(.vertical, DS.Spacing.xs)
+        .background(isRevertTarget ? Color.orange.opacity(DS.Color.Opacity.wash) : Color.clear)
     }
 
     @ViewBuilder
@@ -112,19 +111,19 @@ private struct HistoryEventRow: View {
         switch event.source {
         case .user:
             Image(systemName: "person.fill")
-                .font(.caption2)
+                .font(DS.Typography.caption2)
                 .foregroundColor(.blue)
         case .agent:
             Image(systemName: "sparkles")
-                .font(.caption2)
+                .font(DS.Typography.caption2)
                 .foregroundColor(.purple)
         case .import:
             Image(systemName: "square.and.arrow.down")
-                .font(.caption2)
+                .font(DS.Typography.caption2)
                 .foregroundColor(.green)
         case .system:
             Image(systemName: "gearshape")
-                .font(.caption2)
+                .font(DS.Typography.caption2)
                 .foregroundColor(.secondary)
         }
     }
@@ -141,13 +140,13 @@ public struct TimeTravelBanner: View {
             Image(systemName: "clock.arrow.circlepath")
                 .foregroundColor(.orange)
             Text("Time-travel mode: editing disabled. Select an event to revert to, or cancel.")
-                .font(.caption)
+                .font(DS.Typography.caption)
                 .foregroundColor(.orange)
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.orange.opacity(0.1))
+        .padding(.horizontal, DS.Spacing.md)
+        .padding(.vertical, DS.Spacing.xs)
+        .background(Color.orange.opacity(DS.Color.Opacity.subtle))
         .overlay(
             Rectangle()
                 .frame(height: 1)

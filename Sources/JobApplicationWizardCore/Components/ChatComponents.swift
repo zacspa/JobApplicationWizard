@@ -33,21 +33,21 @@ public struct ChatBubble: View {
                     .textSelection(.enabled)
             } else {
                 Text(message.content)
-                    .font(.body)
+                    .font(DS.Typography.body)
                     .textSelection(.enabled)
             }
         }
-            .padding(.horizontal, message.role == .assistant ? 14 : 12).padding(.vertical, 8)
+            .padding(.horizontal, DS.Spacing.md).padding(.vertical, DS.Spacing.sm)
             .background(
                 message.role == .user
-                    ? Color.accentColor.opacity(0.15)
-                    : Color(NSColor.controlBackgroundColor)
+                    ? Color.accentColor.opacity(DS.Color.Opacity.tint)
+                    : DS.Color.controlBackground
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+                RoundedRectangle(cornerRadius: DS.Radius.xl)
+                    .stroke(Color.secondary.opacity(DS.Color.Opacity.tint), lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xl))
             .overlay(alignment: .bottomTrailing) {
                 if message.role == .assistant && isHovered {
                     Button {
@@ -55,12 +55,12 @@ public struct ChatBubble: View {
                         NSPasteboard.general.setString(message.content, forType: .string)
                     } label: {
                         Label("Copy", systemImage: "doc.on.doc")
-                            .font(.footnote)
-                            .padding(6)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                            .font(DS.Typography.footnote)
+                            .padding(DS.Spacing.xs)
+                            .background(DS.Glass.chrome, in: RoundedRectangle(cornerRadius: DS.Radius.small))
                     }
-                    .buttonStyle(.plain).foregroundColor(.secondary)
-                    .offset(x: -6, y: -6)
+                    .buttonStyle(GhostButtonStyle())
+                    .offset(x: -DS.Spacing.xs, y: -DS.Spacing.xs)
                 }
             }
             .onHover { isHovered = $0 }
@@ -79,25 +79,17 @@ public struct SuggestionChip: View {
     }
 
     public var body: some View {
-        Button(action: action) {
-            Text(text)
-                .font(.caption)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.accentColor.opacity(0.1))
-                .foregroundColor(.accentColor)
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
+        Button(text, action: action)
+            .buttonStyle(PillButtonStyle())
     }
 }
 
 // MARK: - Flow Layout
 
 public struct FlowLayout: Layout {
-    public var spacing: CGFloat = 8
+    public var spacing: CGFloat = DS.Spacing.sm
 
-    public init(spacing: CGFloat = 8) {
+    public init(spacing: CGFloat = DS.Spacing.sm) {
         self.spacing = spacing
     }
 
@@ -162,28 +154,28 @@ public struct ChatInputBar: View {
     }
 
     public var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: DS.Spacing.xs) {
             if let error {
-                Text(error).font(.footnote).foregroundColor(.red)
-                    .padding(8).background(Color.red.opacity(0.1)).cornerRadius(6)
+                Text(error).font(DS.Typography.footnote).foregroundColor(DS.Color.error)
+                    .padding(DS.Spacing.sm).background(DS.Color.error.opacity(DS.Color.Opacity.subtle)).cornerRadius(DS.Radius.small)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            HStack(alignment: .bottom, spacing: 8) {
+            HStack(alignment: .bottom, spacing: DS.Spacing.sm) {
                 ZStack(alignment: .topLeading) {
                     if input.isEmpty {
                         Text("Ask a follow-up...")
-                            .foregroundColor(.secondary)
-                            .font(.body)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 8)
+                            .foregroundColor(DS.Color.textSecondary)
+                            .font(DS.Typography.body)
+                            .padding(.horizontal, DS.Spacing.sm)
+                            .padding(.vertical, DS.Spacing.sm)
                             .allowsHitTesting(false)
                     }
                     TextEditor(text: $input)
                         .scrollContentBackground(.hidden)
                         .background(Color.clear)
-                        .font(.body)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 4)
+                        .font(DS.Typography.body)
+                        .padding(.horizontal, DS.Spacing.xxs)
+                        .padding(.vertical, DS.Spacing.xxs)
                         .frame(minHeight: 42, maxHeight: 100)
                         .focused($inputFocused)
                         .disabled(!isReady || isLoading)
@@ -198,9 +190,9 @@ public struct ChatInputBar: View {
                             return .handled
                         }
                 }
-                .padding(.horizontal, 4).padding(.vertical, 2)
-                .background(Color(NSColor.textBackgroundColor))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
+                .padding(.horizontal, DS.Spacing.xxs).padding(.vertical, DS.Spacing.xxxs)
+                .background(DS.Color.textBackground)
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.small).stroke(DS.Color.border))
                 Button {
                     onSend()
                     Task { @MainActor in inputFocused = true }
@@ -208,18 +200,18 @@ public struct ChatInputBar: View {
                     Image(systemName: "arrow.up.circle.fill").font(.title2)
                 }
                 .buttonStyle(.plain)
-                .foregroundColor(canSend ? .accentColor : .secondary)
+                .foregroundColor(canSend ? .accentColor : DS.Color.textSecondary)
                 .disabled(!canSend)
             }
             .onAppear { inputFocused = true }
             HStack {
                 Button("Clear conversation", action: onClear)
-                    .buttonStyle(.plain).font(.footnote).foregroundColor(.secondary)
+                    .buttonStyle(GhostButtonStyle()).font(DS.Typography.footnote)
                     .disabled(!hasMessages)
                 Spacer()
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(Color(NSColor.controlBackgroundColor))
+        .padding(.horizontal, DS.Spacing.lg).padding(.vertical, DS.Spacing.md)
+        .background(DS.Color.controlBackground)
     }
 }

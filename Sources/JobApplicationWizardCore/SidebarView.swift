@@ -11,55 +11,55 @@ public struct SidebarView: View {
     public var body: some View {
         VStack(spacing: 0) {
             // Stats
-            VStack(spacing: 6) {
+            VStack(spacing: DS.Spacing.xs) {
                 HStack {
                     Text("Job Tracker")
-                        .font(.title3)
+                        .font(DS.Typography.heading2)
                         .fontWeight(.bold)
                     Spacer()
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
+                .padding(.horizontal, DS.Spacing.md)
+                .padding(.top, DS.Spacing.md)
 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DS.Spacing.xs) {
                     StatBubble(value: store.stats.total, label: "Total", color: .blue)
                     StatBubble(value: store.stats.active, label: "Active", color: .orange)
                     StatBubble(value: store.stats.interviews, label: "Interviews", color: .cyan)
                     StatBubble(value: store.stats.offers, label: "Offers", color: .green)
                 }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 8)
+                .padding(.horizontal, DS.Spacing.sm)
+                .padding(.bottom, DS.Spacing.sm)
             }
-            .background(Color(NSColor.controlBackgroundColor))
+            .background(DS.Color.controlBackground)
 
             Divider()
 
             // View mode
-            HStack(spacing: 4) {
+            HStack(spacing: DS.Spacing.xxs) {
                 ForEach(ViewMode.allCases, id: \.self) { mode in
                     Button {
                         store.send(.viewModeChanged(mode))
                     } label: {
                         Label(mode.rawValue, systemImage: mode.icon)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
+                            .font(DS.Typography.caption)
+                            .padding(.horizontal, DS.Spacing.sm)
+                            .padding(.vertical, DS.Spacing.xs)
                             .frame(maxWidth: .infinity)
-                            .background(store.viewMode == mode ? Color.accentColor.opacity(0.15) : Color.clear)
-                            .foregroundColor(store.viewMode == mode ? .accentColor : .secondary)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .background(store.viewMode == mode ? Color.accentColor.opacity(DS.Color.Opacity.tint) : Color.clear)
+                            .foregroundColor(store.viewMode == mode ? .accentColor : DS.Color.textSecondary)
+                            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(8)
+            .padding(DS.Spacing.sm)
 
             Divider()
 
             // My Profile card
             Button { store.send(.showProfileTapped) } label: {
-                HStack(spacing: 12) {
+                HStack(spacing: DS.Spacing.md) {
                     Image(systemName: "person.circle.fill")
                         .font(.system(size: 32))
                         .foregroundColor(.accentColor)
@@ -69,21 +69,21 @@ public struct SidebarView: View {
                         Text(store.settings.userProfile.name.isEmpty
                              ? "Set up for AI assistance"
                              : store.settings.userProfile.name)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(DS.Typography.caption)
+                            .foregroundColor(DS.Color.textSecondary)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
                 }
-                .padding(12)
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
+                .padding(DS.Spacing.md)
+                .background(DS.Color.controlBackground)
+                .cornerRadius(DS.Radius.medium)
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, DS.Spacing.sm)
+            .padding(.vertical, DS.Spacing.xs)
             .cuttleDockable(context: .global)
 
             Spacer()
@@ -91,10 +91,10 @@ public struct SidebarView: View {
             Divider()
 
             // Bottom: settings + import + export
-            HStack(spacing: 8) {
+            HStack(spacing: DS.Spacing.sm) {
                 SettingsLink {
                     Image(systemName: "gear")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DS.Color.textSecondary)
                 }
                 .buttonStyle(.plain)
                 .help("Settings")
@@ -105,7 +105,7 @@ public struct SidebarView: View {
                     store.send(.importCSV)
                 } label: {
                     Image(systemName: "square.and.arrow.down")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DS.Color.textSecondary)
                 }
                 .buttonStyle(.plain)
                 .help("Import from CSV")
@@ -114,13 +114,13 @@ public struct SidebarView: View {
                     store.send(.exportCSV)
                 } label: {
                     Image(systemName: "square.and.arrow.up")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DS.Color.textSecondary)
                 }
                 .buttonStyle(.plain)
                 .help("Export to CSV")
             }
-            .padding(12)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(DS.Spacing.md)
+            .background(DS.Color.controlBackground)
         }
     }
 }
@@ -133,16 +133,16 @@ struct StatBubble: View {
     var body: some View {
         VStack(spacing: 2) {
             Text("\(value)")
-                .font(.title2)
+                .font(DS.Typography.heading1)
                 .fontWeight(.bold)
                 .foregroundColor(color)
             Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
+                .font(DS.Typography.caption2)
+                .foregroundColor(DS.Color.textSecondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(color.opacity(0.08))
-        .cornerRadius(8)
+        .padding(.vertical, DS.Spacing.sm)
+        .background(color.opacity(DS.Color.Opacity.subtle))
+        .cornerRadius(DS.Radius.medium)
     }
 }

@@ -89,6 +89,7 @@ public struct ContentView: View {
             store.send(.cuttle(.dropZonesUpdated(zones)))
         }
         .environment(\.cuttlePendingContext, store.cuttle.pendingContext)
+        .environment(\.cuttleCurrentContext, store.cuttle.currentContext)
         .sheet(isPresented: Binding(
             get: { store.showOnboarding },
             set: { if !$0 { store.send(.dismissOnboarding) } }
@@ -110,9 +111,9 @@ public struct ContentView: View {
         .overlay(alignment: .bottom) {
             if let toast = store.calendar.syncToast {
                 Text(toast)
-                    .padding(.horizontal, 16).padding(.vertical, 10)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, DS.Spacing.lg).padding(.vertical, DS.Spacing.md)
+                    .background(DS.Glass.chrome, in: RoundedRectangle(cornerRadius: DS.Radius.medium))
+                    .padding(.bottom, DS.Spacing.lg)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -128,32 +129,30 @@ public struct ContentView: View {
     }
 
     var toolbar: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 6) {
+        HStack(spacing: DS.Spacing.sm) {
+            HStack(spacing: DS.Spacing.xs) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField("Search companies, titles, locations...", text: $store.searchQuery.sending(\.searchQueryChanged))
-                    .textFieldStyle(.plain)
+                    .foregroundColor(DS.Color.textSecondary)
+                DSTextField("Search companies, titles, locations...", text: Binding(
+                    get: { store.searchQuery },
+                    set: { store.send(.searchQueryChanged($0)) }
+                ))
                 if !store.searchQuery.isEmpty {
                     Button { store.send(.searchQueryChanged("")) } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(GhostButtonStyle())
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
+            .outlinedField("Search", isEmpty: store.searchQuery.isEmpty)
 
             Spacer()
 
             Button { store.send(.undo) } label: {
                 Image(systemName: "arrow.uturn.backward")
             }
-            .buttonStyle(.plain)
-            .foregroundColor(store.undoStack.isEmpty ? .secondary.opacity(0.3) : .secondary)
+            .buttonStyle(GhostButtonStyle())
+            .opacity(store.undoStack.isEmpty ? 0.3 : 1.0)
             .disabled(store.undoStack.isEmpty)
             .keyboardShortcut("z", modifiers: .command)
             .help("Undo")
@@ -161,8 +160,8 @@ public struct ContentView: View {
             Button { store.send(.redo) } label: {
                 Image(systemName: "arrow.uturn.forward")
             }
-            .buttonStyle(.plain)
-            .foregroundColor(store.redoStack.isEmpty ? .secondary.opacity(0.3) : .secondary)
+            .buttonStyle(GhostButtonStyle())
+            .opacity(store.redoStack.isEmpty ? 0.3 : 1.0)
             .disabled(store.redoStack.isEmpty)
             .keyboardShortcut("z", modifiers: [.command, .shift])
             .help("Redo")
@@ -177,9 +176,9 @@ public struct ContentView: View {
             .buttonStyle(.borderedProminent)
             .keyboardShortcut("n", modifiers: .command)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color(NSColor.windowBackgroundColor))
+        .padding(.horizontal, DS.Spacing.lg)
+        .padding(.vertical, DS.Spacing.md)
+        .background(DS.Color.windowBackground)
     }
 }
 
@@ -190,7 +189,7 @@ struct StatusFilterBar: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
+            HStack(spacing: DS.Spacing.xs) {
                 FilterPill(label: "All", count: store.jobs.count,
                            selected: store.filterStatus == nil) {
                     store.send(.filterStatusChanged(nil))
@@ -205,10 +204,10 @@ struct StatusFilterBar: View {
                     .cuttleDockable(context: .status(status))
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DS.Spacing.lg)
+            .padding(.vertical, DS.Spacing.sm)
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(DS.Color.windowBackground)
     }
 }
 
@@ -220,27 +219,17 @@ struct FilterPill: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 4) {
+            HStack(spacing: DS.Spacing.xxs) {
                 Text(label)
                 Text("\(count)")
-                    .font(.caption2)
-                    .padding(.horizontal, 5)
+                    .font(DS.Typography.caption2)
+                    .padding(.horizontal, DS.Spacing.xs)
                     .padding(.vertical, 1)
-                    .background(selected ? Color.white.opacity(0.25) : Color.secondary.opacity(0.12))
+                    .background(selected ? Color.white.opacity(DS.Color.Opacity.strong) : Color.secondary.opacity(DS.Color.Opacity.wash))
                     .clipShape(Capsule())
             }
-            .font(.caption)
-            .fontWeight(selected ? .semibold : .regular)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(selected ? Color.accentColor : Color(NSColor.controlBackgroundColor))
-            .foregroundColor(selected ? .white : .primary)
-            .clipShape(Capsule())
-            .overlay(
-                Capsule().strokeBorder(selected ? Color.clear : Color.secondary.opacity(0.3), lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PillButtonStyle(isSelected: selected))
         .controlSize(.small)
     }
 }
@@ -251,20 +240,20 @@ struct OnboardingView: View {
     let store: StoreOf<AppFeature>
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: DS.Spacing.xxl) {
             Image(systemName: "briefcase.fill")
-                .font(.system(size: 60))
+                .font(DS.Typography.displayLarge)
                 .foregroundColor(.accentColor)
 
-            VStack(spacing: 8) {
+            VStack(spacing: DS.Spacing.sm) {
                 Text("Welcome to Job Application Wizard")
-                    .font(.title2)
+                    .font(DS.Typography.heading1)
                     .fontWeight(.bold)
                 Text("Your personal job search command center")
                     .foregroundColor(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: DS.Spacing.lg) {
                 FeatureRow(icon: "square.grid.3x2.fill", color: .blue,
                     title: "Kanban Board",
                     desc: "Drag jobs through your pipeline: Wishlist → Applied → Interview → Offer")
@@ -289,7 +278,7 @@ struct OnboardingView: View {
             .controlSize(.large)
             .keyboardShortcut(.return)
         }
-        .padding(40)
+        .padding(DS.Spacing.huge)
         .frame(width: 520)
     }
 }
@@ -301,14 +290,14 @@ struct FeatureRow: View {
     let desc: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: DS.Spacing.lg) {
             Image(systemName: icon)
-                .font(.title3)
+                .font(DS.Typography.heading2)
                 .foregroundColor(color)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).fontWeight(.semibold)
-                Text(desc).font(.caption).foregroundColor(.secondary)
+                Text(desc).font(DS.Typography.caption).foregroundColor(.secondary)
             }
         }
     }
@@ -319,6 +308,6 @@ struct FeatureRow: View {
 /// Fixed detail column width now that the AI panel is no longer inline.
 private struct DetailColumnWidth: ViewModifier {
     func body(content: Content) -> some View {
-        content.navigationSplitViewColumnWidth(min: 460, ideal: 550, max: 600)
+        content.navigationSplitViewColumnWidth(min: 460, ideal: 600, max: .infinity)
     }
 }

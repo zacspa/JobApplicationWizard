@@ -55,17 +55,15 @@ public struct CalendarEventPickerView: View {
     }
 
     private var searchBar: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: DS.Spacing.xs) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-                .font(.subheadline)
-            TextField("Search events...", text: $searchQuery)
-                .textFieldStyle(.plain)
-                .font(.subheadline)
+                .foregroundColor(DS.Color.textSecondary)
+            DSTextField("Search events...", text: $searchQuery)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Color(NSColor.controlBackgroundColor))
+        .outlinedField("Search", isEmpty: searchQuery.isEmpty)
+        .padding(.horizontal, DS.Spacing.md)
+        .padding(.vertical, DS.Spacing.sm)
+        .background(DS.Color.controlBackground)
     }
 
     @ViewBuilder
@@ -80,15 +78,15 @@ public struct CalendarEventPickerView: View {
     }
 
     private var permissionDeniedView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: DS.Spacing.md) {
             Image(systemName: "calendar.badge.exclamationmark")
                 .font(.system(size: 36))
-                .foregroundColor(.secondary)
+                .foregroundColor(DS.Color.textSecondary)
             Text("Calendar access required")
-                .font(.headline)
+                .font(DS.Typography.heading3)
             Text("Grant access in System Settings to link calendar events to interview rounds.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(DS.Typography.subheadline)
+                .foregroundColor(DS.Color.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
             Button("Open System Settings") {
@@ -96,23 +94,23 @@ public struct CalendarEventPickerView: View {
                     URL(string: "x-apple.systempreferences:com.apple.preference.security")!
                 )
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(DSActionButtonStyle())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DS.Spacing.sm) {
             Image(systemName: "calendar.badge.minus")
                 .font(.system(size: 36))
-                .foregroundColor(.secondary)
+                .foregroundColor(DS.Color.textSecondary)
             Text(
                 searchQuery.isEmpty
                     ? "No upcoming events"
                     : "No events match \"\(searchQuery)\""
             )
-            .font(.subheadline)
-            .foregroundColor(.secondary)
+            .font(DS.Typography.subheadline)
+            .foregroundColor(DS.Color.textSecondary)
             .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -136,9 +134,9 @@ public struct CalendarEventPickerView: View {
 
     private func sectionHeader(for day: Date) -> some View {
         Text(day, format: .dateTime.weekday(.wide).month(.wide).day().year())
-            .font(.footnote)
+            .font(DS.Typography.footnote)
             .fontWeight(.semibold)
-            .foregroundColor(.secondary)
+            .foregroundColor(DS.Color.textSecondary)
             .textCase(nil)
     }
 }
@@ -162,24 +160,24 @@ public struct CalendarEventRow: View {
     }
 
     public var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DS.Spacing.sm) {
             Circle()
                 .fill(Color(hex: event.calendarColor) ?? .gray)
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title)
-                    .font(.subheadline)
+                    .font(DS.Typography.subheadline)
                     .lineLimit(1)
-                HStack(spacing: 4) {
+                HStack(spacing: DS.Spacing.xxs) {
                     Text(Self.timeRangeText(for: event))
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.footnote)
+                        .foregroundColor(DS.Color.textSecondary)
                     Text("·")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.footnote)
+                        .foregroundColor(DS.Color.textSecondary)
                     Text(event.calendarName)
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.footnote)
+                        .foregroundColor(DS.Color.textSecondary)
                         .lineLimit(1)
                 }
             }
