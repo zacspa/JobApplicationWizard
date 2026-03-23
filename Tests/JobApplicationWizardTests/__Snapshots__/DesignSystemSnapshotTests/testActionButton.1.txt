@@ -1,0 +1,34 @@
+▿ ModifiedContent<ModifiedContent<Button<Label<Text, Image>>, ButtonStyleContainerModifier<DSActionButtonStyle>>, _PaddingLayout>
+  ▿ content: ModifiedContent<Button<Label<Text, Image>>, ButtonStyleContainerModifier<DSActionButtonStyle>>
+    ▿ content: Button<Label<Text, Image>>
+      ▿ action: ButtonAction
+        - closure: (Function)
+      ▿ label: Label<Text, Image>
+        ▿ icon: Image
+          ▿ provider: ImageProviderBox<NamedImageProvider>
+            ▿ base: NamedImageProvider
+              - backupLocation: Optional<Location>.none
+              - decorative: false
+              ▿ label: Optional<AccessibilityImageLabel>
+                ▿ some: AccessibilityImageLabel
+                  - systemSymbol: "doc.fill"
+              - location: Location.system
+              - name: "doc.fill"
+              - value: Optional<Float>.none
+        ▿ title: Text
+          - modifiers: 0 elements
+          ▿ storage: Storage
+            ▿ anyTextStorage: LocalizedTextStorage
+              - bundle: Optional<NSBundle>.none
+              ▿ key: LocalizedStringKey
+                - arguments: 0 elements
+                - hasFormatting: false
+                - key: "Save PDF"
+              - table: Optional<String>.none
+      - role: Optional<ButtonRole>.none
+    ▿ modifier: ButtonStyleContainerModifier<DSActionButtonStyle>
+      - style: DSActionButtonStyle
+  ▿ modifier: _PaddingLayout
+    ▿ edges: Set
+      - rawValue: 15
+    - insets: Optional<EdgeInsets>.none

@@ -5,32 +5,48 @@ import SnapshotTesting
 
 // MARK: - Snapshot Test Helpers
 
-private func hostView<V: View>(_ view: V, width: CGFloat = 300, height: CGFloat = 60, appearance: NSAppearance.Name = .darkAqua) -> NSView {
-    let hostingView = NSHostingView(rootView: view.frame(width: width, height: height))
-    hostingView.frame = CGRect(x: 0, y: 0, width: width, height: height)
-    hostingView.appearance = NSAppearance(named: appearance)
-    return hostingView
-}
+/// A `.dump`-based snapshotting that strips lines containing ISO-8601 timestamps (e.g. `Date()`).
+/// This prevents `@State` properties initialized with `Date()` from causing flaky diffs.
+private let stableDump: Snapshotting<Any, String> = {
+    let base = Snapshotting<Any, String>.dump
+    return Snapshotting<Any, String>(
+        pathExtension: base.pathExtension,
+        diffing: base.diffing
+    ) { value in
+        base.snapshot(value).map { text in
+            text
+                .split(separator: "\n", omittingEmptySubsequences: false)
+                .filter { $0.range(of: #"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"#, options: .regularExpression) == nil }
+                .joined(separator: "\n")
+        }
+    }
+}()
 
-/// Asserts snapshots in both dark and light mode with suffixed names.
-private func assertBothModes<V: View>(
+/// Asserts a text-based view hierarchy snapshot using the `.dump` strategy.
+/// This is environment-agnostic (no pixel rendering), so it works across different Macs.
+private func assertViewDump<V: View>(
     _ view: V,
-    width: CGFloat = 300,
-    height: CGFloat = 60,
     file: StaticString = #file,
     testName: String = #function,
     line: UInt = #line
 ) {
     assertSnapshot(
-        of: hostView(view, width: width, height: height, appearance: .darkAqua),
-        as: .image,
-        named: "dark",
+        of: view,
+        as: .dump,
         file: file, testName: testName, line: line
     )
+}
+
+/// Variant that strips volatile timestamp lines for views containing `@State` date properties.
+private func assertViewDumpStable<V: View>(
+    _ view: V,
+    file: StaticString = #file,
+    testName: String = #function,
+    line: UInt = #line
+) {
     assertSnapshot(
-        of: hostView(view, width: width, height: height, appearance: .aqua),
-        as: .image,
-        named: "light",
+        of: view as Any,
+        as: stableDump,
         file: file, testName: testName, line: line
     )
 }
@@ -44,7 +60,7 @@ final class OutlinedFieldSnapshotTests: XCTestCase {
             .outlinedField("Company", isEmpty: true)
             .padding()
 
-        assertBothModes(view, width: 300, height: 50)
+        assertViewDump(view)
     }
 
     func testOutlinedFieldFilled() {
@@ -52,7 +68,7 @@ final class OutlinedFieldSnapshotTests: XCTestCase {
             .outlinedField("Company", isEmpty: false)
             .padding()
 
-        assertBothModes(view, width: 300, height: 50)
+        assertViewDump(view)
     }
 }
 
@@ -67,7 +83,7 @@ final class CardModifierSnapshotTests: XCTestCase {
         .frame(width: 200)
         .cardStyle()
 
-        assertBothModes(view, width: 240, height: 80)
+        assertViewDump(view)
     }
 
     func testCardSelected() {
@@ -78,7 +94,7 @@ final class CardModifierSnapshotTests: XCTestCase {
         .frame(width: 200)
         .cardStyle(isSelected: true, tintColor: .blue)
 
-        assertBothModes(view, width: 240, height: 80)
+        assertViewDump(view)
     }
 
     func testCardHovered() {
@@ -89,7 +105,7 @@ final class CardModifierSnapshotTests: XCTestCase {
         .frame(width: 200)
         .cardStyle(isHovered: true)
 
-        assertBothModes(view, width: 240, height: 80)
+        assertViewDump(view)
     }
 }
 
@@ -101,7 +117,7 @@ final class ButtonStyleSnapshotTests: XCTestCase {
             .buttonStyle(PillButtonStyle())
             .padding()
 
-        assertBothModes(view, width: 120, height: 40)
+        assertViewDump(view)
     }
 
     func testPillButtonSelected() {
@@ -109,7 +125,7 @@ final class ButtonStyleSnapshotTests: XCTestCase {
             .buttonStyle(PillButtonStyle(isSelected: true))
             .padding()
 
-        assertBothModes(view, width: 120, height: 40)
+        assertViewDump(view)
     }
 
     func testPillButtonCustomTint() {
@@ -117,7 +133,7 @@ final class ButtonStyleSnapshotTests: XCTestCase {
             .buttonStyle(PillButtonStyle(isSelected: true, tint: .purple))
             .padding()
 
-        assertBothModes(view, width: 120, height: 40)
+        assertViewDump(view)
     }
 
     func testGhostButton() {
@@ -127,7 +143,7 @@ final class ButtonStyleSnapshotTests: XCTestCase {
         .buttonStyle(GhostButtonStyle())
         .padding()
 
-        assertBothModes(view, width: 100, height: 40)
+        assertViewDump(view)
     }
 
     func testActionButton() {
@@ -137,7 +153,7 @@ final class ButtonStyleSnapshotTests: XCTestCase {
         .buttonStyle(DSActionButtonStyle())
         .padding()
 
-        assertBothModes(view, width: 140, height: 40)
+        assertViewDump(view)
     }
 }
 
@@ -150,7 +166,7 @@ final class GlassSurfaceSnapshotTests: XCTestCase {
             .padding(DS.Spacing.xl)
             .glassSurface()
 
-        assertBothModes(view, width: 200, height: 80)
+        assertViewDump(view)
     }
 
     func testGlassSurfaceNoBorder() {
@@ -159,7 +175,7 @@ final class GlassSurfaceSnapshotTests: XCTestCase {
             .padding(DS.Spacing.xl)
             .glassSurface(border: false)
 
-        assertBothModes(view, width: 200, height: 80)
+        assertViewDump(view)
     }
 }
 
@@ -170,14 +186,14 @@ final class DSOutlinedTextEditorSnapshotTests: XCTestCase {
         let view = DSOutlinedTextEditor("Notes", text: .constant(""), minHeight: 60)
             .padding()
 
-        assertBothModes(view, width: 300, height: 100)
+        assertViewDump(view)
     }
 
     func testOutlinedTextEditorFilled() {
         let view = DSOutlinedTextEditor("Notes", text: .constant("Meeting went well, discussed next steps."), minHeight: 60)
             .padding()
 
-        assertBothModes(view, width: 300, height: 100)
+        assertViewDump(view)
     }
 }
 
@@ -188,7 +204,7 @@ final class DSDateFieldSnapshotTests: XCTestCase {
         let view = DSDateField("Interview Date", date: .constant(nil))
             .padding()
 
-        assertBothModes(view, width: 300, height: 50)
+        assertViewDumpStable(view)
     }
 
     func testDateFieldSet() {
@@ -196,7 +212,7 @@ final class DSDateFieldSnapshotTests: XCTestCase {
         let view = DSDateField("Interview Date", date: .constant(date))
             .padding()
 
-        assertBothModes(view, width: 300, height: 50)
+        assertViewDumpStable(view)
     }
 }
 
@@ -209,7 +225,7 @@ final class IridescentSheenSnapshotTests: XCTestCase {
             .glassSurface()
             .iridescentSheen(isActive: true)
 
-        assertBothModes(view, width: 250, height: 80)
+        assertViewDump(view)
     }
 
     func testSheenInactive() {
@@ -218,6 +234,6 @@ final class IridescentSheenSnapshotTests: XCTestCase {
             .glassSurface()
             .iridescentSheen(isActive: false)
 
-        assertBothModes(view, width: 250, height: 80)
+        assertViewDump(view)
     }
 }

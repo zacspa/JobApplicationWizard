@@ -1,0 +1,34 @@
+▿ ModifiedContent<ModifiedContent<Button<Label<Text, Image>>, ButtonStyleContainerModifier<GhostButtonStyle>>, _PaddingLayout>
+  ▿ content: ModifiedContent<Button<Label<Text, Image>>, ButtonStyleContainerModifier<GhostButtonStyle>>
+    ▿ content: Button<Label<Text, Image>>
+      ▿ action: ButtonAction
+        - closure: (Function)
+      ▿ label: Label<Text, Image>
+        ▿ icon: Image
+          ▿ provider: ImageProviderBox<NamedImageProvider>
+            ▿ base: NamedImageProvider
+              - backupLocation: Optional<Location>.none
+              - decorative: false
+              ▿ label: Optional<AccessibilityImageLabel>
+                ▿ some: AccessibilityImageLabel
+                  - systemSymbol: "arrow.uturn.backward"
+              - location: Location.system
+              - name: "arrow.uturn.backward"
+              - value: Optional<Float>.none
+        ▿ title: Text
+          - modifiers: 0 elements
+          ▿ storage: Storage
+            ▿ anyTextStorage: LocalizedTextStorage
+              - bundle: Optional<NSBundle>.none
+              ▿ key: LocalizedStringKey
+                - arguments: 0 elements
+                - hasFormatting: false
+                - key: "Undo"
+              - table: Optional<String>.none
+      - role: Optional<ButtonRole>.none
+    ▿ modifier: ButtonStyleContainerModifier<GhostButtonStyle>
+      - style: GhostButtonStyle
+  ▿ modifier: _PaddingLayout
+    ▿ edges: Set
+      - rawValue: 15
+    - insets: Optional<EdgeInsets>.none

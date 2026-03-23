@@ -1,0 +1,51 @@
+▿ ModifiedContent<ModifiedContent<ModifiedContent<Text, _PaddingLayout>, GlassSurfaceModifier>, IridescentSheenModifier>
+  ▿ content: ModifiedContent<ModifiedContent<Text, _PaddingLayout>, GlassSurfaceModifier>
+    ▿ content: ModifiedContent<Text, _PaddingLayout>
+      ▿ content: Text
+        - modifiers: 0 elements
+        ▿ storage: Storage
+          ▿ anyTextStorage: LocalizedTextStorage
+            - bundle: Optional<NSBundle>.none
+            ▿ key: LocalizedStringKey
+              - arguments: 0 elements
+              - hasFormatting: false
+              - key: "No Cuttle"
+            - table: Optional<String>.none
+      ▿ modifier: _PaddingLayout
+        ▿ edges: Set
+          - rawValue: 15
+        ▿ insets: Optional<EdgeInsets>
+          ▿ some: EdgeInsets
+            - bottom: 20.0
+            - leading: 20.0
+            - top: 20.0
+            - trailing: 20.0
+    ▿ modifier: GlassSurfaceModifier
+      - border: true
+      - radius: 12.0
+      ▿ shadow: ShadowStyle
+        ▿ color: 30% black
+          ▿ provider: ColorBox<OpacityColor>
+            ▿ base: 30% black
+              ▿ base: black
+                ▿ provider: ColorBox<ResolvedColorProvider>
+                  ▿ base: ResolvedColorProvider
+                    ▿ color: #000000FF
+                      ▿ base: #000000FF
+                        - linearRed: 0.0
+                        - linearGreen: 0.0
+                        - linearBlue: 0.0
+                        - opacity: 1.0
+                      - _headroom: nan
+              - opacity: 0.3
+        - radius: 12.0
+        - y: 4.0
+  ▿ modifier: IridescentSheenModifier
+    ▿ _colorScheme: Environment<ColorScheme>
+      ▿ content: Content
+        - keyPath: WritableKeyPath<EnvironmentValues, ColorScheme>
+    ▿ _phase: State<CGFloat>
+      - _location: Optional<AnyLocation<CGFloat>>.none
+      - _value: 0.0
+    - cornerRadius: 8.0
+    - isActive: false
