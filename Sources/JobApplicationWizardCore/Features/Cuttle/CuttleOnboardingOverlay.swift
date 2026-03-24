@@ -287,10 +287,6 @@ public struct CuttleOnboardingOverlay: View {
                 }
             }
 
-            Text("The app handles installation automatically when you connect.")
-                .font(DS.Typography.caption)
-                .foregroundColor(DS.Color.textSecondary)
-                .italic()
         }
         .padding(DS.Spacing.sm)
         .background(DS.Color.controlBackground)
