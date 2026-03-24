@@ -204,7 +204,7 @@ final class CuttleFeatureTests: XCTestCase {
         XCTAssertEqual(store.state.chatMessages[0].content, "Prev interview chat")
     }
 
-    func testCancelContextTransitionSnapsBack() async {
+    func testCancelContextTransitionDefaultsToStartFresh() async {
         var state = CuttleFeature.State()
         state.alertPendingContext = .status(.interview)
         state.showContextTransitionAlert = true
@@ -213,13 +213,15 @@ final class CuttleFeatureTests: XCTestCase {
             DropZone(id: "global", frame: CGRect(x: 50, y: 50, width: 100, height: 40), context: .global)
         ]
         let store = TestStore(initialState: state) { CuttleFeature() }
+        store.exhaustivity = .off
 
-        await store.send(.cancelContextTransition) {
-            $0.showContextTransitionAlert = false
-            $0.alertPendingContext = nil
-            $0.mood = .idle
-            $0.position = CGPoint(x: 100, y: 70)  // snapped to global zone center
-        }
+        await store.send(.cancelContextTransition)
+
+        // cancelContextTransition now defaults to "Start Fresh" (carry: false)
+        await store.receive(\.contextTransitionConfirmed)
+
+        XCTAssertEqual(store.state.currentContext, .status(.interview))
+        XCTAssertFalse(store.state.showContextTransitionAlert)
     }
 
     // MARK: - Switch Context (silent)

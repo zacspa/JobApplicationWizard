@@ -13,6 +13,7 @@ public struct ACPAgentEntry: Codable, Equatable, Identifiable {
     public let repository: String?
     public let license: String?
     public let icon: String?
+    public let website: String?
 
     public init(
         id: String,
@@ -23,7 +24,8 @@ public struct ACPAgentEntry: Codable, Equatable, Identifiable {
         distribution: ACPDistribution,
         repository: String? = nil,
         license: String? = nil,
-        icon: String? = nil
+        icon: String? = nil,
+        website: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -34,10 +36,11 @@ public struct ACPAgentEntry: Codable, Equatable, Identifiable {
         self.repository = repository
         self.license = license
         self.icon = icon
+        self.website = website
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, version, description, authors, distribution, repository, license, icon
+        case id, name, version, description, authors, distribution, repository, license, icon, website
     }
 
     public init(from decoder: Decoder) throws {
@@ -51,6 +54,7 @@ public struct ACPAgentEntry: Codable, Equatable, Identifiable {
         repository   = try c.decodeIfPresent(String.self, forKey: .repository)
         license      = try c.decodeIfPresent(String.self, forKey: .license)
         icon         = try c.decodeIfPresent(String.self, forKey: .icon)
+        website      = try c.decodeIfPresent(String.self, forKey: .website)
     }
 }
 

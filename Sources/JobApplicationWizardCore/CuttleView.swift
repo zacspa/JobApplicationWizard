@@ -39,6 +39,17 @@ public struct CuttleView: View {
                     .accessibilityHidden(true)
             }
 
+            // Click-outside-to-dismiss overlay for context transition CTA.
+            // Defaults to "Start Fresh" when clicking outside.
+            if store.showContextTransitionAlert {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        store.send(.cancelContextTransition)
+                    }
+                    .accessibilityHidden(true)
+            }
+
             // Main Cuttle content
             if store.isExpanded {
                 expandedView
@@ -83,19 +94,17 @@ public struct CuttleView: View {
                             store.send(.dragEnded(loc))
                         }
                 )
+
+            // Inline context transition CTA
+            if store.showContextTransitionAlert {
+                contextTransitionCTA
+                    .position(contextCTAPosition)
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
+            }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: store.position)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: store.isExpanded)
-        .alert("Switch Context?", isPresented: Binding(
-            get: { store.showContextTransitionAlert },
-            set: { if !$0 { store.send(.cancelContextTransition) } }
-        )) {
-            Button("Carry Conversation") { store.send(.contextTransitionConfirmed(carry: true)) }
-            Button("Start Fresh") { store.send(.contextTransitionConfirmed(carry: false)) }
-            Button("Cancel", role: .cancel) { store.send(.cancelContextTransition) }
-        } message: {
-            Text("You have an active conversation. Would you like to carry it to the new context or start fresh?")
-        }
+        .animation(.spring(response: 0.25, dampingFraction: 0.85), value: store.showContextTransitionAlert)
         .onChange(of: store.isLoading) { _, loading in
             if loading {
                 thinkingAmplitude = 0.01
@@ -290,11 +299,16 @@ public struct CuttleView: View {
                         if state == nil { state = chatSize }
                     }
                     .onChanged { value in
+                        store.isResizing = true
                         guard let start = resizeStart else { return }
                         chatSize = CGSize(
                             width: min(Self.maxChatWidth, max(Self.minChatWidth, start.width + value.translation.width)),
                             height: min(Self.maxChatHeight, max(Self.minChatHeight, start.height + value.translation.height))
                         )
+                    }
+                    .onEnded { _ in
+                        store.isResizing = false
+                        store.chatSize = chatSize
                     }
             )
             .padding(DS.Spacing.xs)
@@ -414,6 +428,63 @@ public struct CuttleView: View {
         }
     }
 
+    // MARK: - Context Transition CTA
+
+    private var contextTransitionCTA: some View {
+        VStack(spacing: 10) {
+            Text("Switch to \(store.alertPendingContext?.displayLabel(jobs: store.jobs) ?? "new context")?")
+                .font(.subheadline).fontWeight(.semibold)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 12) {
+                Button("Carry Chat") {
+                    store.send(.contextTransitionConfirmed(carry: true))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("Start Fresh") {
+                    store.send(.contextTransitionConfirmed(carry: false))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .frame(width: 260)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+    }
+
+    /// Position the CTA card below the blob, clamped to window bounds.
+    private var contextCTAPosition: CGPoint {
+        let blob = store.position
+        let windowSize = store.windowSize
+        let ctaWidth: CGFloat = 260
+        let ctaHeight: CGFloat = 80
+        let gap: CGFloat = 8
+
+        var x = blob.x
+        var y = blob.y + Self.collapsedSize / 2 + gap + ctaHeight / 2
+
+        // Clamp horizontal
+        let margin: CGFloat = 8
+        x = max(margin + ctaWidth / 2, min(x, windowSize.width - margin - ctaWidth / 2))
+
+        // If it would go below the window, show above the blob instead
+        if y + ctaHeight / 2 > windowSize.height - margin {
+            y = blob.y - Self.collapsedSize / 2 - gap - ctaHeight / 2
+        }
+
+        return CGPoint(x: x, y: y)
+    }
+
     // MARK: - Not Ready View
 
     private var notReadyView: some View {
@@ -457,6 +528,7 @@ public struct CuttleView: View {
     // MARK: - Helpers
 
     private var aiReady: Bool {
-        store.acpConnection.aiProvider == .claudeAPI ? !store.apiKey.isEmpty : store.acpConnection.isConnected
+        if store.onboardingFakeAIReady { return true }
+        return store.acpConnection.aiProvider == .claudeAPI ? !store.apiKey.isEmpty : store.acpConnection.isConnected
     }
 }

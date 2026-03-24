@@ -40,6 +40,9 @@ public struct CuttleFeature {
         // Drop zones reported by views
         public var dropZones: [DropZone] = []
 
+        // Onboarding: temporarily pretend AI is connected so the chat UI is visible
+        public var onboardingFakeAIReady: Bool = false
+
         // Read-only references synced from AppFeature
         public var apiKey: String = ""
         public var userProfile: UserProfile = UserProfile()
@@ -54,6 +57,10 @@ public struct CuttleFeature {
 
         // Window size for clamping
         public var windowSize: CGSize = .zero
+
+        // Chat window size (synced from CuttleView for onboarding spotlight)
+        public var chatSize: CGSize = CGSize(width: 380, height: 480)
+        public var isResizing: Bool = false
 
         public init() {}
     }
@@ -227,12 +234,8 @@ public struct CuttleFeature {
                 return .merge(cancelEffect, saveEffect, .send(.delegate(.contextChanged(newContext))))
 
             case .cancelContextTransition:
-                state.showContextTransitionAlert = false
-                state.alertPendingContext = nil
-                state.mood = .idle
-                // Snap back to current context's zone
-                snapToDropZone(state: &state, context: state.currentContext)
-                return .none
+                // Dismissing the CTA defaults to "Start Fresh"
+                return .send(.contextTransitionConfirmed(carry: false))
 
             case .switchContext(let context):
                 return switchContextSilently(state: &state, to: context)

@@ -18,6 +18,9 @@ public enum ViewMode: String, Codable, CaseIterable, Equatable {
 public struct AppFeature {
     private enum CancelID { case acpCrashMonitor, save, saveSettings, bindingDebounce }
 
+    /// Stable ID for the demo job inserted during onboarding so the board isn't empty.
+    static let onboardingDemoJobID = UUID(uuidString: "00000000-0000-0000-0000-DE0000000001")!
+
     @ObservableState
     public struct State: Equatable {
         public var jobs: IdentifiedArrayOf<JobApplication> = []
@@ -32,6 +35,7 @@ public struct AppFeature {
         public var addJob: AddJobFeature.State = AddJobFeature.State()
         public var jobDetail: JobDetailFeature.State? = nil
         public var cuttle: CuttleFeature.State = CuttleFeature.State()
+        public var cuttleOnboarding: CuttleOnboardingFeature.State = CuttleOnboardingFeature.State()
         public var history: HistoryFeature.State = HistoryFeature.State()
         public var saveError: String? = nil
         public var showImportAllConfirm: Bool = false
@@ -144,6 +148,9 @@ public struct AppFeature {
         case recordBindingEdit(UUID)
         // Calendar
         case calendar(CalendarFeature.Action)
+        // Cuttle onboarding
+        case cuttleOnboarding(CuttleOnboardingFeature.Action)
+        case replayCuttleTour
     }
 
     @Dependency(\.persistenceClient) var persistence
@@ -158,6 +165,7 @@ public struct AppFeature {
     public var body: some ReducerOf<Self> {
         Scope(state: \.addJob, action: \.addJob) { AddJobFeature() }
         Scope(state: \.cuttle, action: \.cuttle) { CuttleFeature() }
+        Scope(state: \.cuttleOnboarding, action: \.cuttleOnboarding) { CuttleOnboardingFeature() }
         Scope(state: \.history, action: \.history) { HistoryFeature() }
         Scope(state: \.calendar, action: \.calendar) { CalendarFeature() }
         Reduce { state, action in
@@ -194,13 +202,20 @@ public struct AppFeature {
                 // Restore Cuttle state from settings
                 state.cuttle.userProfile = settings.userProfile
                 let context = settings.cuttleContext ?? .global
+                // Trigger Cuttle onboarding if not completed and app onboarding is not showing
+                let shouldStartOnboarding = !settings.hasCuttleOnboardingCompleted && !state.showOnboarding
+                if shouldStartOnboarding {
+                    state.cuttleOnboarding.aiReady = state.acpConnection.isConnected || !state.claudeAPIKey.isEmpty
+                    insertOnboardingDemoJob(state: &state)
+                }
                 return .merge(
                     .send(.cuttle(.restoreFromSettings(
                         context,
                         settings.globalChatHistory,
                         settings.statusChatHistories
                     ))),
-                    settings.aiProvider == .acpAgent ? .send(.fetchACPRegistry) : .none
+                    settings.aiProvider == .acpAgent ? .send(.fetchACPRegistry) : .none,
+                    shouldStartOnboarding ? .send(.cuttleOnboarding(.start)) : .none
                 )
 
             case .settingsLoaded(.failure):
@@ -711,6 +726,12 @@ public struct AppFeature {
 
             case .dismissOnboarding:
                 state.showOnboarding = false
+                // Start Cuttle onboarding if not yet completed
+                if !state.settings.hasCuttleOnboardingCompleted {
+                    state.cuttleOnboarding.aiReady = state.acpConnection.isConnected || !state.claudeAPIKey.isEmpty
+                    insertOnboardingDemoJob(state: &state)
+                    return .send(.cuttleOnboarding(.start))
+                }
                 return .none
 
             case .saveSettingsKey(let key):
@@ -992,6 +1013,49 @@ public struct AppFeature {
                     )
                 }
                 return saveJobs(state.jobs)
+
+            // MARK: - Cuttle Onboarding
+
+            case .cuttleOnboarding(.delegate(.completed)),
+                 .cuttleOnboarding(.delegate(.dismissed)):
+                state.settings.hasCuttleOnboardingCompleted = true
+                // Remove the demo job if it was inserted for the tour
+                if state.jobs[id: Self.onboardingDemoJobID] != nil {
+                    state.jobs.remove(id: Self.onboardingDemoJobID)
+                    state.cuttle.jobs = Array(state.jobs)
+                }
+                return .merge(
+                    saveSettings(state.settings),
+                    saveJobs(state.jobs)
+                )
+
+            case .cuttleOnboarding(.delegate(.expandCuttle)):
+                state.cuttle.isExpanded = true
+                return .none
+
+            case .cuttleOnboarding(.delegate(.collapseCuttle)):
+                state.cuttle.isExpanded = false
+                return .none
+
+            case .cuttleOnboarding(.delegate(.agentConnected(let agentId, let agentName))):
+                state.$acpConnection.withLock {
+                    $0.isConnected = true
+                    $0.connectedAgentName = agentName
+                }
+                state.settings.selectedACPAgentId = agentId
+                return saveSettings(state.settings)
+
+            case .cuttleOnboarding:
+                return .none
+
+            case .replayCuttleTour:
+                state.settings.hasCuttleOnboardingCompleted = false
+                state.cuttleOnboarding.aiReady = state.acpConnection.isConnected || !state.claudeAPIKey.isEmpty
+                insertOnboardingDemoJob(state: &state)
+                return .merge(
+                    saveSettings(state.settings),
+                    .send(.cuttleOnboarding(.start))
+                )
             }
         }
         .ifLet(\.jobDetail, action: \.jobDetail) {
@@ -1000,6 +1064,22 @@ public struct AppFeature {
     }
 
     // MARK: - Helpers
+
+    /// Inserts a demo job into the board so the onboarding tour has content to spotlight.
+    private func insertOnboardingDemoJob(state: inout State) {
+        guard state.jobs.isEmpty else { return }
+        var demo = JobApplication()
+        demo.id = Self.onboardingDemoJobID
+        demo.company = "Acme Corp"
+        demo.title = "iOS Engineer"
+        demo.salary = "$120,000 - $160,000"
+        demo.location = "San Francisco, CA"
+        demo.status = .wishlist
+        demo.excitement = 4
+        demo.labels = [JobLabel(name: "Remote", colorHex: "#34C759")]
+        state.jobs.append(demo)
+        state.cuttle.jobs = Array(state.jobs)
+    }
 
     private func saveJobs(_ jobs: IdentifiedArrayOf<JobApplication>) -> Effect<Action> {
         .run { send in

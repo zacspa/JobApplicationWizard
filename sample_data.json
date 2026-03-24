@@ -1,0 +1,1183 @@
+{
+  "exportedAt": 796006148.49568,
+  "jobs": [
+    {
+      "chatHistory": [
+        {
+          "content": "What should I focus on for the system design interview at Anthropic?",
+          "id": "A68C3886-6C12-41DB-B5BF-95CCD0F7B0DF",
+          "role": "user",
+          "timestamp": 795124800
+        },
+        {
+          "content": "Based on the job description and your interview notes, here are the key areas to prepare:\n\n**1. Real-time Collaboration Architecture**\nSince the prompt is about a collaborative document editor, you should be ready to discuss:\n- CRDTs (Conflict-free Replicated Data Types) vs Operational Transformation\n- How to handle concurrent edits from multiple users\n- Sync protocol design (WebSocket vs polling)\n\n**2. Offline-First Design**\n- Local-first data storage with eventual consistency\n- Conflict resolution strategies when coming back online\n- How to handle large documents that don't fit in memory\n\n**3. SwiftUI Performance**\n- Lazy rendering for large documents\n- Efficient diffing with Equatable conformance\n- Managing view identity and state preservation\n\n**4. TCA-Specific Patterns**\n- Modeling collaborative state as a shared reducer\n- Using `.cancellable` for network operations\n- Testing async flows with `TestStore`\n\nWould you like me to dive deeper into any of these areas?",
+          "id": "021A9D94-4ED7-4275-B48E-29B30A8681D6",
+          "role": "assistant",
+          "timestamp": 795128400
+        },
+        {
+          "content": "Yes, let's focus on CRDTs. How would I explain the tradeoffs between CRDTs and OT?",
+          "id": "F5304FA0-BB8A-4781-8B5E-23BD0B486A90",
+          "role": "user",
+          "timestamp": 795132000
+        },
+        {
+          "content": "Great choice. Here's a clear framework for explaining the tradeoffs:\n\n## CRDTs (Conflict-free Replicated Data Types)\n**How they work:** Each client maintains a local copy. Operations are designed so they can be applied in any order and converge to the same result (commutativity).\n\n**Pros:**\n- No central server needed for conflict resolution\n- Works naturally with offline-first architecture\n- Mathematically guaranteed convergence\n- Simpler server implementation\n\n**Cons:**\n- Higher memory overhead (need to track metadata per character/operation)\n- Tombstone management (deleted items still tracked)\n- Some operations are harder to express (e.g., move within a list)\n- Document can grow in metadata over time\n\n## OT (Operational Transformation)\n**How they work:** A central server transforms operations against each other to maintain consistency. Operations are rebased like git commits.\n\n**Pros:**\n- Lower memory overhead\n- Cleaner document representation\n- Well-understood (Google Docs uses this)\n- No tombstone problem\n\n**Cons:**\n- Requires a central server for transformation\n- Complex transformation functions (O(n\u00b2) in some cases)\n- Harder to implement correctly\n- Doesn't work well offline\n\n## For This Interview\nI'd recommend **proposing CRDTs** because:\n1. Anthropic's job description emphasizes offline-first\n2. CRDTs align with their distributed systems philosophy\n3. You can discuss Yjs or Automerge as reference implementations\n\nShall I help you sketch out the architecture diagram?",
+          "id": "A3771A91-D18D-416D-9924-D6950988CB18",
+          "role": "assistant",
+          "timestamp": 795135600
+        },
+        {
+          "content": "Can you help me prepare a STAR answer for a time I dealt with a complex technical challenge?",
+          "id": "A4235B33-8C94-40B2-82CF-BE62D44A8524",
+          "role": "user",
+          "timestamp": 795139200
+        },
+        {
+          "content": "Here's a STAR framework answer based on your background:\n\n**Situation:** At my previous role, our app's main feed was dropping frames during scroll on older devices. The feed contained mixed media (images, videos, rich text) and user engagement metrics showed a 15% drop-off correlated with scroll performance.\n\n**Task:** I was asked to lead the performance optimization effort with a target of maintaining 60fps on iPhone 11 and above, while keeping the existing feature set intact.\n\n**Action:**\n1. **Profiled with Instruments** \u2014 identified three bottlenecks: synchronous image decoding on main thread, excessive SwiftUI view identity changes causing full redraws, and a memory leak in our video player pool\n2. **Implemented lazy image pipeline** \u2014 moved decoding to a background queue with prefetching based on scroll velocity, using `AsyncImage` with a custom cache layer\n3. **Optimized view identity** \u2014 refactored our feed items to use stable IDs and made all view models `Equatable`, reducing unnecessary diffing by ~70%\n4. **Fixed video player lifecycle** \u2014 implemented a pool of 3 reusable `AVPlayer` instances with proper cleanup on cell reuse\n5. **Added performance monitoring** \u2014 integrated MetricKit to track frame drops in production\n\n**Result:** Achieved consistent 60fps on target devices. User engagement on the feed increased 22% in the two weeks after release. The image pipeline approach was adopted by two other teams. The performance monitoring caught a regression in the next sprint before it shipped.\n\nWant me to tailor this more specifically to Anthropic's context?",
+          "id": "AF10F1C3-0B17-492B-B447-33245268E698",
+          "role": "assistant",
+          "timestamp": 795142800
+        },
+        {
+          "content": "That's great. Now help me with a cover letter for this position.",
+          "id": "112F02A4-29A3-49D9-988A-9A8C0F53804B",
+          "role": "user",
+          "timestamp": 795146400
+        },
+        {
+          "content": "Here's a tailored cover letter:\n\n---\n\nDear Anthropic Hiring Team,\n\nI'm writing to express my strong interest in the Senior iOS Engineer position on your Apple Platforms team. As someone who has spent the last five years building consumer iOS apps with SwiftUI and The Composable Architecture, the opportunity to build native experiences for Claude is exactly the kind of challenge I'm looking for.\n\nWhat draws me to Anthropic specifically is your commitment to building AI that is safe and beneficial. I've been following your research on constitutional AI and RLHF, and I believe that thoughtful, well-crafted native apps are essential to making these capabilities accessible to everyday users. Great AI deserves great interfaces.\n\nIn my current role, I've led the architecture of a SwiftUI app serving 500K+ users, built on TCA with comprehensive test coverage. I've shipped features involving real-time streaming UI, offline-first data sync, and complex state management, all of which are directly relevant to building a Claude client. I'm particularly proud of a performance optimization effort that improved our app's scroll performance by 70% through careful profiling and SwiftUI view identity management.\n\nI'm excited about the opportunity to work with a small, high-caliber team where my contributions would have outsized impact. I'd love to discuss how my experience with TCA, async/await patterns, and consumer app polish could help your team ship exceptional experiences for Claude users.\n\nThank you for your consideration.\n\nBest regards",
+          "id": "57C1F923-900D-48B5-8907-3D6493AC3A53",
+          "role": "assistant",
+          "timestamp": 795150000
+        }
+      ],
+      "company": "Anthropic",
+      "contacts": [
+        {
+          "connected": true,
+          "email": "sarah@anthropic.com",
+          "id": "CB16FAAF-1F8A-422E-BCCD-35B7DF310F04",
+          "linkedin": "linkedin.com/in/sarahchen",
+          "name": "Sarah Chen",
+          "notes": "Very responsive, replied within 24hrs. Provided detailed timeline.",
+          "title": "Technical Recruiter"
+        },
+        {
+          "connected": false,
+          "email": "",
+          "id": "83C2D63B-A0AC-4F23-BBD0-88C6E8B88AC0",
+          "linkedin": "linkedin.com/in/marcusjohnson",
+          "name": "Marcus Johnson",
+          "notes": "Hiring manager. Background in SwiftUI, distributed systems. Worked at Apple previously.",
+          "title": "Engineering Manager, Apple Platforms"
+        },
+        {
+          "connected": false,
+          "email": "",
+          "id": "802ED5B2-8255-4655-829C-273F3DDA33D1",
+          "linkedin": "linkedin.com/in/priyapatel",
+          "name": "Priya Patel",
+          "notes": "Will be on the system design panel. Known for deep TCA expertise.",
+          "title": "Senior iOS Engineer"
+        }
+      ],
+      "coverLetter": "",
+      "dateAdded": 793310400,
+      "dateApplied": 793483200,
+      "excitement": 5,
+      "hasPDF": false,
+      "id": "860C6A5F-0529-4EA6-AAA9-10438BBEB108",
+      "interviews": [
+        {
+          "completed": true,
+          "date": 794433600,
+          "id": "9DC69CA0-BBE5-4BF9-80E8-C2C6CB379ED6",
+          "interviewers": "Sarah Chen",
+          "notes": "30 min culture/background screen. Discussed my TCA experience and open-source work. Sarah mentioned the team is 8 engineers, mostly ex-Apple and ex-Google. Went well, moved to next round same day.",
+          "round": 1,
+          "type": "Phone Screen"
+        },
+        {
+          "completed": true,
+          "date": 795124800,
+          "id": "F07D6134-5147-4542-B9F1-CC72536BDBD2",
+          "interviewers": "Priya Patel",
+          "notes": "60 min pair programming. Built a SwiftUI component with async data loading and error states. Used TCA patterns. Priya was great to work with, gave helpful hints. Felt strong.",
+          "round": 2,
+          "type": "Technical: Live Coding"
+        },
+        {
+          "completed": false,
+          "date": 796248000,
+          "id": "FF28B4C3-DC00-4D18-9B8E-A1BA3F64AAA1",
+          "interviewers": "Marcus Johnson, Priya Patel",
+          "notes": "Design a real-time collaborative document editor for macOS with offline support. Need to prepare: CRDT vs OT, sync strategies, conflict resolution, SwiftUI rendering pipeline for large documents.",
+          "round": 3,
+          "type": "System Design"
+        }
+      ],
+      "isFavorite": true,
+      "jobDescription": "About the Role\n\nWe're looking for a Senior iOS Engineer to join our Apple Platforms team and build native experiences for Claude. You'll ship features used by millions of people daily, working at the intersection of AI and consumer software.\n\nWhat You'll Do\n- Design and implement new features for Claude's iOS and macOS apps using Swift and SwiftUI\n- Architect offline-first data layers with seamless cloud sync\n- Build streaming UI for real-time AI responses with graceful error handling\n- Collaborate with the design team to create polished, accessible interfaces\n- Optimize app performance, including launch time, memory usage, and battery impact\n- Participate in code reviews and mentor junior engineers\n- Work closely with the ML team to integrate on-device model capabilities\n\nRequirements\n- 5+ years of professional iOS development with Swift\n- Deep experience with SwiftUI, including custom layouts, animations, and navigation\n- Strong understanding of modern concurrency (async/await, structured concurrency, actors)\n- Experience with unidirectional architecture patterns (TCA, Redux, MVVM+Coordinator)\n- Track record of shipping polished consumer apps to the App Store\n- Excellent debugging skills and proficiency with Instruments\n- Strong communication skills and ability to work in a fast-paced environment\n\nNice to Have\n- macOS development experience (AppKit, Catalyst, or SwiftUI for Mac)\n- Experience integrating ML models (Core ML, on-device inference)\n- Contributions to open-source Swift projects\n- Experience with accessibility (VoiceOver, Dynamic Type, etc.)\n- Familiarity with CI/CD pipelines (Xcode Cloud, Fastlane, GitHub Actions)\n\nBenefits\n- Competitive salary and equity\n- Comprehensive health, dental, and vision insurance\n- Flexible work arrangements (hybrid SF or remote US)\n- $5,000 annual learning and development stipend\n- Home office setup budget\n- Generous PTO policy\n- 401(k) with company match\n- Weekly team lunches and quarterly offsites",
+      "labels": [
+        {
+          "colorHex": "#FF2D55",
+          "id": "3DEFEBA3-2C3A-4E05-B2C8-F402F0558931",
+          "name": "Dream Job"
+        },
+        {
+          "colorHex": "#FF9500",
+          "id": "1D34D2D6-87CD-4647-86B1-DB335B20F586",
+          "name": "Hybrid"
+        }
+      ],
+      "location": "San Francisco, CA",
+      "noteCards": [
+        {
+          "body": "Focus on offline-first architecture, sync strategies, and how to handle streaming AI responses in a SwiftUI view hierarchy. Review TCA side effects and cancellation patterns.\n\nKey topics to prepare:\n- CRDTs vs OT for collaborative editing\n- Merkle trees for efficient sync\n- SwiftUI performance with large view hierarchies\n- Error handling patterns in TCA Effects\n- How to test async code with TestStore",
+          "createdAt": 793396800,
+          "id": "2DC99DD6-3041-43C4-9C5F-47567FC5852B",
+          "subtitle": "Round 3 system design",
+          "tags": [
+            "interview",
+            "system-design"
+          ],
+          "title": "Interview prep",
+          "updatedAt": 793483200
+        },
+        {
+          "body": "Team is 8 engineers, mostly ex-Apple and ex-Google. They use TCA heavily across all features. Shipping a new macOS client soon that uses the design system approach. Timeline: 2 more rounds after phone screen, decision by end of March.\n\nCompensation: base $185-240k, equity refreshers annually, comprehensive benefits including $5k learning stipend.",
+          "createdAt": 793656000,
+          "id": "53FF89DF-3138-468D-B69F-E47FE41A8C3C",
+          "subtitle": "Initial screen with Sarah",
+          "tags": [
+            "recruiter",
+            "timeline",
+            "compensation"
+          ],
+          "title": "Recruiter call notes",
+          "updatedAt": 793742400
+        },
+        {
+          "body": "Anthropic is an AI safety company founded by former OpenAI researchers. Series C valued at $18B. Claude is their main product.\n\nThings I like:\n- Mission-driven company focused on AI safety\n- Using TCA (my preferred architecture)\n- Small team with high impact\n- Hybrid work policy\n- Strong engineering culture\n\nConcerns:\n- Fast-paced AI industry, potential for burnout\n- SF cost of living (but salary accounts for it)",
+          "createdAt": 793915200,
+          "id": "9F54C9BB-BC31-4A1A-97FE-D58562389D9C",
+          "subtitle": "",
+          "tags": [
+            "research"
+          ],
+          "title": "Company research",
+          "updatedAt": 794001600
+        }
+      ],
+      "resumeUsed": "Resume_iOS_2026.pdf",
+      "salary": "$185,000 - $240,000",
+      "status": "Interview",
+      "tasks": [
+        {
+          "forStatus": "Wishlist",
+          "id": "18BD3A23-8E9A-4408-8D0B-679A64663E33",
+          "isCompleted": true,
+          "title": "Research the company"
+        },
+        {
+          "forStatus": "Wishlist",
+          "id": "3E2A2019-9D14-432A-8DFD-9315BEAFE88A",
+          "isCompleted": true,
+          "title": "Save job description"
+        },
+        {
+          "forStatus": "Wishlist",
+          "id": "2AE6CBD6-1815-4000-A6F2-F7BD830C3E0C",
+          "isCompleted": true,
+          "title": "Check salary range"
+        },
+        {
+          "forStatus": "Applied",
+          "id": "1EF97640-A810-4516-BE04-C560185415D3",
+          "isCompleted": true,
+          "title": "Save application confirmation"
+        },
+        {
+          "forStatus": "Applied",
+          "id": "75C416C7-8BFE-474E-8733-1BCF23D9F59C",
+          "isCompleted": true,
+          "title": "Follow up after 1 week"
+        },
+        {
+          "forStatus": "Phone Screen",
+          "id": "2C952D06-55A2-4CF0-8A99-D0B5EE3B5621",
+          "isCompleted": true,
+          "title": "Research your interviewer"
+        },
+        {
+          "forStatus": "Phone Screen",
+          "id": "7126C12A-BD2F-49F0-9F17-224DD562BA63",
+          "isCompleted": true,
+          "title": "Prepare elevator pitch"
+        },
+        {
+          "forStatus": "Interview",
+          "id": "B35FAD5D-ABB0-48FF-BAA0-976F4F9ED52F",
+          "isCompleted": true,
+          "title": "Prepare STAR answers"
+        },
+        {
+          "forStatus": "Interview",
+          "id": "BFB0C5CB-4127-4947-90BE-82A342955F3A",
+          "isCompleted": true,
+          "title": "Research company culture"
+        },
+        {
+          "forStatus": "Interview",
+          "id": "256E1B2A-B4DF-42AC-B72E-8819BC8AE25C",
+          "isCompleted": false,
+          "title": "Review system design fundamentals"
+        },
+        {
+          "forStatus": "Interview",
+          "id": "A7FD5500-390C-4593-AB34-6051547825D6",
+          "isCompleted": false,
+          "title": "Practice whiteboarding CRDT approach"
+        },
+        {
+          "forStatus": "Interview",
+          "id": "3350111F-C5D5-4B28-BA13-1B76C7B18B43",
+          "isCompleted": false,
+          "title": "Send thank-you note after"
+        }
+      ],
+      "title": "Senior iOS Engineer",
+      "url": "https://anthropic.com/careers/ios-engineer"
+    },
+    {
+      "chatHistory": [
+        {
+          "content": "Analyze my fit for this Linear Staff Engineer role",
+          "id": "7DD80252-F0AA-40EE-9E92-E7F0D05ABE95",
+          "role": "user",
+          "timestamp": 795124800
+        },
+        {
+          "content": "Here's my analysis of your fit:\n\n**Strong Matches (8/10)**\n\n\u2705 **Architecture leadership** \u2014 Your TCA experience demonstrates strong opinions on unidirectional architecture, which aligns with Linear's approach\n\n\u2705 **Real-time collaboration** \u2014 Your work with streaming UI and async data flows is directly relevant to Linear's sync engine\n\n\u2705 **Developer tooling passion** \u2014 Linear is a developer tool company; your background shows you care deeply about DX\n\n\u2705 **Technical writing** \u2014 Linear is a writing-first culture, and your documentation skills are evident\n\n**Gaps to Address**\n\n\u26a0\ufe0f **TypeScript depth** \u2014 The role emphasizes TypeScript expertise; your primary experience is Swift. Frame this as: \"Deep expertise in strongly-typed languages with functional patterns that transfer directly\"\n\n\u26a0\ufe0f **Staff-level scope** \u2014 The role asks for cross-team technical leadership. Prepare specific examples of driving architecture decisions that affected multiple teams\n\n\u26a0\ufe0f **Web experience** \u2014 Less relevant if they're exploring native, but worth having a story about web technologies\n\n**Overall:** Strong fit, especially if they're serious about the native macOS direction. Your TCA background is unusually aligned with their architectural philosophy.\n\nWant me to help draft talking points for each gap?",
+          "id": "4F1C4C3C-1C60-4041-A7DE-3C5E484EC4D1",
+          "role": "assistant",
+          "timestamp": 795128400
+        }
+      ],
+      "company": "Linear",
+      "contacts": [],
+      "coverLetter": "",
+      "dateAdded": 794088000,
+      "dateApplied": 794260800,
+      "excitement": 5,
+      "hasPDF": false,
+      "id": "BF7795E1-792F-465B-AEB5-FC1CA06D6AA1",
+      "interviews": [],
+      "isFavorite": true,
+      "jobDescription": "Staff Software Engineer\n\nLinear is building the future of project management. We believe software teams deserve tools that are fast, beautiful, and thoughtful. Our product is used by thousands of companies including Vercel, Ramp, and Coinbase.\n\nAbout the Role\nWe're looking for a Staff Engineer to drive technical direction across our desktop and web clients. You'll work directly with the founders and a small team of exceptional engineers to solve hard problems in real-time collaboration, performance, and developer experience.\n\nWhat You'll Do\n- Lead architecture decisions for our Electron, web, and native clients\n- Design and implement our real-time sync engine improvements\n- Build developer-facing APIs and integrations (GitHub, Slack, Figma, etc.)\n- Mentor senior engineers and establish engineering best practices\n- Drive performance optimization across our entire stack\n- Contribute to our design system and component library\n- Participate in product discussions and shape the roadmap\n\nTechnical Stack\n- TypeScript (frontend and backend)\n- React with custom rendering optimizations\n- WebSocket-based real-time sync with operational transforms\n- PostgreSQL with custom replication\n- Electron for desktop (exploring native alternatives)\n- Linear's own project management (dogfooding)\n\nRequirements\n- 8+ years of software engineering experience\n- Deep expertise in TypeScript, React, or Swift\n- Experience building real-time collaborative applications\n- Strong understanding of distributed systems concepts\n- Track record of leading technical initiatives across teams\n- Excellent written communication (we're a writing-first culture)\n- Strong opinions on developer tooling, productivity, and code quality\n\nNice to Have\n- Experience with CRDTs or operational transformation\n- Background in building developer tools or productivity software\n- Open-source contributions\n- Experience scaling applications to hundreds of thousands of users\n- Database performance optimization experience\n\nCompensation\n- $200,000 - $260,000 base salary\n- Significant equity package (early-stage company)\n- Full benefits (medical, dental, vision)\n- Unlimited PTO with minimum 3 weeks encouraged\n- $3,000 annual learning stipend\n- Remote-first with optional SF/NYC office",
+      "labels": [
+        {
+          "colorHex": "#34C759",
+          "id": "12C97AF7-B648-4849-8392-7B8246599072",
+          "name": "Remote"
+        },
+        {
+          "colorHex": "#FFD60A",
+          "id": "AF8B3A29-AFBF-4975-A300-1DEB114E1CDC",
+          "name": "High Salary"
+        },
+        {
+          "colorHex": "#FF2D55",
+          "id": "FAA03924-9E70-407F-A184-EF80F9481635",
+          "name": "Dream Job"
+        }
+      ],
+      "location": "Remote",
+      "noteCards": [
+        {
+          "body": "Best-in-class product craft. Small team (40 engineers), high autonomy. Their desktop app is incredibly polished with sub-100ms interactions everywhere.\n\nThe sync engine is fascinating: custom CRDT-based system that handles offline, real-time collab, and undo/redo. Would love to work on this.\n\nThey're exploring native alternatives to Electron. If they go Swift for macOS, I'd be a perfect fit.",
+          "createdAt": 793396800,
+          "id": "A99102C5-93EB-4F23-B5C0-935C87FD9203",
+          "subtitle": "",
+          "tags": [
+            "motivation",
+            "research"
+          ],
+          "title": "Why Linear",
+          "updatedAt": 793483200
+        },
+        {
+          "body": "Applied through their website. Also reaching out to Karri Saarinen (CEO) on Twitter with a thoughtful thread about their sync architecture.\n\nHighlighted in my cover letter:\n- TCA experience (similar architectural philosophy)\n- Real-time collaboration work\n- Developer tooling background\n- My open-source contributions to Swift ecosystem",
+          "createdAt": 793656000,
+          "id": "D3BC994E-508A-46B4-B1F5-29185F5B7222",
+          "subtitle": "",
+          "tags": [
+            "strategy"
+          ],
+          "title": "Application strategy",
+          "updatedAt": 793742400
+        }
+      ],
+      "resumeUsed": "Resume_iOS_2026.pdf",
+      "salary": "$200,000 - $260,000",
+      "status": "Phone Screen",
+      "tasks": [
+        {
+          "forStatus": "Applied",
+          "id": "C2B0D2DA-ACAD-4BB2-9E45-64A91B8D5148",
+          "isCompleted": true,
+          "title": "Save application confirmation"
+        },
+        {
+          "forStatus": "Applied",
+          "id": "C0A0D1D2-AA9E-4125-BE2D-290B4C5A9976",
+          "isCompleted": false,
+          "title": "Follow up after 1 week"
+        }
+      ],
+      "title": "Staff Software Engineer",
+      "url": "https://linear.app/careers/staff-engineer"
+    },
+    {
+      "chatHistory": [
+        {
+          "content": "What should I know about Figma's desktop architecture?",
+          "id": "071AB764-87C9-4982-B910-002BFCA10568",
+          "role": "user",
+          "timestamp": 795124800
+        },
+        {
+          "content": "Here's what's publicly known about Figma's desktop architecture:\n\n**Current Stack:**\n- Electron-based desktop app wrapping their web engine\n- Custom WebGL rendering engine (not DOM-based) for the canvas\n- C++ via WebAssembly for performance-critical paths\n- Their own multiplayer sync protocol\n\n**Key Technical Details:**\n- The canvas is rendered entirely in WebGL, which is why it's so fast\n- They use a custom font renderer for precise design fidelity\n- File format is their own binary format optimized for partial loading\n- Multiplayer uses a central server model (not P2P)\n\n**Desktop-Specific Challenges:**\n- Native file system integration for .fig files\n- System clipboard support for rich content (copy/paste between Figma and other apps)\n- Font access (reading system fonts is different on each OS)\n- HiDPI rendering and color management\n- Memory management for large files (some Figma files are gigabytes)\n\n**What to Highlight in Your Interview:**\n- Your experience with native macOS APIs (AppKit, Core Graphics)\n- Performance profiling with Instruments\n- Any experience with graphics or rendering\n- Understanding of the Electron ecosystem and its limitations\n\nThis role is interesting because they might be exploring more native integrations beyond Electron. Your Swift/AppKit background could be valuable there.",
+          "id": "5EDFDEF2-C373-4F3A-8092-7CB5D147B8B9",
+          "role": "assistant",
+          "timestamp": 795128400
+        }
+      ],
+      "company": "Figma",
+      "contacts": [
+        {
+          "connected": true,
+          "email": "alex.r@figma.com",
+          "id": "7B8BD55C-3F34-4F7F-8836-37D7DAE35038",
+          "linkedin": "linkedin.com/in/alexrivera",
+          "name": "Alex Rivera",
+          "notes": "Reached out via LinkedIn. Very organized, sent calendar invite and prep materials proactively.",
+          "title": "Senior Recruiter"
+        },
+        {
+          "connected": false,
+          "email": "",
+          "id": "79AEC9A8-C4F6-4944-B3AB-815C74E6E6E9",
+          "linkedin": "linkedin.com/in/jordanlee",
+          "name": "Jordan Lee",
+          "notes": "Potential interviewer for technical round. Published a great blog post about Figma's rendering pipeline.",
+          "title": "Staff Engineer, Desktop Platform"
+        }
+      ],
+      "coverLetter": "",
+      "dateAdded": 792878400,
+      "dateApplied": 793137600,
+      "excitement": 4,
+      "hasPDF": false,
+      "id": "53FFA337-6FB3-4237-AF64-4682ECB1AAB9",
+      "interviews": [
+        {
+          "completed": false,
+          "date": 796420800,
+          "id": "03DE0814-A89C-4DE8-B602-BBC77CB8E4CF",
+          "interviewers": "Alex Rivera",
+          "notes": "30 min recruiter screen. Prepare: why Figma, why desktop, salary expectations, timeline with other processes.",
+          "round": 1,
+          "type": "Phone Screen"
+        }
+      ],
+      "isFavorite": false,
+      "jobDescription": "Senior Software Engineer, Desktop Platform\n\nFigma is the leading collaborative design platform, used by millions of designers and developers worldwide. We're looking for engineers who are passionate about building exceptional desktop experiences.\n\nAbout the Team\nThe Desktop Platform team owns Figma's native desktop app experience across macOS and Windows. We bridge our powerful web rendering engine with platform-specific capabilities to deliver a best-in-class design tool.\n\nWhat You'll Do\n- Build and optimize native desktop features using Electron, C++, and platform APIs\n- Improve rendering performance for complex design files with thousands of layers\n- Implement native OS integrations: file system, clipboard, drag-and-drop, notifications\n- Work on our custom rendering pipeline (WebGL/GPU-accelerated)\n- Collaborate with the Plugin API team to expose native capabilities to third-party developers\n- Profile and optimize memory usage for large design files\n- Ship features that millions of designers use every day\n\nRequirements\n- 5+ years of software engineering experience\n- Strong proficiency in C++, TypeScript, or Swift\n- Experience with desktop application development (Electron, native macOS, or Windows)\n- Understanding of graphics programming concepts (GPU rendering, compositing)\n- Performance optimization experience (profiling, benchmarking, memory management)\n- Ability to work across the stack from native code to JavaScript\n\nNice to Have\n- macOS development experience (AppKit, Metal, Core Animation)\n- WebGL or GPU programming experience\n- Experience with large-scale collaborative applications\n- Understanding of design tools and creative workflows\n- Contributions to Electron or Chromium\n\nCompensation & Benefits\n- $170,000 - $230,000 base salary + equity\n- Comprehensive health, dental, vision\n- $1,500/month wellness stipend\n- Recharge days (company-wide days off)\n- Learning and development budget\n- SF office with meals, or remote US",
+      "labels": [
+        {
+          "colorHex": "#BF5AF2",
+          "id": "C9FCD5C5-D686-4078-9ED9-E2286FD2A2F7",
+          "name": "FAANG"
+        },
+        {
+          "colorHex": "#5856D6",
+          "id": "0D75D666-6C9C-465A-A29A-46F698D1015E",
+          "name": "Great Benefits"
+        }
+      ],
+      "location": "San Francisco, CA",
+      "noteCards": [
+        {
+          "body": "Key points to hit:\n- Passion for design tools and creative software\n- Desktop development experience (AppKit + SwiftUI)\n- Performance optimization background\n- Interest in rendering pipelines and GPU programming\n\nQuestions to ask:\n- What's the native vs Electron split currently?\n- Plans for GPU-accelerated rendering on macOS?\n- Team size and structure?\n- What does the interview process look like after this?",
+          "createdAt": 793396800,
+          "id": "53165071-65F8-44BF-9D5D-680DD09DDE9F",
+          "subtitle": "",
+          "tags": [
+            "prep",
+            "phone-screen"
+          ],
+          "title": "Phone screen prep",
+          "updatedAt": 793483200
+        }
+      ],
+      "resumeUsed": "Resume_iOS_2026.pdf",
+      "salary": "$170,000 - $230,000",
+      "status": "Interview",
+      "tasks": [
+        {
+          "forStatus": "Phone Screen",
+          "id": "E17D1E5B-F707-4E07-96E5-837D6BB6A454",
+          "isCompleted": true,
+          "title": "Research your interviewer"
+        },
+        {
+          "forStatus": "Phone Screen",
+          "id": "D5D3A638-C8AA-4C94-9F35-0685866DC0E7",
+          "isCompleted": true,
+          "title": "Prepare elevator pitch"
+        },
+        {
+          "forStatus": "Phone Screen",
+          "id": "F57E4D94-8493-49BB-93D2-8E61B9A88551",
+          "isCompleted": false,
+          "title": "Confirm call time and format"
+        }
+      ],
+      "title": "Senior Software Engineer, Desktop",
+      "url": "https://figma.com/careers/desktop-engineer"
+    },
+    {
+      "chatHistory": [
+        {
+          "content": "Help me tailor my resume for the SwiftUI Frameworks role at Apple",
+          "id": "D2E1E98E-7F98-4DB1-A0AF-AADFA832D6B9",
+          "role": "user",
+          "timestamp": 795124800
+        },
+        {
+          "content": "Here are the key adjustments I'd make to position you for a frameworks role vs an app developer role:\n\n**Reframe Your Experience**\n\nInstead of:\n> \"Built a SwiftUI app with TCA serving 500K+ users\"\n\nTry:\n> \"Designed and implemented custom SwiftUI view modifiers, layout containers, and style protocols used across 12 feature modules, establishing patterns adopted by the broader iOS team\"\n\n**Emphasize Framework-Level Work:**\n\n1. **Custom Layout System** \u2014 If you've built any custom `Layout` protocol conformances, lead with those\n2. **View Modifier Design** \u2014 Your design system work (glass surfaces, outlined fields, card modifiers) is exactly the kind of API design Apple cares about\n3. **Performance Work** \u2014 Frame your optimization work in terms of view diffing, identity management, and rendering pipeline understanding\n4. **Testing Infrastructure** \u2014 Your snapshot testing work shows you think about API contracts and regression prevention\n\n**Add These Sections:**\n\n- **Open Source / Community** \u2014 Any SwiftUI-related packages, blog posts, or Feedback Assistant reports\n- **API Design Philosophy** \u2014 A brief section on your approach to naming, progressive disclosure, and sensible defaults\n\n**Keywords to Include:**\n- Result builders, ViewBuilder, custom PreferenceKey\n- Layout protocol, GeometryReader alternatives  \n- Equatable conformance for performance\n- Accessibility (VoiceOver, Dynamic Type)\n\nWant me to draft specific bullet points?",
+          "id": "1DE3B946-FEBF-479C-8484-AB938BD7DFC2",
+          "role": "assistant",
+          "timestamp": 795128400
+        }
+      ],
+      "company": "Apple",
+      "contacts": [
+        {
+          "connected": true,
+          "email": "jamie.t@apple.com",
+          "id": "1A2603A8-A579-4CBB-8278-EAC18C8E4C54",
+          "linkedin": "",
+          "name": "Jamie Torres",
+          "notes": "Former colleague, now on UIKit team. Said they could refer me to SwiftUI org. Need to follow up this week.",
+          "title": "Senior Engineer, UIKit"
+        }
+      ],
+      "coverLetter": "",
+      "dateAdded": 795556800,
+      "excitement": 5,
+      "hasPDF": false,
+      "id": "D541C102-C41B-4BD7-AB49-7EE3BABD3D03",
+      "interviews": [],
+      "isFavorite": true,
+      "jobDescription": "Software Engineer \u2014 SwiftUI Frameworks\n\nApple's SwiftUI team is looking for an experienced software engineer to help build the future of declarative UI across all Apple platforms.\n\nAbout the Role\nYou'll design and implement new SwiftUI APIs, optimize the rendering engine, and work across iOS, macOS, watchOS, tvOS, and visionOS. This is a unique opportunity to shape the tools that millions of developers use to build their apps.\n\nWhat You'll Do\n- Design and implement new SwiftUI views, modifiers, and layout APIs\n- Optimize SwiftUI's rendering pipeline for performance and battery life\n- Work on the SwiftUI-to-UIKit/AppKit bridging layer\n- Collaborate with the Swift compiler team on language features that enable better UI frameworks\n- Write and maintain comprehensive unit and integration tests\n- Review and respond to developer feedback from WWDC labs, Feedback Assistant, and forums\n- Create sample code and documentation for new APIs\n\nRequirements\n- 5+ years of software engineering experience, with significant UI framework experience\n- Expert-level Swift knowledge, including generics, protocols, and result builders\n- Deep understanding of UIKit or AppKit internals\n- Experience with graphics and rendering (Core Animation, Core Graphics, Metal)\n- Strong computer science fundamentals (algorithms, data structures, performance analysis)\n- Excellent attention to detail and commitment to API design quality\n- Ability to work in a large, cross-functional organization\n\nNice to Have\n- Experience designing public APIs used by a large developer community\n- Contributions to the Swift language or ecosystem\n- Accessibility engineering experience\n- Experience with visionOS or spatial computing\n- Background in programming language design or compiler implementation\n\nAt Apple, we believe that great ideas come from every corner of the organization. We're committed to building a diverse and inclusive team.",
+      "labels": [
+        {
+          "colorHex": "#BF5AF2",
+          "id": "3E2627C7-8A74-477A-8838-16CB6798DEEB",
+          "name": "FAANG"
+        },
+        {
+          "colorHex": "#32ADE6",
+          "id": "CBDFA7F9-8A29-4BB5-A0B5-BB8E4C7B5E26",
+          "name": "Referral"
+        },
+        {
+          "colorHex": "#FF3B30",
+          "id": "A5D32380-9891-43F5-8BE2-2B321CA5E147",
+          "name": "On-Site"
+        }
+      ],
+      "location": "Cupertino, CA",
+      "noteCards": [
+        {
+          "body": "Jamie from my old team works on UIKit at Apple. Said they could refer me to the SwiftUI org. Need to follow up this week.\n\nJamie's advice:\n- Internal referrals get fast-tracked to phone screen\n- The SwiftUI team values deep framework experience over app development\n- Be prepared to discuss API design philosophy\n- They care a lot about backwards compatibility and migration paths",
+          "createdAt": 793396800,
+          "id": "77ABD10E-E7B1-46E3-AB86-FF1C542376B4",
+          "subtitle": "",
+          "tags": [
+            "referral",
+            "networking"
+          ],
+          "title": "Referral",
+          "updatedAt": 793483200
+        },
+        {
+          "body": "Steps:\n1. Follow up with Jamie for referral (this week)\n2. Tailor resume to emphasize framework-level work\n3. Prepare portfolio of SwiftUI contributions/bugs filed\n4. Study Apple's API design guidelines in depth\n5. Review WWDC sessions on SwiftUI internals\n\nTimeline concern: Apple's interview process is notoriously slow (4-8 weeks). Need to manage timing with Anthropic and Notion processes.",
+          "createdAt": 793656000,
+          "id": "41B5FF92-C518-4456-9F6D-06073A87D8CC",
+          "subtitle": "",
+          "tags": [
+            "strategy",
+            "timeline"
+          ],
+          "title": "Application plan",
+          "updatedAt": 793742400
+        }
+      ],
+      "resumeUsed": "",
+      "salary": "$175,000 - $250,000",
+      "status": "Phone Screen",
+      "tasks": [
+        {
+          "forStatus": "Wishlist",
+          "id": "9DFB870F-8124-4973-A861-5022C1ECFB38",
+          "isCompleted": true,
+          "title": "Research the company"
+        },
+        {
+          "forStatus": "Wishlist",
+          "id": "72ACBC27-CF01-4592-B8F9-4668D8161502",
+          "isCompleted": true,
+          "title": "Save job description"
+        },
+        {
+          "forStatus": "Wishlist",
+          "id": "690694CD-3A89-443A-8834-8F7E2B825BA5",
+          "isCompleted": true,
+          "title": "Check salary range"
+        }
+      ],
+      "title": "Software Engineer, SwiftUI Frameworks",
+      "url": "https://jobs.apple.com/en-us/details/swiftui-frameworks"
+    },
+    {
+      "company": "Vercel",
+      "contacts": [],
+      "coverLetter": "",
+      "dateAdded": 795729600,
+      "dateApplied": 796006033.46036,
+      "excitement": 3,
+      "hasPDF": false,
+      "id": "2465AB35-371D-46D3-ABBA-D4DFE055739F",
+      "interviews": [],
+      "isFavorite": false,
+      "jobDescription": "Senior Engineer, Developer Experience\n\nVercel is the platform for frontend developers, providing the speed and reliability innovators need to create at the moment of inspiration. We're looking for engineers who are passionate about developer tools and the web platform.\n\nAbout the Role\nYou'll work on the tools and SDKs that developers use every day to build and deploy web applications. From the Vercel CLI to our Next.js integration, you'll shape how millions of developers interact with our platform.\n\nWhat You'll Do\n- Build and maintain the Vercel CLI, used by hundreds of thousands of developers\n- Design and implement SDK improvements for Next.js, SvelteKit, and other frameworks\n- Create seamless integrations between Vercel and popular development tools\n- Optimize build performance and deployment workflows\n- Write comprehensive documentation and developer guides\n- Engage with the developer community through blog posts, talks, and open-source contributions\n- Collaborate with the platform team to expose new capabilities through developer-facing APIs\n\nRequirements\n- 5+ years of software engineering experience\n- Strong proficiency in TypeScript and Node.js\n- Experience building CLI tools or developer SDKs\n- Understanding of web standards, HTTP, and networking\n- Experience with CI/CD systems and deployment pipelines\n- Excellent technical writing skills\n- Passion for developer experience and tooling\n\nCompensation\n- $160,000 - $210,000 base salary\n- Equity package\n- Full benefits\n- Remote-first",
+      "labels": [
+        {
+          "colorHex": "#34C759",
+          "id": "8C30DB51-E15C-42B4-9538-AFB26DAC5C36",
+          "name": "Remote"
+        },
+        {
+          "colorHex": "#FF6B35",
+          "id": "CAB96E31-CFE3-4B60-ABF4-29E46D30E764",
+          "name": "Startup"
+        }
+      ],
+      "location": "Remote",
+      "noteCards": [],
+      "resumeUsed": "",
+      "salary": "$160,000 - $210,000",
+      "status": "Applied",
+      "tasks": [
+        {
+          "forStatus": "Wishlist",
+          "id": "A4300DB4-6501-40D4-9601-35626405AED0",
+          "isCompleted": false,
+          "title": "Research the company"
+        },
+        {
+          "forStatus": "Wishlist",
+          "id": "469A98C9-C32A-427A-8AA2-C7FA595AAE73",
+          "isCompleted": false,
+          "title": "Check salary range"
+        },
+        {
+          "forStatus": "Wishlist",
+          "id": "F811190D-D47F-4FEF-AE5B-6198AB9DDC5E",
+          "isCompleted": false,
+          "title": "Save job description"
+        }
+      ],
+      "title": "Senior Engineer, DX",
+      "url": "https://vercel.com/careers/dx-engineer"
+    },
+    {
+      "chatHistory": [
+        {
+          "content": "What's the tech stack like at Spotify's iOS team?",
+          "id": "ACCA6EF7-C783-4ECE-BD80-0EAD5618C1DB",
+          "role": "user",
+          "timestamp": 795124800
+        },
+        {
+          "content": "Based on public information, conference talks, and engineering blog posts:\n\n**Languages:**\n- Mix of Swift and Objective-C (large legacy codebase)\n- Actively migrating to Swift but Obj-C still prevalent in core modules\n- Some C/C++ for audio codec integration\n\n**Architecture:**\n- Custom dependency injection framework (similar to Needle)\n- Feature modules with clear boundaries\n- Hub-and-spoke architecture for the main app\n- Extensive use of protocol-oriented programming\n\n**Audio Stack:**\n- Custom audio pipeline built on Core Audio\n- Proprietary streaming protocol optimized for mobile\n- Crossfade and gapless playback handled at the buffer level\n- Integration with system audio session management\n\n**Testing:**\n- Heavy unit testing culture\n- UI testing with XCUITest\n- A/B testing framework for gradual rollouts\n- Performance benchmarking in CI\n\n**Infrastructure:**\n- Bazel for builds (moved from Xcode build system)\n- Custom CI/CD pipeline\n- Feature flags for everything\n- Extensive analytics and crash reporting\n\nFor the Playback team specifically, expect more low-level work with Core Audio and potentially some C++ than a typical iOS feature team.",
+          "id": "7460D0EC-AE6A-43A6-9437-51C158AD534E",
+          "role": "assistant",
+          "timestamp": 795128400
+        }
+      ],
+      "company": "Spotify",
+      "contacts": [
+        {
+          "connected": false,
+          "email": "",
+          "id": "92BF078A-175F-44C5-9028-7C4C7BBF7429",
+          "linkedin": "linkedin.com/in/mikaellindstrom",
+          "name": "Mikael Lindstr\u00f6m",
+          "notes": "Found on LinkedIn. Posted about hiring for the team 2 weeks ago.",
+          "title": "Engineering Manager, Playback"
+        }
+      ],
+      "coverLetter": "",
+      "dateAdded": 794433600,
+      "dateApplied": 794692800,
+      "excitement": 4,
+      "hasPDF": false,
+      "id": "41E2FC8B-6A4A-4426-A088-AC8894D3FD1D",
+      "interviews": [],
+      "isFavorite": false,
+      "jobDescription": "iOS Engineer \u2014 Playback Team\n\nSpotify's Playback team is responsible for the core audio experience across all our mobile platforms. We're looking for an iOS engineer who is passionate about audio, performance, and building delightful user experiences at scale.\n\nAbout the Team\nThe Playback team owns everything from the moment a user taps play to the sound coming out of their speakers. We handle audio decoding, streaming, crossfade, gapless playback, offline mode, and integration with external devices (AirPlay, CarPlay, Bluetooth).\n\nWhat You'll Do\n- Build and optimize Spotify's core audio playback engine on iOS\n- Implement new playback features (crossfade improvements, spatial audio, lossless streaming)\n- Optimize streaming performance for low-bandwidth and offline scenarios\n- Work on CarPlay, AirPlay, and Bluetooth integrations\n- Collaborate with the Audio Quality team on codec selection and adaptive bitrate\n- Profile and fix performance issues affecting battery life and memory usage\n- Contribute to Spotify's shared mobile architecture and component library\n\nRequirements\n- 4+ years of iOS development experience with Swift and Objective-C\n- Understanding of audio frameworks (AVFoundation, AudioToolbox, Core Audio)\n- Experience with networking and streaming protocols\n- Performance optimization experience (Instruments, memory profiling)\n- Experience with large-scale mobile codebases\n- Strong debugging and problem-solving skills\n\nNice to Have\n- Experience with audio codecs (AAC, Ogg Vorbis, FLAC)\n- Background in digital signal processing\n- Experience with CarPlay or AirPlay integration\n- Knowledge of Bluetooth audio protocols\n- Experience with A/B testing at scale\n\nBenefits\n- $155,000 - $200,000 base salary\n- RSUs\n- Free Spotify Premium for life\n- Comprehensive health benefits\n- Flexible work location (NYC office or remote US)\n- 6 months paid parental leave",
+      "labels": [
+        {
+          "colorHex": "#BF5AF2",
+          "id": "D0C1A7D4-A0A6-4826-B0B5-6FA3EC805FA3",
+          "name": "FAANG"
+        },
+        {
+          "colorHex": "#5856D6",
+          "id": "9EA029AB-B8AA-4714-922A-9F99331C33A3",
+          "name": "Great Benefits"
+        }
+      ],
+      "location": "New York, NY",
+      "noteCards": [
+        {
+          "body": "Applied through their careers page. Highlighted my experience with AVFoundation and real-time streaming.\n\nThe playback team is interesting because it's one of the most performance-critical parts of the app. My background in optimizing SwiftUI rendering could transfer well to audio pipeline optimization.\n\nConcern: this role might be more Objective-C heavy than I'd like. Need to ask about the Swift migration status.",
+          "createdAt": 793396800,
+          "id": "6ACB5C9E-8125-44A3-B47D-304521582869",
+          "subtitle": "",
+          "tags": [
+            "application"
+          ],
+          "title": "Application notes",
+          "updatedAt": 793483200
+        }
+      ],
+      "resumeUsed": "Resume_iOS_2026.pdf",
+      "salary": "$155,000 - $200,000",
+      "status": "Interview",
+      "tasks": [
+        {
+          "forStatus": "Applied",
+          "id": "E890A10B-A413-49A6-B247-16E620ECC4B7",
+          "isCompleted": true,
+          "title": "Save application confirmation"
+        },
+        {
+          "forStatus": "Applied",
+          "id": "EBA2987A-E089-40D0-95F3-11FD0BB3A9FE",
+          "isCompleted": false,
+          "title": "Follow up after 1 week"
+        }
+      ],
+      "title": "iOS Engineer, Playback",
+      "url": "https://spotify.com/careers/ios-playback"
+    },
+    {
+      "chatHistory": [
+        {
+          "content": "Help me draft a negotiation email for the Notion offer",
+          "id": "73F7A681-AFE5-4D35-8A55-DB904ECE2884",
+          "role": "user",
+          "timestamp": 795124800
+        },
+        {
+          "content": "Here's a draft that's warm but assertive:\n\n---\n\nSubject: Re: Notion Offer \u2014 Senior Mobile Engineer\n\nHi Rachel,\n\nThank you so much for the offer. I had an exceptional experience throughout the interview process, and the conversations with Dana, Tom, and the rest of the mobile team only reinforced my excitement about this opportunity. The technical challenges around offline-first architecture and real-time collaboration are exactly what I want to be working on.\n\nI'd love to move forward, and I wanted to share a few thoughts on the compensation package:\n\n**Base salary:** Given my experience with the specific technical challenges Notion is tackling (CRDT-based sync, SwiftUI architecture, performance optimization at scale), and based on current market data for senior mobile engineers in SF, I'd like to discuss a base of $225,000. I believe this reflects both the market and the value I'd bring to the team from day one.\n\n**Equity vesting:** I'd appreciate if we could discuss an even vesting schedule (25% annually) rather than the standard one-year cliff structure. This better aligns incentives from the start.\n\n**Signing bonus:** Would it be possible to increase the signing bonus to $50,000? This would help offset relocation-related expenses.\n\nI want to be transparent that I have another process in late stages, but Notion is my top choice. I'm hoping we can finalize something that works for both sides so I can give you a definitive yes.\n\nLooking forward to discussing. Happy to jump on a call whenever works for you.\n\nBest regards",
+          "id": "9F84573B-25F6-4592-8B2D-932CC05DBA07",
+          "role": "assistant",
+          "timestamp": 795128400
+        },
+        {
+          "content": "That's good but soften the equity ask slightly",
+          "id": "0F5B4930-CFE8-430D-A80E-EEF77F00A317",
+          "role": "user",
+          "timestamp": 795132000
+        },
+        {
+          "content": "Here's the adjusted version with a softer equity ask:\n\n---\n\n**Equity vesting:** If there's any flexibility on the vesting structure, I'd welcome the conversation. An even annual schedule would be ideal, but I understand equity terms can be less flexible than other components.\n\n---\n\nThis frames it as a preference rather than a demand, which keeps the door open without making it a sticking point. The base salary and signing bonus asks are where you have the most leverage anyway, since those are cash costs the company can more easily adjust.",
+          "id": "F1761AD1-9B03-4D5E-882E-BA55C8B727A6",
+          "role": "assistant",
+          "timestamp": 795135600
+        }
+      ],
+      "company": "Notion",
+      "contacts": [
+        {
+          "connected": true,
+          "email": "dana@notion.so",
+          "id": "07BB267D-7EA9-43BF-8CF4-E9486DF02C3D",
+          "linkedin": "linkedin.com/in/danakim",
+          "name": "Dana Kim",
+          "notes": "Final round interviewer. Very technical, asked great architecture questions about offline sync. Seemed genuinely excited about my CRDT knowledge.",
+          "title": "VP of Engineering"
+        },
+        {
+          "connected": true,
+          "email": "rachel.p@notion.so",
+          "id": "6DDC5EEC-A470-4437-AE96-3FC84A9CC76F",
+          "linkedin": "linkedin.com/in/rachelpark",
+          "name": "Rachel Park",
+          "notes": "Main recruiting contact throughout the process. Very communicative and transparent about timeline.",
+          "title": "Senior Recruiter"
+        },
+        {
+          "connected": true,
+          "email": "",
+          "id": "C1C648DF-D7AF-4190-A35E-8462C400AEA0",
+          "linkedin": "linkedin.com/in/tomwright",
+          "name": "Tom Wright",
+          "notes": "Paired with me during the coding round. Great rapport. We discussed TCA vs their internal architecture.",
+          "title": "Staff Engineer, Mobile"
+        }
+      ],
+      "coverLetter": "",
+      "dateAdded": 790200000,
+      "dateApplied": 790632000,
+      "excitement": 5,
+      "hasPDF": false,
+      "id": "9AF4014E-5EBA-4085-B77A-8DB8A42BA665",
+      "interviews": [
+        {
+          "completed": true,
+          "date": 791668800,
+          "id": "2F5E575A-F815-4488-AA68-DE96A768E20A",
+          "interviewers": "Rachel Park",
+          "notes": "30 min recruiter screen. Discussed background, salary expectations ($210-240k range), and timeline. Rachel was very transparent about the process: 4 rounds total.",
+          "round": 1,
+          "type": "Phone Screen"
+        },
+        {
+          "completed": true,
+          "date": 792532800,
+          "id": "AA58F250-CB26-499D-8A95-FC728F2621BC",
+          "interviewers": "Tom Wright",
+          "notes": "60 min pair programming. Built a mini rich-text sync engine. Used CRDT approach with a simple character-wise model. Tom was impressed with the conflict resolution strategy. We had a great discussion about Yjs vs Automerge tradeoffs afterward.",
+          "round": 2,
+          "type": "Technical: Coding"
+        },
+        {
+          "completed": true,
+          "date": 793396800,
+          "id": "F0D78CD3-0D51-48C3-BFA2-5D4CF25919B5",
+          "interviewers": "Engineering panel (3 engineers)",
+          "notes": "90 min system design. Designed an offline-first mobile workspace with real-time collaboration.\n\nCovered:\n- Data model for blocks/pages\n- Sync protocol with CRDT-based merging\n- Conflict resolution for concurrent edits\n- Lazy loading for large workspaces\n- Push notification architecture for mentions\n\nFelt very strong. Panel asked good follow-up questions about edge cases.",
+          "round": 3,
+          "type": "Technical: System Design"
+        },
+        {
+          "completed": true,
+          "date": 794088000,
+          "id": "BFA31EFE-47B5-4429-89B1-6170C10F4408",
+          "interviewers": "Dana Kim + team",
+          "notes": "4-hour onsite in SF.\n\nMorning: Architecture deep-dive with Dana (VP Eng) \u2014 discussed scaling mobile architecture, my philosophy on testing, how I'd approach their offline-first challenges.\n\nLunch with the mobile team \u2014 great vibe, everyone seems happy and intellectually engaged.\n\nAfternoon: Cross-functional session with a PM and designer \u2014 discussed how I communicate technical constraints and collaborate on product decisions.\n\nOverall: Best interview experience I've ever had. The team is exceptional.",
+          "round": 4,
+          "type": "Final: Team Fit + VP"
+        }
+      ],
+      "isFavorite": true,
+      "jobDescription": "Senior Mobile Engineer\n\nNotion is the connected workspace where better, faster work happens. We're rethinking how teams organize their knowledge, projects, and workflows. We're looking for a Senior Mobile Engineer to help build the next generation of our iOS app.\n\nAbout the Role\nYou'll work on Notion's iOS app, which serves millions of users who rely on it for their most important work. The mobile experience is central to our vision of ubiquitous access to your workspace, and we're investing heavily in making it best-in-class.\n\nWhat You'll Do\n- Build new features for Notion's iOS app using Swift and SwiftUI\n- Architect offline-first data synchronization with conflict resolution\n- Optimize app performance for large workspaces (thousands of pages, complex databases)\n- Implement rich text editing capabilities on mobile\n- Work on real-time collaboration features\n- Improve app reliability through comprehensive testing and monitoring\n- Collaborate with the design team on mobile-specific UX patterns\n\nRequirements\n- 6+ years of iOS development experience\n- Expert-level Swift and SwiftUI skills\n- Experience building offline-first applications with complex sync logic\n- Strong understanding of Core Data or similar persistence frameworks\n- Experience with rich text editing on iOS\n- Track record of performance optimization on mobile\n- Excellent collaboration and communication skills\n\nNice to Have\n- Experience with CRDTs or operational transformation\n- Background in building productivity or note-taking applications\n- Experience with cross-platform mobile development\n- Knowledge of accessibility best practices\n- Experience mentoring junior engineers\n\nCompensation & Benefits\n- $190,000 - $245,000 base salary\n- Equity (RSUs)\n- Comprehensive health, dental, vision insurance\n- $5,000 annual learning stipend\n- Unlimited PTO with minimum encouraged\n- Home office stipend\n- Weekly team meals\n- SF hybrid (3 days in office) or remote US",
+      "labels": [
+        {
+          "colorHex": "#FF2D55",
+          "id": "DBBAE91B-1C34-4579-ABB2-DD37B1F99920",
+          "name": "Dream Job"
+        },
+        {
+          "colorHex": "#FF9500",
+          "id": "720C7262-3A67-4DAA-A740-CCCC1A039D15",
+          "name": "Hybrid"
+        },
+        {
+          "colorHex": "#5856D6",
+          "id": "B643A258-DA19-4A2D-AE96-43AFE5D351B5",
+          "name": "Great Benefits"
+        }
+      ],
+      "location": "San Francisco, CA",
+      "noteCards": [
+        {
+          "body": "$210k base + $80k RSU/yr (4yr vest, 1yr cliff) + $30k signing bonus.\n\nBenefits:\n- Full medical/dental/vision (Aetna PPO)\n- $5k annual learning stipend\n- $2k home office budget (one-time)\n- Unlimited PTO with 3-week minimum encouraged\n- 16 weeks paid parental leave\n- 401(k) with 4% match\n- Weekly team lunches, quarterly offsites\n- Commuter benefits\n\nStart date: flexible, suggested April 14 or April 28\nDeadline to respond: March 28 (Friday)",
+          "createdAt": 793396800,
+          "id": "51D1BB02-7759-4045-BC25-C5E860A9E18B",
+          "subtitle": "Received 2026-03-15",
+          "tags": [
+            "offer",
+            "compensation",
+            "deadline"
+          ],
+          "title": "Offer details",
+          "updatedAt": 793483200
+        },
+        {
+          "body": "Market rate for SF senior mobile is $220-240k base at comparable companies.\n\nLeverage:\n- Anthropic process still active (system design round next week)\n- Linear application pending\n- Strong performance in all interview rounds\n- Unique CRDT expertise they specifically need\n\nAsk:\n- $225k base (15k increase, within their band)\n- Accelerated vesting: 25/25/25/25 instead of standard cliff\n- Additional $20k signing to offset move-related costs\n- Written confirmation of title as 'Senior Mobile Engineer'\n\nFallback: would accept $220k base with the accelerated vesting. The RSU package and benefits are already strong.",
+          "createdAt": 793656000,
+          "id": "6C6A770C-073E-47DA-82F5-B651F590A290",
+          "subtitle": "",
+          "tags": [
+            "negotiation",
+            "compensation"
+          ],
+          "title": "Negotiation strategy",
+          "updatedAt": 793742400
+        },
+        {
+          "body": "Mobile team:\n- 6 engineers currently, hiring 2 more\n- Mix of senior and mid-level, good mentorship opportunity\n- Using SwiftUI for new features, UIKit for existing screens\n- Active migration to Swift Concurrency\n- Strong testing culture (85%+ code coverage)\n- Ship weekly with feature flags\n\nCulture:\n- Writing-heavy (Notion docs for everything, naturally)\n- Async-first with some sync meetings\n- Quarterly hackathons\n- Team seems genuinely happy and engaged\n- Dana (VP) is very technically deep, not just management",
+          "createdAt": 793915200,
+          "id": "5B0580DE-7B96-4DF2-89E5-EE6511F7EA40",
+          "subtitle": "",
+          "tags": [
+            "team",
+            "culture"
+          ],
+          "title": "Team impressions",
+          "updatedAt": 794001600
+        }
+      ],
+      "resumeUsed": "Resume_iOS_2026.pdf",
+      "salary": "$190,000 - $245,000",
+      "status": "Offer",
+      "tasks": [
+        {
+          "forStatus": "Offer",
+          "id": "55641FBF-6F3F-4624-BD96-CDCA2D090032",
+          "isCompleted": true,
+          "title": "Review offer details"
+        },
+        {
+          "forStatus": "Offer",
+          "id": "230A0352-272B-4B87-BA40-816F01D1403C",
+          "isCompleted": true,
+          "title": "Research market salary"
+        },
+        {
+          "forStatus": "Offer",
+          "id": "D1EBB672-A965-43E6-A279-C283191E9EDC",
+          "isCompleted": false,
+          "title": "Negotiate or accept"
+        }
+      ],
+      "title": "Senior Mobile Engineer",
+      "url": "https://notion.so/careers/mobile-engineer"
+    },
+    {
+      "chatHistory": [
+        {
+          "content": "Based on the Stripe rejection feedback, what should I work on?",
+          "id": "BACFCF06-DE99-4886-AEA9-04C0A80BBB6D",
+          "role": "user",
+          "timestamp": 795124800
+        },
+        {
+          "content": "Based on the feedback, here's a prioritized improvement plan:\n\n**High Priority: API Design Skills**\n\n1. **Study exemplary public APIs:**\n   - Stripe's iOS SDK (open source on GitHub)\n   - Apple's MapKit and StoreKit 2 APIs\n   - Square's in-app payments SDK\n   - Look at how each handles versioning, customization, and error reporting\n\n2. **Practice API design exercises:**\n   - Design a public SDK for push notifications\n   - Design a cross-platform analytics API\n   - Focus on: naming conventions, progressive disclosure, sensible defaults, migration paths\n\n3. **Cross-platform thinking:**\n   - For each API you design, consider how it would look in Kotlin, TypeScript, and Dart\n   - Think about shared concepts vs platform-specific patterns\n   - Study how Stripe handles this today (their docs show the same concepts across languages)\n\n**Medium Priority: Domain Knowledge**\n\n4. **Learn payment fundamentals:**\n   - PCI DSS compliance requirements for mobile\n   - Payment method types and their integration patterns\n   - Tokenization and secure data handling\n\n**Low Priority but Valuable:**\n\n5. **Open source contribution:**\n   - Contribute to Stripe's iOS SDK or another payment SDK\n   - This builds domain experience AND demonstrates it on your resume\n\nThe good news is that your coding and system design skills are already strong. The API design gap is very addressable with focused practice over the next few months.",
+          "id": "6FFAC56F-63D7-480D-B2CC-BFAC78236F7D",
+          "role": "assistant",
+          "timestamp": 795128400
+        }
+      ],
+      "company": "Stripe",
+      "contacts": [
+        {
+          "connected": true,
+          "email": "nina@stripe.com",
+          "id": "7CDD7BA4-E9BE-4B54-899A-7CA568563872",
+          "linkedin": "",
+          "name": "Nina Patel",
+          "notes": "Responsive throughout the process. Provided detailed feedback after rejection.",
+          "title": "Recruiter"
+        }
+      ],
+      "coverLetter": "",
+      "dateAdded": 789768000,
+      "dateApplied": 789940800,
+      "excitement": 4,
+      "hasPDF": false,
+      "id": "09E49379-9F84-4D87-A2E0-9F1BFCB217EA",
+      "interviews": [
+        {
+          "completed": true,
+          "date": 790632000,
+          "id": "CE02CF60-C055-41C0-903D-938EA2D1DFB7",
+          "interviewers": "Nina Patel (Recruiter)",
+          "notes": "30 min screen. Standard questions about background, interest in payments, salary expectations. Moved to next round.",
+          "round": 1,
+          "type": "Phone Screen"
+        },
+        {
+          "completed": true,
+          "date": 791496000,
+          "id": "5DF4EC64-771A-4B1B-85B3-9929D83D0C77",
+          "interviewers": "Senior SDK Engineer",
+          "notes": "60 min. Designed a public API for a payment form component. I focused too much on the Swift API and not enough on the cross-platform consistency story. This was the weak round.",
+          "round": 2,
+          "type": "Technical: API Design"
+        },
+        {
+          "completed": true,
+          "date": 791496000,
+          "id": "37C265E6-324F-4DE7-AE69-7566FEBB5F93",
+          "interviewers": "Staff Engineer",
+          "notes": "60 min pair programming. Built a retry mechanism with exponential backoff for payment requests. Went well, clean solution with good test coverage.",
+          "round": 3,
+          "type": "Technical: Coding"
+        },
+        {
+          "completed": true,
+          "date": 791496000,
+          "id": "006C1C80-B1CD-4204-9A46-BFA2FAD85507",
+          "interviewers": "Engineering Manager",
+          "notes": "60 min. Designed the architecture for Stripe's mobile SDK including versioning, backwards compatibility, and PCI compliance. This round felt strong.",
+          "round": 4,
+          "type": "System Design"
+        }
+      ],
+      "isFavorite": false,
+      "jobDescription": "iOS Engineer \u2014 Payments SDK\n\nStripe's Mobile SDK team builds the payments infrastructure that powers millions of apps worldwide. We're looking for an iOS engineer to help make accepting payments seamless for every developer.\n\nAbout the Role\nYou'll work on Stripe's iOS SDK, used by hundreds of thousands of apps including DoorDash, Instacart, and Shopify. Your code will process billions of dollars in payments and directly impact the developer experience of integrating Stripe.\n\nWhat You'll Do\n- Design and implement new payment method integrations (Apple Pay, Link, BNPL)\n- Build drop-in UI components for checkout, subscription management, and receipts\n- Maintain backwards compatibility across iOS versions and Swift/Objective-C\n- Write comprehensive documentation and migration guides\n- Optimize SDK size, launch time, and runtime performance\n- Implement and maintain PCI DSS compliance requirements in the SDK\n- Collaborate with backend teams on API design and versioning\n\nRequirements\n- 5+ years of iOS development experience\n- Deep knowledge of UIKit and SwiftUI\n- Experience building and maintaining public SDKs or frameworks\n- Understanding of payment systems and financial technology\n- Strong API design skills\n- Experience with security-sensitive code\n- Excellent documentation and technical writing skills",
+      "labels": [
+        {
+          "colorHex": "#BF5AF2",
+          "id": "BFCFD5ED-F822-40AC-8F53-F5EDB0D27F64",
+          "name": "FAANG"
+        }
+      ],
+      "location": "Seattle, WA",
+      "noteCards": [
+        {
+          "body": "Key feedback from the debrief:\n\n1. API Design round was the weakest. They wanted to see more consideration of:\n   - Cross-platform consistency (iOS/Android/React Native)\n   - Objective-C compatibility layer\n   - Versioning and migration strategy for public APIs\n   - How merchants would customize the UI\n\n2. Coding and system design rounds were strong\n\n3. They went with a candidate who had 3 years of payments domain experience\n\n4. Encouraged to reapply in 6-12 months, especially after gaining more API design experience\n\nTakeaways for future interviews:\n- When designing SDKs, always think cross-platform first\n- Public API design is fundamentally different from internal API design\n- Domain expertise matters for specialized roles",
+          "createdAt": 793396800,
+          "id": "AFE671C1-5644-4D95-842C-14E1C9DFDEEB",
+          "subtitle": "From Nina, 2026-02-20",
+          "tags": [
+            "feedback",
+            "improvement"
+          ],
+          "title": "Rejection feedback",
+          "updatedAt": 793483200
+        },
+        {
+          "body": "Things to improve for next time:\n\n1. Practice SDK API design specifically. Read Apple's API Design Guidelines more carefully.\n2. Prepare examples of designing for backwards compatibility\n3. Think about the 'merchant developer' persona when designing payment APIs\n4. Study Stripe's existing SDK (open source) before interviewing\n5. Consider contributing to an open-source SDK to build portfolio evidence",
+          "createdAt": 793656000,
+          "id": "5B9EF4A3-6CC0-4FA3-90DF-B0C0D3549644",
+          "subtitle": "",
+          "tags": [
+            "retrospective"
+          ],
+          "title": "Lessons learned",
+          "updatedAt": 793742400
+        }
+      ],
+      "resumeUsed": "Resume_iOS_2026.pdf",
+      "salary": "$180,000 - $230,000",
+      "status": "Rejected",
+      "tasks": [],
+      "title": "iOS Engineer, Payments SDK",
+      "url": "https://stripe.com/jobs/ios-payments"
+    },
+    {
+      "company": "Loom",
+      "contacts": [
+        {
+          "connected": true,
+          "email": "sam@loom.com",
+          "id": "F9D38451-99D9-4391-AD88-C46DF9CD8DCF",
+          "linkedin": "linkedin.com/in/samnguyen",
+          "name": "Sam Nguyen",
+          "notes": "Had a good conversation about screen capture APIs. Understanding about my withdrawal.",
+          "title": "Hiring Manager, Desktop"
+        }
+      ],
+      "coverLetter": "",
+      "dateAdded": 791668800,
+      "dateApplied": 792014400,
+      "excitement": 3,
+      "hasPDF": false,
+      "id": "1AF2583D-B101-4A4F-9C3C-BD4B390955A7",
+      "interviews": [
+        {
+          "completed": true,
+          "date": 792619200,
+          "id": "48222924-60F6-4FD3-992C-73DC82EB5DA8",
+          "interviewers": "Sam Nguyen",
+          "notes": "Good 45 min conversation. Discussed AVFoundation, ScreenCaptureKit, and system audio capture challenges on macOS. Sam was very technical and clearly passionate about the product.\n\nRole would be ~70% screen recording pipeline, 30% video editing features. Interesting but narrower scope than I'd prefer.",
+          "round": 1,
+          "type": "Phone Screen"
+        }
+      ],
+      "isFavorite": false,
+      "jobDescription": "Senior macOS Engineer\n\nLoom helps teams communicate faster with async video. We're looking for a Senior macOS Engineer to build our native screen recording and video editing experience on Mac.\n\nWhat You'll Do\n- Build and maintain Loom's macOS app using Swift, AppKit, and AVFoundation\n- Implement screen and camera capture with system audio mixing\n- Build video editing features (trimming, annotations, chapters)\n- Optimize video encoding for fast upload and playback\n- Work on macOS system integrations (menu bar, share extensions, permissions)\n- Improve recording quality and reliability across different Mac configurations\n\nRequirements\n- 4+ years of macOS development with Swift and AppKit\n- Experience with AVFoundation, Core Video, or Core Media\n- Understanding of video codecs and encoding pipelines\n- Performance optimization experience\n- Strong debugging skills for media pipelines",
+      "labels": [
+        {
+          "colorHex": "#34C759",
+          "id": "1C5A3456-C6BC-4B87-A976-A83C3FCEC8C5",
+          "name": "Remote"
+        }
+      ],
+      "location": "Remote",
+      "noteCards": [
+        {
+          "body": "Withdrew after receiving the Notion offer. Reasoning:\n- Salary range was $40-50k lower than Notion\n- Role was more narrowly scoped (screen recording vs full mobile platform)\n- Notion's team and mission are more exciting to me\n- Want to focus energy on Anthropic and Notion processes\n\nSam was very understanding. Left on good terms. He said to reach out if anything changes.",
+          "createdAt": 793396800,
+          "id": "D744E15E-D158-4D77-8823-C514C42797AE",
+          "subtitle": "2026-03-16",
+          "tags": [
+            "withdrawn",
+            "decision"
+          ],
+          "title": "Withdrawal reason",
+          "updatedAt": 793483200
+        }
+      ],
+      "resumeUsed": "Resume_iOS_2026.pdf",
+      "salary": "$150,000 - $190,000",
+      "status": "Withdrawn",
+      "tasks": [],
+      "title": "Senior macOS Engineer",
+      "url": "https://loom.com/careers/macos-engineer"
+    },
+    {
+      "company": "Arc Browser",
+      "contacts": [],
+      "coverLetter": "",
+      "dateAdded": 795902400,
+      "excitement": 4,
+      "hasPDF": false,
+      "id": "5B65552C-2443-46C6-B14D-D0EEE2E704F1",
+      "interviews": [],
+      "isFavorite": false,
+      "jobDescription": "Software Engineer, Swift\n\nThe Browser Company is building Arc, a radically different web browser designed for how we use the internet today. We're looking for a Swift engineer to help build our native macOS and iOS experiences.\n\nWhat You'll Do\n- Build native browser features using Swift, AppKit, and WebKit\n- Design and implement Arc's unique UX patterns (Spaces, Boosts, easels)\n- Work on performance-critical tab and window management\n- Implement native integrations with macOS (Spotlight, Shortcuts, widgets)\n- Collaborate with designers on interactions that feel distinctly Arc\n- Contribute to our growing iOS app\n\nRequirements\n- 3+ years of Swift development experience\n- Experience with AppKit or UIKit\n- Understanding of web technologies (WebKit, JavaScript bridges)\n- Strong UI/UX sensibility\n- Passion for reimagining how software should work\n\nCompensation\n- $140,000 - $180,000 base salary\n- Early-stage equity\n- Full benefits\n- NYC office with flexible hybrid policy",
+      "labels": [
+        {
+          "colorHex": "#FF6B35",
+          "id": "AF8AB2A4-5509-4665-ADB6-7D4BFD8A72A7",
+          "name": "Startup"
+        }
+      ],
+      "location": "New York, NY",
+      "noteCards": [
+        {
+          "body": "Arc is doing something genuinely different with browsers. Their use of Swift and AppKit for native macOS is refreshing. The product feels more like a native Mac app than any other browser.\n\nInteresting aspects:\n- Heavy use of AppKit with custom controls\n- WebKit integration challenges\n- Small team, high impact\n- Innovative UX patterns (Spaces, Boosts, Command Bar)\n\nConcerns:\n- Lower salary range (startup)\n- NYC only (I prefer remote or SF)\n- Browser market is brutally competitive\n- Company still finding product-market fit for revenue model",
+          "createdAt": 793396800,
+          "id": "7CF03FD6-954B-4E58-A507-41829786979F",
+          "subtitle": "",
+          "tags": [
+            "research",
+            "initial"
+          ],
+          "title": "Initial thoughts",
+          "updatedAt": 793483200
+        }
+      ],
+      "resumeUsed": "",
+      "salary": "$140,000 - $180,000",
+      "status": "Wishlist",
+      "tasks": [
+        {
+          "forStatus": "Wishlist",
+          "id": "18446B5B-C85F-4337-A448-A65C54D7128F",
+          "isCompleted": false,
+          "title": "Research the company"
+        },
+        {
+          "forStatus": "Wishlist",
+          "id": "5F8B1CBA-929F-4A74-BCBA-97EBA682C218",
+          "isCompleted": false,
+          "title": "Check salary range"
+        },
+        {
+          "forStatus": "Wishlist",
+          "id": "0C096F06-F1BF-4D7B-AC81-E0988EA3378E",
+          "isCompleted": false,
+          "title": "Save job description"
+        }
+      ],
+      "title": "Software Engineer, Swift",
+      "url": "https://arc.net/careers/swift-engineer"
+    }
+  ],
+  "settings": {
+    "agentActionMode": "Apply Immediately",
+    "aiProvider": "ACP Agent",
+    "autoProcessDocuments": false,
+    "cuttleContext": {
+      "status": {
+        "_0": "Interview"
+      }
+    },
+    "defaultViewMode": "Kanban",
+    "globalChatHistory": [
+      {
+        "content": "can you update my profile, based on this:\n```\nZachary Sparks\nStaff Software Engineer\nAtlanta, GA | zsparks1@gmail.com | +1-770-815-8744\nExecutive Profile\nStaff Software Engineer with 7 years at Block (Square), specializing in commerce architecture, cross-platform system\nconvergence, and AI-augmented engineering. Known for restructuring fragmented systems into scalable foundations that increase\nfeature velocity across organizations. Defines technical blueprints that enable teams to deliver complex, regulated commerce\nsystems at scale.\nTechnical Expertise\nArchitectural Leadership: Platform Convergence, Multi-platform System Design, Schema Evolution, Regulated Payments\nInfrastructure, Cross-team Technical Strategy\nAI & Intelligent Automation: Agentic AI Workflows, Adversarial Evaluation Design, LLM Integration (RAG, Prompt Engineering),\nReliability Automation, Apache Spark\nMobile & Distributed Systems: Swift, Kotlin, Objective-C, Java, High-Concurrency State Management, Microservices, CI/CD,\nMulti-dimensional Data Modeling\nProfessional Experience\nStaff Mobile Software Engineer\nSquare (Block, Inc.) | 2019 \u2013 2026\nPlatform Convergence & Checkout Architecture:\nLed the unification of checkout search systems across Square\u2019s Retail, Restaurants, and POS verticals. Designed a shared\narchitectural foundation that eliminated cross-vertical feature divergence and reduced long-term maintenance overhead.\nEstablished a \u201cship once, deploy everywhere\u201d model adopted across commerce teams to accelerate cross-platform feature rollout.\nAI-Augmented Reliability Pipeline:\nDesigned and implemented an agentic triage system spanning Triage \u2192 Reproduction \u2192 Resolution to address a stagnant\nbacklog of production crash tickets. Leveraged adversarial LLM agents to critique root cause analysis and evaluate\nimplementation strategies, achieving up to a 50% successful crash resolution rate. Shifted debugging from a reactive triage to a\nsemi-automated reliability pipeline and reduced long-standing crash backlog.\nRegulated Payments System Delivery (Auto Card Surcharge):\nOwned architectural redesign and end-to-end iOS implementation of compliance-sensitive payment flows under evolving U.S.\nregulatory constraints. Defined the technical blueprint adopted by a parallel 4-engineer Android team, ensuring cross-platform\nparity while reducing rework and ambiguity.\nAI Product Foundations:\nFounded and led the mobile initiative within the Commerce ML group, establishing client-side architecture for LLM-driven catalog\nfeatures. Delivered Auto Create (barcode metadata extraction) and Auto Write (LLM-generated item descriptions), reducing\nmerchant item setup friction and accelerating time-to-market.\nCatalog System Evolution:\nRedesigned the Item Options and Variations framework from flat attribute models to a multi-dimensional variation matrix.\nIntroduced Measurement Units infrastructure, enabling weight and volume-based selling and unlocking expansion into new retail\nverticals without service-layer rewrites.\nOrder Refund System Architecture:\nArchitected a complex state-reconciliation workflow handling multi-instrument refunds and residual order calculations. Delivered\nthe complete iOS module while defining cross-platform architectural patterns adopted by a 3-engineer Android team, operating\nwithin server-side resource constraints and strict backward compatibility requirements.\nSoftware Engineer\nThe Home Depot | 2016 \u2013 2019\nBig Data Scaling:\nEngineered an Apache Spark pipeline processing 80GB of daily clickstream data, transforming raw user events into sessionized\nbehavioral records for enterprise-wide analytics.\nSearch Intelligence:\nDeveloped clustering algorithms and seasonality scoring for autocomplete relevance, increasing search precision and improving\nconversion during peak retail periods.\nPerformance Optimization:\nImplemented distributed locality-sensitive hashing for nearest-neighbor retrieval, achieving a 10x speedup over brute-force\nmethods.\nField Service Engineer\nEnzymatic Deinking Technologies | 2011 \u2013 2014\nProcess Automation:\nDeveloped custom data-processing macros that reduced turnaround time by 1,200%, increasing trial throughput and enabling\nreal-time client optimization.\nEducation\nGeorgia Institute of Technology\nB.S., Computer Science (Graduated with Honor) | 2016\nThreads: Intelligence, Modeling and Simulation\nB.S., Chemical and Biomolecular Engineering | 2010\n```",
+        "id": "BCF08BB5-3187-4014-80E9-BD044E7834FD",
+        "role": "user",
+        "timestamp": 795568687.787918
+      },
+      {
+        "content": "I can't modify your profile from the dashboard view, but here's what I'd recommend updating based on your resume:\n\n**Current fields to update:**\n- **Current Title**: Staff Software Engineer \u2192 **Staff Mobile Software Engineer** (matches your most recent Block title and better signals mobile expertise)\n- **Preferred Salary**: $235,000+ \u2192 Consider raising to **$300,000+** given the Anthropic range ($320K-$405K base) and your staff-level experience. You're underselling yourself at $235K for staff roles.\n\n**Fields to add if your profile supports them:**\n- **Email**: zsparks1@gmail.com\n- **Phone**: +1-770-815-8744\n- **Years of experience**: 10+ (2016-2026 in software, 2011-2014 prior)\n- **Education**: Georgia Tech, B.S. Computer Science (w/ Honor), B.S. Chemical & Biomolecular Engineering\n- **Summary**: \"Staff Mobile Software Engineer with 7 years at Block (Square); platform convergence, commerce architecture, AI-augmented engineering. Dual GT degrees (CS + ChemE).\"\n\n**Key skills to tag**: Swift, Kotlin, SwiftUI, Objective-C, Java, Apache Spark, LLM/RAG, System Design, Platform Convergence\n\n**Strategic note on salary**: Your Abridge, Anthropic, and Healthy Together interviews are all likely in ranges above $235K for staff level. The Anthropic listing alone starts at $320K base. Setting your floor higher won't price you out of these roles; it sets better anchoring for negotiation.\n\nNavigate to your profile settings to make these changes, or open a specific job to update fields there.",
+        "id": "60BC713A-C3D6-44BB-8B61-4A6818AF172F",
+        "role": "assistant",
+        "timestamp": 795568703.629179
+      },
+      {
+        "content": "I have all these job leads, does any stand out to you for me?\nJosh Adams\u00a0\u00a0[2:08 PM]\nI work on a side business with a gentleman, Russ Goeckner, who runs a company called HotelGenie. He is looking for someone to convert his Android app to iOS using Reactive Native. Some additional technologies involved are Session Initiation Protocol, CallKit, and Firebase Push Notifications. If interested, please email Russ at russ@hotelgenie.app.\nTobias Fu\u00a0\u00a0[7:44 PM]\nIs there an Android Folks channel? I got an Android interview and would want to find people to do mock interviews with, if anyone here wants to volunteer that would be great too! It's going to take place in about a week and involves creating an app from scratch, no vibes allowed\u00a0(edited)\u00a0\nSara\u00a0\u00a0[11:33 AM]\nAnyone know someone that works at textnow or weight watchers? \u00a0(edited)\u00a0\naaron\u00a0\u00a0[1:11 PM]\nPretty interesting looking job that showed up in my inbox this morning: https://www.linkedin.com/jobs/view/4370453051\u00a0(edited)\u00a0\nlinkedin.comGoogle hiring Staff iOS Creative Technologist, Search in San Francisco, CA | LinkedInPosted 12:01:23 PM. Applicants in San Francisco: Qualified applications with arrest or conviction records will be\u2026See this and similar jobs on LinkedIn.[1:11 PM]in SF too, but open for Mountain View and New York\u00a0(edited)\u00a0\nJohn Brewer\u00a0\u00a0[5:59 PM]\nMy team at Google is likely about to hire a replacement for me, since I just sent in my resignation today.\n\nWorking on Google Cast app (no codecs, but plenty of low-level networking). All in Objective-C. Knowledge of Google build infrastructure a plus.\n\nThis is a contract position, so no paid holidays and stuff like that. They were paying me $82/hour. Your mileage may vary.\n\nNo job posting yet, but DM me and I'll be happy to help you get your resume to the front of the line.\u00a0(edited)\u00a0\nJon Duenas\u00a0\u00a0[7:33 PM]\nCompany I work for is looking for an Android Engineering Manager, if anyone here would be interested. I can answer some questions but my referral probably wouldn't provide any benefit, so posting here as a lead https://jobs.smartrecruiters.com/FortuneBrands/744000111192605\nFortune BrandsENGINEERING MANAGER, ANDROID (Mobile)Company Description: Fortune Brands Innovations, Inc. is an industry-leading innovation company focused on creating smarter, safer and more beautiful homes and improving lives. Our driving purpose is that we elevate every life by transforming spaces into havens. We believe our work and our brands can have incredibly positive impacts for not just our business and shareholders, but for people and the planet, too. When you join Fortune Brands, you become part of a high-performing team who are empowered to think big, learn fast and make bold decisions. We support an inclusive and diverse culture where everyone is encouraged and empowered to be their authentic selves, and where our differences an\u2026 Location1 Horizon Way, Deerfield, IL 60015, USAPostedFeb 24, 2026https://jobs.smartrecruiters.com/FortuneBrands/744000111192605Alexander Repty\u00a0\u00a0[7:33 PM]\n$82 per hour is daylight robbery\nJohn Brewer\u00a0\u00a0[9:17 PM]\nThey started with $80, but I was able to talk them up to $82. Google claimed that was all they could afford. \nJordan\u00a0\u00a0[9:26 PM]\nThis is why we need to bring back #talkpay \naaron\u00a0\u00a0[11:40 PM]\nI said this elsewhere today but now more than in recent history talking about compensation is valuable to get a feel for whether we end up seeing wages be suppressed or other trends. Should definitely discuss in #career-advice\u00a0 :)\nauibrian\u00a0\u00a0[11:55 PM]\n82?!\n[11:56 PM]Instacart was paying 120/130 in 2023 (admittedly 2 years ago)\nJohn Brewer\u00a0\u00a0[12:00 AM]\nI ported the per hour rate topic over to #career-advice as suggested:\nhttps://iosdevelopers.slack.com/archives/C6JAK0NJW/p1772857005873869\nI posted this over in #job-leads and got the response that the rate quoted was \u201cdaylight robbery\u201d.\n\nSo what would a reasonable rate for this kind of work be?\n\nhttps://iosdevelopers.slack.com/archives/C0744A7KTEC/p1772837951408039Thread in career-advice | Mar 6th | View messageReid Main\u00a0\u00a0[6:22 PM]\nGot this posting for Ground News passed onto me and figured someone here may be interested\nhttps://jobs.ashbyhq.com/groundnews/0ea6310d-3ed8-4bea-8fff-eae8e1e20415\njobs.ashbyhq.comSenior iOS EngineerAbout Us:\n\nGround News https://ground.news/ is a platform that makes it easy to compare news sources, read between the lines of media bias and break free from algorithms.\n\nIn a world where political polarization and media distrust are at an all-time high, Ground News offers people a better way to stay informed and see every side of the story. Our mobile app, web app, and browser extension are home to a community of mindful readers who use our news comparison platform to engage with news beyond their filter bubble.\n\nUnlike most news companies, our values do not align with any specific political ideology. Unlike most tech platforms, we don\u2019t rely on algorithms to keep users on our platform to sell m\u2026 Reid Main\u00a0\u00a0[10:07 AM]\nFriend from Ramp is looking for mobile developers as well\nhttps://jobs.ashbyhq.com/ramp/4859cd5e-f2a9-44d7-81f7-8bfc0e62369f \njobs.ashbyhq.comMobile Engineer, iOSABOUT RAMP\n\nAt Ramp, we\u2019re rethinking how modern finance teams function in the age of AI. We believe AI isn\u2019t just the next big wave. It\u2019s the new foundation for how business gets done. We\u2019re investing in that future \u2014 and in the people bold enough to build it.\n\nRamp is a financial operations platform designed to save companies time and money. Our all-in-one solution combines payments, corporate cards, vendor management, procurement, travel booking, and automated bookkeeping with built-in intelligence to maximize the impact of every dollar and hour spent. More than 50,000 businesses, from family-owned farms to e-commerce giants to space startups, have saved $10B and 27.5M hours with Ramp. Founde\u2026 bas\u00a0\u00a0[7:29 AM]\nFrom a friend:\n\nI'm hiring iOS and Android engineers- but this is a UK only gig. Need to be able to get into London on the regular.\n\nI can pass your name along :slightly_smiling_face:\n\nhttps://jobs.comparethemarketcareers.com/en/sites/MK/job/100135\nCandidate Experience siteSoftware Engineer (iOS)Software Engineer (iOS) Function: Technology Location: London Curious about what\u2019s next? So are we. Join Compare the Market and help to make financial decision making a breeze for millions. At Compare the Market, we\u2019re a purpose-driven business powered by tech and AI. We\u2019re building high-performing, results-driven teams with the skills, mindset, and ambition to deliver outcomes at pace. Every role here plays a part in driving our mission forward, and we create an environment where you can bring your authentic self, grow a truly characterful career, and see the direct impact of your work on the lives of our customers. We\u2019ve carved a meerkat-shaped niche and we\u2019re looking for ambitious, curiou\u2026 Paul Uhn\u00a0\u00a0[11:04 PM]\nHelping spread the word on an Android role in Chicago. https://www.linkedin.com/jobs/view/4384298362\nlinkedin.comMorgan Stanley hiring Mobile Android Application Developer - Director in Chicago, IL | LinkedInPosted 10:23:22 PM. Company ProfileMorgan Stanley is a leading global financial services firm providing a wide range of\u2026See this and similar jobs on LinkedIn.swiftlysingh\u00a0\u00a0[11:05 PM]\nHey anyone here work at OpenAI? Found a few iOS roles that look like a good fit and would love a referral if possible.\nJohn Kouris\u00a0\u00a0[1:12 PM]\n:wave: is there anyone from RevenueCat here? Was hoping to chat about the developer advocate role they have posted right now\ndavedelong\u00a0\u00a0[1:23 PM]\n@josh.holtz, @Jacob Eiting, \u2026\nKatherineInCode\u00a0\u00a0[1:25 PM]\n@Charlie Chapman?\nKabir\u00a0\u00a0[4:05 PM]\nHey, does anyone here work at AllTrails?\n\nI was looking into their iOS role and would love to chat with someone on the team.\nSara\u00a0\u00a0[3:06 PM]\nHey everyone! Does anyone know anyone at state farm? \u00a0(edited)\u00a0\nAlex Esplin\u00a0\u00a0[3:39 PM]\n<insert obligatory joke about neighbor dude that pops into being from thin air\u2026>",
+        "id": "EB9A6F58-1A4A-4E0E-A1A2-6DDD281ABCA4",
+        "role": "user",
+        "timestamp": 795988927.499661
+      },
+      {
+        "content": "Two stand out given your profile:\n\n**Ramp (Mobile Engineer, iOS)** \u2014 Best fit in this list. Ramp is a high-growth fintech with strong comp (likely meets your $235k+ floor, possibly well above). Your regulated payments work at Square (Auto Card Surcharge) and commerce architecture experience map directly to their financial operations platform. They're AI-forward (\"age of AI\" is in their pitch), which aligns with your LLM/RAG work. The title says \"Mobile Engineer\" but Ramp tends to level appropriately during interviews. Worth pursuing; see if Reid Main can refer you directly since they posted it.\n\n**Google Staff iOS Creative Technologist, Search** \u2014 Staff level, Google comp bands would clear your salary target easily. The \"Creative Technologist\" angle is less obvious for you, but your AI product work (Auto Create, Auto Write) and search experience at Home Depot (clickstream, autocomplete relevance) are relevant to a Search team. SF/MV/NY, hybrid. Worth reading the full JD to see if the role leans more engineering or more prototyping.\n\n**Skip the rest:**\n- HotelGenie: React Native, small scale, likely well below your comp range\n- Google Cast contract: $82/hr (~$170k annualized), no benefits, all Obj-C\n- Ground News: Senior level, likely can't meet your comp\n- Compare the Market: UK-only\n- Fortune Brands, Morgan Stanley, Paul Uhn's lead: Android roles\n\nThe Ramp lead is the one I'd act on today. Your Anthropic interview is the top priority, but Ramp would be a strong parallel track and good leverage if you get to offer stage.",
+        "id": "E11CB491-13FF-4DD1-9625-5ABA797E44F9",
+        "role": "assistant",
+        "timestamp": 795988949.053505
+      }
+    ],
+    "statusChatHistories": {
+      "Interview": []
+    },
+    "userProfile": {
+      "name": "Alex Morgan",
+      "currentTitle": "Senior iOS Engineer",
+      "location": "San Francisco, CA",
+      "linkedIn": "linkedin.com/in/alexmorgan",
+      "website": "alexmorgan.dev",
+      "summary": "iOS engineer with 6 years of experience building consumer apps with Swift and SwiftUI. Passionate about performance optimization, declarative UI architecture, and developer tooling. Currently focused on TCA-based applications with real-time collaboration features.",
+      "targetRoles": [
+        "Senior iOS Engineer",
+        "Staff Mobile Engineer",
+        "Senior Software Engineer"
+      ],
+      "skills": [
+        "Swift",
+        "SwiftUI",
+        "TCA",
+        "UIKit",
+        "Core Animation",
+        "async/await",
+        "Combine",
+        "Core Data",
+        "AVFoundation",
+        "Instruments",
+        "XCTest",
+        "Git",
+        "CI/CD",
+        "Accessibility"
+      ],
+      "preferredSalary": "$180,000 - $240,000",
+      "workPreference": "Hybrid",
+      "resume": "ALEX MORGAN\nSenior iOS Engineer | San Francisco, CA\nalexmorgan.dev | linkedin.com/in/alexmorgan\n\nSUMMARY\nSenior iOS engineer with 6 years of experience shipping consumer apps to millions of users. Deep expertise in SwiftUI, The Composable Architecture, and modern concurrency patterns. Track record of leading performance optimization efforts and mentoring junior engineers.\n\nEXPERIENCE\n\nSenior iOS Engineer \u2014 Acme Apps (2023\u2013Present)\n\u2022 Architected a SwiftUI app serving 500K+ users using TCA with comprehensive test coverage (92%)\n\u2022 Led performance optimization that improved scroll performance by 70% through view identity management and lazy image decoding\n\u2022 Designed a modular design system with 21 reusable components, adopted across 12 feature modules\n\u2022 Built real-time streaming UI for AI chat with graceful error handling and cancellation\n\u2022 Mentored 3 junior engineers through code reviews and weekly 1:1s\n\niOS Engineer \u2014 StartupCo (2021\u20132023)\n\u2022 Built offline-first data sync layer using Core Data with CloudKit integration\n\u2022 Implemented custom AVFoundation pipeline for real-time video filters\n\u2022 Reduced app launch time by 40% through lazy initialization and background prefetching\n\u2022 Shipped 3 major features from concept to App Store in under 6 weeks each\n\niOS Developer \u2014 MobileLab (2019\u20132021)\n\u2022 Developed UIKit-based features for a fintech app with 1M+ downloads\n\u2022 Built accessibility support (VoiceOver, Dynamic Type) achieving WCAG 2.1 AA compliance\n\u2022 Migrated legacy Objective-C modules to Swift, reducing crash rate by 25%\n\nEDUCATION\nB.S. Computer Science \u2014 UC Berkeley, 2019\n\nOPEN SOURCE\n\u2022 Contributor to pointfreeco/swift-composable-architecture (bug fixes, documentation)\n\u2022 swift-snapshot-helpers: A lightweight wrapper for snapshot testing SwiftUI views (200+ stars)\n\u2022 Regular blog posts on SwiftUI performance at alexmorgan.dev/blog",
+      "coverLetterTemplate": "Dear [Hiring Team],\n\nI'm writing to express my interest in the [Role] position at [Company]. As a senior iOS engineer with 6 years of experience building consumer apps with Swift and SwiftUI, I'm excited about the opportunity to contribute to your team.\n\n[Specific paragraph about why this company/role]\n\nIn my current role, I architected a SwiftUI application serving 500K+ users using The Composable Architecture, with 92% test coverage and a modular design system adopted across 12 feature modules. I also led a performance optimization effort that improved scroll performance by 70%, directly increasing user engagement by 22%.\n\n[Specific paragraph connecting my experience to their needs]\n\nI'd welcome the opportunity to discuss how my experience could benefit your team. Thank you for your consideration.\n\nBest regards,\nAlex Morgan"
+    }
+  },
+  "version": 1
+}
