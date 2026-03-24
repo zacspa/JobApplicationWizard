@@ -205,7 +205,7 @@ private func fetchLeverJob(company: String, postingID: String) async throws -> S
     let title = json["text"] as? String ?? ""
     let categories = json["categories"] as? [String: Any] ?? [:]
     let location = categories["location"] as? String ?? ""
-    let team = categories["team"] as? String ?? ""
+    _ = categories["team"] as? String ?? ""
 
     // Build description from lists
     var descriptionParts: [String] = []
@@ -531,8 +531,8 @@ extension JobURLClient: DependencyKey {
 
 extension JobURLClient: TestDependencyKey {
     public static let testValue = JobURLClient(
-        detectATS: unimplemented("\(Self.self).detectATS"),
-        fetchJobData: unimplemented("\(Self.self).fetchJobData")
+        detectATS: unimplemented("\(Self.self).detectATS", placeholder: .unknown),
+        fetchJobData: unimplemented("\(Self.self).fetchJobData", placeholder: ScrapedJobData())
     )
 }
 
