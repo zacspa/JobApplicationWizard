@@ -46,6 +46,38 @@ public struct KanbanView: View {
     }
 }
 
+// MARK: - Sticky Card Logic (extracted for testability)
+
+/// Pure computation for the sticky card boundary detection and clamping.
+/// Used by KanbanRow; extracted so the math can be unit-tested.
+struct StickyCardState {
+    var cardFrame: CGRect = .zero
+    var viewportWidth: CGFloat = 0
+    var hasPinnedCard: Bool = false
+    var awaitingFirstGeometry: Bool = false
+    var cardWidth: CGFloat = KanbanRow.cardWidth
+    var padding: CGFloat = DS.Spacing.md
+
+    /// Whether the pinned card has crossed a scroll boundary.
+    var isStuck: Bool {
+        guard hasPinnedCard,
+              !awaitingFirstGeometry,
+              cardFrame.width > 0,
+              viewportWidth > 0 else { return false }
+        if cardFrame.minX < padding { return true }
+        if cardFrame.maxX > viewportWidth - padding { return true }
+        return false
+    }
+
+    /// Leading-edge X for the sticky overlay, clamped within the viewport.
+    var clampedX: CGFloat {
+        let naturalX = cardFrame.minX
+        let minAllowed = padding
+        let maxAllowed = viewportWidth - cardWidth - padding
+        return min(max(naturalX, minAllowed), maxAllowed)
+    }
+}
+
 // MARK: - Kanban Row (swimlane)
 
 struct KanbanRow: View {
@@ -81,28 +113,17 @@ struct KanbanRow: View {
         "kanban-row-\(status.rawValue)"
     }
 
-    /// True when the pinned card has crossed a scroll boundary.
-    /// The card is "stuck": the overlay takes over, the original hides, and Cuttle
-    /// follows the overlay instead.
-    private var pinnedCardIsStuck: Bool {
-        guard pinnedJobID != nil,
-              !awaitingFirstGeometry,
-              pinnedCardNaturalFrame.width > 0,
-              scrollViewportSize.width > 0 else { return false }
-        let pad = DS.Spacing.md
-        if pinnedCardNaturalFrame.minX < pad { return true }
-        if pinnedCardNaturalFrame.maxX > scrollViewportSize.width - pad { return true }
-        return false
+    private var stickyState: StickyCardState {
+        StickyCardState(
+            cardFrame: pinnedCardNaturalFrame,
+            viewportWidth: scrollViewportSize.width,
+            hasPinnedCard: pinnedJobID != nil,
+            awaitingFirstGeometry: awaitingFirstGeometry
+        )
     }
 
-    /// Leading-edge X for the sticky overlay, clamped within the viewport.
-    private var stickyClampedX: CGFloat {
-        let pad = DS.Spacing.md
-        let naturalX = pinnedCardNaturalFrame.minX
-        let minAllowed = pad
-        let maxAllowed = scrollViewportSize.width - Self.cardWidth - pad
-        return min(max(naturalX, minAllowed), maxAllowed)
-    }
+    private var pinnedCardIsStuck: Bool { stickyState.isStuck }
+    private var stickyClampedX: CGFloat { stickyState.clampedX }
 
 
     var body: some View {
