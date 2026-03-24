@@ -60,7 +60,8 @@ let package = Package(
                 .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
             ],
-            path: "Tests/JobApplicationWizardTests"
+            path: "Tests/JobApplicationWizardTests",
+            exclude: ["__Snapshots__"]
         )
     ]
 )
