@@ -105,14 +105,6 @@ final class AddJobImportTests: XCTestCase {
             rawHTML: "<html><body>Some job</body></html>"
         )
 
-        let enrichedData = ScrapedJobData(
-            title: "Engineer",
-            company: "Enriched Co",
-            location: "New York",
-            description: "Great job description",
-            atsProvider: .unknown
-        )
-
         var state = AddJobFeature.State()
         state.url = "https://example.com/job/42"
         state.apiKey = "test-api-key"
