@@ -379,22 +379,6 @@ private struct DataSettingsTab: View {
         .formStyle(.grouped)
         .padding(.horizontal, DS.Spacing.lg)
         .padding(.vertical, DS.Spacing.lg)
-        .alert(
-            "Replace All Data?",
-            isPresented: Binding(
-                get: { store.showImportAllConfirm },
-                set: { if !$0 { store.send(.cancelImportAll) } }
-            )
-        ) {
-            Button("Replace", role: .destructive) {
-                store.send(.confirmImportAll)
-            }
-            Button("Cancel", role: .cancel) {
-                store.send(.cancelImportAll)
-            }
-        } message: {
-            Text("This will replace all current data with the contents of the backup file. This cannot be undone.")
-        }
     }
 }
 

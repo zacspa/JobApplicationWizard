@@ -102,16 +102,16 @@ public struct SidebarView: View {
                 Spacer()
 
                 Button {
-                    store.send(.importCSV)
+                    store.send(.importAll)
                 } label: {
                     Image(systemName: "square.and.arrow.down")
                         .foregroundColor(DS.Color.textSecondary)
                 }
                 .buttonStyle(.plain)
-                .help("Import from CSV")
+                .help("Import from JSON backup")
 
                 Button {
-                    store.send(.exportCSV)
+                    store.send(.exportAll)
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundColor(DS.Color.textSecondary)

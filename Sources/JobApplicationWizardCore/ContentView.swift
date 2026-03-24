@@ -58,17 +58,17 @@ public struct ContentView: View {
                         .buttonStyle(.plain)
                         .help("Settings")
 
-                        Button { store.send(.importCSV) } label: {
+                        Button { store.send(.importAll) } label: {
                             Image(systemName: "square.and.arrow.down").padding(4)
                         }
                         .buttonStyle(.plain)
-                        .help("Import from CSV")
+                        .help("Import from JSON backup")
 
-                        Button { store.send(.exportCSV) } label: {
+                        Button { store.send(.exportAll) } label: {
                             Image(systemName: "square.and.arrow.up").padding(4)
                         }
                         .buttonStyle(.plain)
-                        .help("Export to CSV")
+                        .help("Export full JSON backup")
                     }
                 }
             }
@@ -139,6 +139,22 @@ public struct ContentView: View {
             Button("OK") { store.send(.dismissSaveError) }
         } message: {
             Text(store.saveError ?? "")
+        }
+        .alert(
+            "Replace All Data?",
+            isPresented: Binding(
+                get: { store.showImportAllConfirm },
+                set: { if !$0 { store.send(.cancelImportAll) } }
+            )
+        ) {
+            Button("Replace", role: .destructive) {
+                store.send(.confirmImportAll)
+            }
+            Button("Cancel", role: .cancel) {
+                store.send(.cancelImportAll)
+            }
+        } message: {
+            Text("This will replace all current data with the contents of the backup file. This cannot be undone.")
         }
     }
 
