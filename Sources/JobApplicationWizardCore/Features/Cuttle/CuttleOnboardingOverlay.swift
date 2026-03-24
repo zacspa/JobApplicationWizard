@@ -10,7 +10,6 @@ public struct CuttleOnboardingOverlay: View {
     let windowSize: CGSize
     let dropZones: [DropZone]
     let safeAreaTopInset: CGFloat
-    @Environment(\.openSettings) private var openSettings
 
     public init(
         store: StoreOf<CuttleOnboardingFeature>,
@@ -38,8 +37,15 @@ public struct CuttleOnboardingOverlay: View {
             dimmingLayer
                 .allowsHitTesting(false)
 
-            // Tooltip card
-            tooltipCard
+            // Step-specific content
+            switch store.currentStep {
+            case .discoverAgent:
+                agentDiscoveryCard
+            case .connectAgent:
+                connectAgentCard
+            default:
+                tooltipCard
+            }
         }
         .opacity(isResizing ? 0 : 1)
         .animation(.easeInOut(duration: 0.3), value: store.currentStep)
@@ -58,7 +64,7 @@ public struct CuttleOnboardingOverlay: View {
                         ForEach(Array(rects.enumerated()), id: \.offset) { _, rect in
                             if rect != .zero {
                                 let expanded = rect.insetBy(dx: -12, dy: -12)
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: DS.Radius.xl)
                                     .frame(width: expanded.width, height: expanded.height)
                                     .position(x: expanded.midX, y: expanded.midY)
                                     .blendMode(.destinationOut)
@@ -69,6 +75,339 @@ public struct CuttleOnboardingOverlay: View {
             }
     }
 
+    // MARK: - Agent Discovery Card
+
+    @ViewBuilder
+    private var agentDiscoveryCard: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
+            Text("Find Your AI Agent")
+                .font(DS.Typography.heading2)
+
+            Text("Choose an ACP agent to power Cuttle. Browse the registry below, then select one to continue.")
+                .font(DS.Typography.subheadline)
+                .foregroundColor(DS.Color.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Search field
+            HStack(spacing: DS.Spacing.sm) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(DS.Color.textSecondary)
+                TextField("Search agents...", text: Binding(
+                    get: { store.agentSearchText },
+                    set: { store.send(.searchTextChanged($0)) }
+                ))
+                .textFieldStyle(.plain)
+            }
+            .padding(DS.Spacing.sm)
+            .background(DS.Color.controlBackground)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.small)
+                    .stroke(DS.Color.border, lineWidth: 1)
+            )
+
+            // Agent list
+            if store.isLoadingAgents {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Loading agents...")
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
+                    Spacer()
+                }
+                .frame(height: 240)
+            } else if let error = store.registryError {
+                VStack(spacing: DS.Spacing.sm) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundColor(DS.Color.warning)
+                    Text(error)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.error)
+                        .multilineTextAlignment(.center)
+                    Button("Retry") {
+                        store.send(.fetchRegistry)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .frame(height: 240)
+                .frame(maxWidth: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: DS.Spacing.xxs) {
+                        ForEach(store.filteredAgents) { agent in
+                            agentRow(agent)
+                        }
+                    }
+                }
+                .frame(height: 240)
+            }
+
+            // Install instructions when an agent is selected
+            if let agent = store.selectedAgent {
+                installInstructions(for: agent)
+            }
+
+            // Navigation
+            HStack {
+                stepDots
+                Spacer()
+                Button("Skip") {
+                    store.send(.skipAgentSetup)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                Button("Next") {
+                    store.send(.nextStep)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(store.selectedAgentId == nil)
+                .keyboardShortcut(.return)
+            }
+
+            HStack {
+                Spacer()
+                Button("Skip Tour") {
+                    store.send(.skipAll)
+                }
+                .buttonStyle(.plain)
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Color.textSecondary)
+            }
+        }
+        .padding(DS.Spacing.lg)
+        .frame(width: 480)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xl))
+        .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
+        .position(x: windowSize.width / 2, y: windowSize.height / 2)
+    }
+
+    @ViewBuilder
+    private func agentRow(_ agent: ACPAgentEntry) -> some View {
+        let isSelected = store.selectedAgentId == agent.id
+        HStack(alignment: .top, spacing: DS.Spacing.sm) {
+            VStack(alignment: .leading, spacing: DS.Spacing.xxs) {
+                HStack(spacing: DS.Spacing.xs) {
+                    Text(agent.name)
+                        .font(DS.Typography.bodyMedium)
+                    Text("v\(agent.version)")
+                        .font(DS.Typography.caption2)
+                        .padding(.horizontal, DS.Spacing.xxs)
+                        .padding(.vertical, 1)
+                        .background(Color.secondary.opacity(DS.Color.Opacity.wash))
+                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
+                }
+                Text(agent.description)
+                    .font(DS.Typography.caption)
+                    .foregroundColor(DS.Color.textSecondary)
+                    .lineLimit(2)
+                HStack(spacing: DS.Spacing.xxs) {
+                    if agent.distribution.npx != nil {
+                        distributionBadge("npx")
+                    }
+                    if agent.distribution.uvx != nil {
+                        distributionBadge("uvx")
+                    }
+                    if agent.distribution.binary != nil {
+                        distributionBadge("binary")
+                    }
+                }
+            }
+            Spacer()
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.accentColor)
+            }
+        }
+        .padding(DS.Spacing.sm)
+        .background(isSelected ? Color.accentColor.opacity(DS.Color.Opacity.tint) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.medium))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            store.send(.selectAgent(agent.id))
+        }
+    }
+
+    @ViewBuilder
+    private func distributionBadge(_ label: String) -> some View {
+        Text(label)
+            .font(DS.Typography.micro)
+            .padding(.horizontal, DS.Spacing.xxs)
+            .padding(.vertical, 1)
+            .background(DS.Color.info.opacity(DS.Color.Opacity.wash))
+            .foregroundColor(DS.Color.info)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
+    }
+
+    @ViewBuilder
+    private func installInstructions(for agent: ACPAgentEntry) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+            Text("Install command:")
+                .font(DS.Typography.captionSemibold)
+
+            if let npx = agent.distribution.npx {
+                let args = npx.args?.joined(separator: " ") ?? ""
+                let command = "npx -y \(npx.package)\(args.isEmpty ? "" : " \(args)")"
+                copyableCommand(command)
+            } else if let uvx = agent.distribution.uvx {
+                let args = uvx.args?.joined(separator: " ") ?? ""
+                let command = "uvx \(uvx.package)\(args.isEmpty ? "" : " \(args)")"
+                copyableCommand(command)
+            } else if let binaries = agent.distribution.binary {
+                #if arch(arm64)
+                let platform = "darwin-aarch64"
+                #else
+                let platform = "darwin-x86_64"
+                #endif
+                if let binary = binaries[platform] {
+                    let command = "curl -L \(binary.archive) | tar xz && ./\(binary.cmd)"
+                    copyableCommand(command)
+                }
+            }
+
+            Text("The app handles installation automatically when you connect.")
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Color.textSecondary)
+                .italic()
+        }
+        .padding(DS.Spacing.sm)
+        .background(DS.Color.controlBackground)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.medium))
+    }
+
+    @ViewBuilder
+    private func copyableCommand(_ command: String) -> some View {
+        HStack {
+            Text(command)
+                .font(.system(size: 11, design: .monospaced))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer()
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(command, forType: .string)
+            } label: {
+                Image(systemName: "doc.on.doc")
+                    .font(DS.Typography.caption)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
+        }
+    }
+
+    // MARK: - Connect Agent Card
+
+    @ViewBuilder
+    private var connectAgentCard: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
+            let agentName = store.selectedAgent?.name ?? "Agent"
+
+            Text("Connect to \(agentName)")
+                .font(DS.Typography.heading2)
+
+            if let agent = store.selectedAgent {
+                Text(agent.description)
+                    .font(DS.Typography.subheadline)
+                    .foregroundColor(DS.Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Connection state
+            if store.isConnected {
+                HStack(spacing: DS.Spacing.sm) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(DS.Color.success)
+                        .font(.title2)
+                    Text("Connected to \(store.connectedAgentName ?? agentName)!")
+                        .font(DS.Typography.bodyMedium)
+                        .foregroundColor(DS.Color.success)
+                }
+                .padding(DS.Spacing.md)
+                .frame(maxWidth: .infinity)
+                .background(DS.Color.success.opacity(DS.Color.Opacity.subtle))
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.medium))
+            } else if store.isConnecting {
+                HStack(spacing: DS.Spacing.sm) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Connecting...")
+                        .font(DS.Typography.body)
+                        .foregroundColor(DS.Color.textSecondary)
+                }
+                .padding(DS.Spacing.md)
+                .frame(maxWidth: .infinity)
+            } else if let error = store.connectionError {
+                VStack(spacing: DS.Spacing.sm) {
+                    HStack(spacing: DS.Spacing.xs) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(DS.Color.error)
+                        Text(error)
+                            .font(DS.Typography.caption)
+                            .foregroundColor(DS.Color.error)
+                    }
+                    Button("Retry") {
+                        store.send(.retryConnection)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(DS.Spacing.md)
+                .frame(maxWidth: .infinity)
+            } else {
+                Button {
+                    store.send(.connectToAgent)
+                } label: {
+                    HStack {
+                        Image(systemName: "bolt.fill")
+                        Text("Connect")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DS.Spacing.sm)
+            }
+
+            // Navigation
+            HStack {
+                stepDots
+                Spacer()
+                Button("Back") {
+                    store.send(.previousStep)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                Button("Next") {
+                    store.send(.nextStep)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(!store.isConnected)
+                .keyboardShortcut(.return)
+            }
+
+            HStack {
+                Spacer()
+                Button("Skip Tour") {
+                    store.send(.skipAll)
+                }
+                .buttonStyle(.plain)
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Color.textSecondary)
+            }
+        }
+        .padding(DS.Spacing.lg)
+        .frame(width: 480)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xl))
+        .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
+        .position(x: windowSize.width / 2, y: windowSize.height / 2)
+    }
+
     // MARK: - Tooltip Card
 
     @ViewBuilder
@@ -76,7 +415,7 @@ public struct CuttleOnboardingOverlay: View {
         let step = store.currentStep
         let tooltipPos = tooltipPosition(for: step)
 
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
             Text(step.title)
                 .font(.headline)
 
@@ -85,29 +424,8 @@ public struct CuttleOnboardingOverlay: View {
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if step == .aiSetup {
-                Button("Open Settings") {
-                    openSettings()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        NotificationCenter.default.post(
-                            name: .selectSettingsTab,
-                            object: SettingsTab.aiProvider
-                        )
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-
             HStack {
-                // Step dots
-                HStack(spacing: 4) {
-                    ForEach(Array(store.steps.enumerated()), id: \.offset) { index, _ in
-                        Circle()
-                            .fill(index == store.currentStepIndex ? Color.accentColor : Color.secondary.opacity(0.3))
-                            .frame(width: 6, height: 6)
-                    }
-                }
+                stepDots
 
                 Spacer()
 
@@ -137,12 +455,25 @@ public struct CuttleOnboardingOverlay: View {
                 .foregroundColor(.secondary)
             }
         }
-        .padding(16)
+        .padding(DS.Spacing.lg)
         .frame(width: 300)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xl))
         .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
         .position(tooltipPos)
+    }
+
+    // MARK: - Shared Components
+
+    @ViewBuilder
+    private var stepDots: some View {
+        HStack(spacing: 4) {
+            ForEach(Array(store.steps.enumerated()), id: \.offset) { index, _ in
+                Circle()
+                    .fill(index == store.currentStepIndex ? Color.accentColor : Color.secondary.opacity(0.3))
+                    .frame(width: 6, height: 6)
+            }
+        }
     }
 
     // MARK: - Geometry Helpers

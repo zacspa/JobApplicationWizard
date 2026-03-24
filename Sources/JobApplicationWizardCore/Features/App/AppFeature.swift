@@ -1024,8 +1024,13 @@ public struct AppFeature {
                 state.cuttle.isExpanded = false
                 return .none
 
-            case .cuttleOnboarding(.delegate(.openSettings)):
-                return .none
+            case .cuttleOnboarding(.delegate(.agentConnected(let agentId, let agentName))):
+                state.$acpConnection.withLock {
+                    $0.isConnected = true
+                    $0.connectedAgentName = agentName
+                }
+                state.settings.selectedACPAgentId = agentId
+                return saveSettings(state.settings)
 
             case .cuttleOnboarding:
                 return .none

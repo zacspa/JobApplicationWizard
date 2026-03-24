@@ -102,8 +102,13 @@ final class CuttleOnboardingSnapshotTests: XCTestCase {
         assertSnapshot(of: vc, as: .image(size: windowSize))
     }
 
-    func testAiSetup() {
-        let vc = makeHostingController(step: .aiSetup, cuttleIsExpanded: false)
+    func testDiscoverAgent() {
+        let vc = makeHostingController(step: .discoverAgent, cuttleIsExpanded: false)
+        assertSnapshot(of: vc, as: .image(size: windowSize))
+    }
+
+    func testConnectAgent() {
+        let vc = makeHostingController(step: .connectAgent, cuttleIsExpanded: false)
         assertSnapshot(of: vc, as: .image(size: windowSize))
     }
 
