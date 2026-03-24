@@ -31,13 +31,6 @@
                 ▿ provider: ColorBox<ResolvedColorProvider>
                   ▿ base: ResolvedColorProvider
                     ▿ color: #000000FF
-                      ▿ base: #000000FF
-                        - linearRed: 0.0
-                        - linearGreen: 0.0
-                        - linearBlue: 0.0
-                        - opacity: 1.0
-                      - _headroom: nan
-              - opacity: 0.3
         - radius: 12.0
         - y: 4.0
   ▿ modifier: IridescentSheenModifier

@@ -5,10 +5,20 @@ import SnapshotTesting
 
 // MARK: - Snapshot Test Helpers
 
-/// A `.dump`-based snapshotting that strips lines containing ISO-8601 timestamps (e.g. `Date()`).
-/// This prevents `@State` properties initialized with `Date()` from causing flaky diffs.
+/// A `.dump`-based snapshotting that strips platform-variable internals:
+/// ISO-8601 timestamps, resolved color components (linearRed/Green/Blue, opacity, _headroom),
+/// and nested color base representations that differ across macOS/Xcode versions.
 private let stableDump: Snapshotting<Any, String> = {
     let base = Snapshotting<Any, String>.dump
+    let volatilePatterns: [String] = [
+        #"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"#,
+        #"- linearRed:"#,
+        #"- linearGreen:"#,
+        #"- linearBlue:"#,
+        #"- opacity: \d"#,
+        #"- _headroom:"#,
+        #"▿ base: #[0-9A-Fa-f]"#,
+    ]
     return Snapshotting<Any, String>(
         pathExtension: base.pathExtension,
         diffing: base.diffing
@@ -16,7 +26,11 @@ private let stableDump: Snapshotting<Any, String> = {
         base.snapshot(value).map { text in
             text
                 .split(separator: "\n", omittingEmptySubsequences: false)
-                .filter { $0.range(of: #"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"#, options: .regularExpression) == nil }
+                .filter { line in
+                    !volatilePatterns.contains { pattern in
+                        line.range(of: pattern, options: .regularExpression) != nil
+                    }
+                }
                 .joined(separator: "\n")
         }
     }
@@ -166,7 +180,7 @@ final class GlassSurfaceSnapshotTests: XCTestCase {
             .padding(DS.Spacing.xl)
             .glassSurface()
 
-        assertViewDump(view)
+        assertViewDumpStable(view)
     }
 
     func testGlassSurfaceNoBorder() {
@@ -175,7 +189,7 @@ final class GlassSurfaceSnapshotTests: XCTestCase {
             .padding(DS.Spacing.xl)
             .glassSurface(border: false)
 
-        assertViewDump(view)
+        assertViewDumpStable(view)
     }
 }
 
@@ -225,7 +239,7 @@ final class IridescentSheenSnapshotTests: XCTestCase {
             .glassSurface()
             .iridescentSheen(isActive: true)
 
-        assertViewDump(view)
+        assertViewDumpStable(view)
     }
 
     func testSheenInactive() {
@@ -234,6 +248,6 @@ final class IridescentSheenSnapshotTests: XCTestCase {
             .glassSurface()
             .iridescentSheen(isActive: false)
 
-        assertViewDump(view)
+        assertViewDumpStable(view)
     }
 }
