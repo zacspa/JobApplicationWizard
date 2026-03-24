@@ -4,8 +4,10 @@ public struct IridescentSheenModifier: ViewModifier {
     public var isActive: Bool
     public var cornerRadius: CGFloat
 
-    @State private var phase: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
+
+    /// Cycle duration in seconds; all sheens share the same clock.
+    private static let cycleDuration: Double = 4.0
 
     public init(isActive: Bool = true, cornerRadius: CGFloat = DS.Radius.medium) {
         self.isActive = isActive
@@ -36,52 +38,44 @@ public struct IridescentSheenModifier: ViewModifier {
         }
     }
 
-    public func body(content: Content) -> some View {
-        content.overlay {
-            if isActive {
-                GeometryReader { geo in
-                    let width = geo.size.width
-                    let height = geo.size.height
-                    let bandWidth: CGFloat = 100
-                    let startOffset = -bandWidth - height
-                    let endOffset = width + height
-                    let offset = startOffset + phase * (endOffset - startOffset)
+    /// Phase derived from absolute time so every sheen instance stays in sync.
+    private static func phase(at date: Date) -> CGFloat {
+        let t = date.timeIntervalSinceReferenceDate
+        return CGFloat(t.truncatingRemainder(dividingBy: cycleDuration) / cycleDuration)
+    }
 
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: sheenColors,
-                                startPoint: .leading,
-                                endPoint: .trailing
+    public func body(content: Content) -> some View {
+        // Guard wraps TimelineView so inactive sheens pay zero scheduling cost
+        if isActive {
+            content.overlay {
+                TimelineView(.animation) { timeline in
+                    let phase = Self.phase(at: timeline.date)
+                    GeometryReader { geo in
+                        let width = geo.size.width
+                        let height = geo.size.height
+                        let bandWidth: CGFloat = 100
+                        let startOffset = -bandWidth - height
+                        let endOffset = width + height
+                        let offset = startOffset + phase * (endOffset - startOffset)
+
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: sheenColors,
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
-                        )
-                        .frame(width: bandWidth, height: sqrt(width * width + height * height) * 2.5)
-                        .rotationEffect(.degrees(25))
-                        .offset(x: offset, y: -height * 0.75)
+                            .frame(width: bandWidth, height: sqrt(width * width + height * height) * 2.5)
+                            .rotationEffect(.degrees(25))
+                            .offset(x: offset, y: -height * 0.75)
+                    }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 .allowsHitTesting(false)
-                .onAppear {
-                    phase = 0
-                    withAnimation(
-                        .linear(duration: 4.0)
-                        .repeatForever(autoreverses: false)
-                    ) {
-                        phase = 1
-                    }
-                }
-                .onDisappear { phase = 0 }
             }
-        }
-        .onChange(of: isActive) { _, active in
-            if active {
-                phase = 0
-                withAnimation(.linear(duration: 4.0).repeatForever(autoreverses: false)) {
-                    phase = 1
-                }
-            } else {
-                withAnimation(.linear(duration: 0.3)) { phase = 0 }
-            }
+        } else {
+            content
         }
     }
 }
