@@ -21,6 +21,7 @@ public struct JobDetailView: View {
             tabContent
                 .frame(minWidth: 460)
         }
+        .environment(\.dsLaneAccent, store.job.status.color)
         .alert("Delete Application", isPresented: Binding(
             get: { store.showDeleteConfirm },
             set: { if !$0 { store.send(.deleteCancelled) } }
@@ -47,19 +48,19 @@ public struct JobDetailView: View {
                 ForEach(JobDetailFeature.State.Tab.allCases, id: \.self) { tab in
                     Button { store.send(.selectTab(tab)) } label: {
                         Label(tab.label, systemImage: tab.icon)
-                            .font(.subheadline)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(store.selectedTab == tab ? Color.accentColor.opacity(0.12) : Color.clear)
+                            .font(DS.Typography.subheadline)
+                            .padding(.horizontal, DS.Spacing.md)
+                            .padding(.vertical, DS.Spacing.sm)
+                            .background(store.selectedTab == tab ? Color.accentColor.opacity(DS.Color.Opacity.wash) : Color.clear)
                             .foregroundColor(store.selectedTab == tab ? .accentColor : .secondary)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, DS.Spacing.sm)
         }
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(DS.Color.controlBackground)
     }
 
     @ViewBuilder
@@ -75,18 +76,18 @@ public struct JobDetailView: View {
     }
 
     var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DS.Spacing.xxs) {
                     Text(store.job.displayCompany)
-                        .font(.title3).fontWeight(.bold)
+                        .font(DS.Typography.heading2).fontWeight(.bold)
                         .lineLimit(2)
                     Text(store.job.displayTitle)
-                        .font(.subheadline).foregroundColor(.secondary)
+                        .font(DS.Typography.subheadline).foregroundColor(DS.Color.textSecondary)
                         .lineLimit(2)
                 }
                 Spacer()
-                HStack(spacing: 8) {
+                HStack(spacing: DS.Spacing.sm) {
                     Button { store.send(.toggleFavorite) } label: {
                         Image(systemName: store.job.isFavorite ? "star.fill" : "star")
                             .foregroundColor(store.job.isFavorite ? .yellow : .secondary)
@@ -111,7 +112,7 @@ public struct JobDetailView: View {
                             Label("Delete", systemImage: "trash")
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle").foregroundColor(.secondary)
+                        Image(systemName: "ellipsis.circle").foregroundColor(DS.Color.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -119,18 +120,18 @@ public struct JobDetailView: View {
 
             HStack {
                 Label(store.job.status.rawValue, systemImage: store.job.status.icon)
-                    .font(.footnote).fontWeight(.semibold)
-                    .padding(.horizontal, 10).padding(.vertical, 4)
-                    .background(store.job.status.color.opacity(0.15))
+                    .font(DS.Typography.footnote).fontWeight(.semibold)
+                    .padding(.horizontal, DS.Spacing.md).padding(.vertical, DS.Spacing.xxs)
+                    .background(store.job.status.color.opacity(DS.Color.Opacity.tint))
                     .foregroundColor(store.job.status.color)
                     .clipShape(Capsule())
 
                 Spacer(minLength: 8)
 
-                HStack(spacing: 4) {
+                HStack(spacing: DS.Spacing.xxs) {
                     ForEach(1...5, id: \.self) { i in
                         Image(systemName: i <= store.job.excitement ? "star.fill" : "star")
-                            .font(.footnote).foregroundColor(.orange)
+                            .font(DS.Typography.footnote).foregroundColor(.orange)
                             .onTapGesture { store.send(.setExcitement(i)) }
                     }
                 }
@@ -138,21 +139,21 @@ public struct JobDetailView: View {
 
             if !store.job.labels.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: DS.Spacing.xs) {
                         ForEach(store.job.labels) { label in
                             HStack(spacing: 3) {
                                 Circle().fill(label.color).frame(width: 6, height: 6)
-                                Text(label.name).font(.footnote)
+                                Text(label.name).font(DS.Typography.footnote)
                             }
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(label.color.opacity(0.12)).clipShape(Capsule())
+                            .padding(.horizontal, DS.Spacing.sm).padding(.vertical, DS.Spacing.xxxs)
+                            .background(label.color.opacity(DS.Color.Opacity.wash)).clipShape(Capsule())
                         }
                     }
                 }
             }
         }
-        .padding(16)
-        .background(Color(NSColor.controlBackgroundColor))
+        .padding(DS.Spacing.lg)
+        .background(DS.Color.controlBackground)
     }
 }
 
@@ -163,72 +164,74 @@ struct OverviewTab: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: DS.Spacing.xl) {
                 GroupBox("Application Details") {
                     VStack(spacing: 0) {
                         DetailRow(icon: "building.2", label: "Company") {
-                            TextField("Company name", text: $store.company).textFieldStyle(.plain)
+                            DSTextField("Company name", text: $store.company)
+                                .outlinedField("Company", isEmpty: store.company.isEmpty)
                         }
                         Divider()
                         DetailRow(icon: "briefcase", label: "Title") {
-                            TextField("Job title", text: $store.title).textFieldStyle(.plain)
+                            DSTextField("Job title", text: $store.title)
+                                .outlinedField("Title", isEmpty: store.title.isEmpty)
                         }
                         Divider()
                         DetailRow(icon: "mappin.circle", label: "Location") {
-                            TextField("City, State / Remote", text: $store.location).textFieldStyle(.plain)
+                            DSTextField("City, State / Remote", text: $store.location)
+                                .outlinedField("Location", isEmpty: store.location.isEmpty)
                         }
                         Divider()
                         DetailRow(icon: "dollarsign.circle", label: "Salary") {
-                            TextField("e.g. $120k-150k", text: $store.salary).textFieldStyle(.plain)
+                            DSTextField("e.g. $120k-150k", text: $store.salary)
+                                .outlinedField("Salary", isEmpty: store.salary.isEmpty)
                         }
                         Divider()
                         DetailRow(icon: "link", label: "URL") {
-                            TextField("https://...", text: $store.url).textFieldStyle(.plain)
+                            DSTextField("https://...", text: $store.url)
+                                .outlinedField("URL", isEmpty: store.url.isEmpty)
                         }
                     }
                 }
 
                 GroupBox("Timeline") {
-                    let allLabels: [String] = ["Added", "Applied"] + store.job.interviews.map {
-                        $0.type.isEmpty ? "Round \($0.round)" : "Round \($0.round) · \($0.type)"
-                    }
-                    let longestLabel = allLabels.max(by: { $0.count < $1.count }) ?? ""
-                    // Approximate width: ~7.5pt per character for subheadline
-                    let labelWidth = max(80, CGFloat(longestLabel.count) * 7.5 + 8)
-
                     VStack(spacing: 0) {
                         timelineRow(
                             icon: "plus.circle",
                             iconColor: .secondary,
                             label: "Added",
-                            date: store.job.dateAdded.formatted(date: .abbreviated, time: .omitted),
-                            labelWidth: labelWidth
+                            date: store.job.dateAdded.formatted(date: .abbreviated, time: .omitted)
                         )
                         Divider()
-                        HStack(spacing: 6) {
+                        HStack(spacing: DS.Spacing.xs) {
                             Image(systemName: "paperplane")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DS.Color.textSecondary)
                                 .frame(width: 20)
                             Text("Applied")
-                                .font(.subheadline).foregroundColor(.secondary)
+                                .font(DS.Typography.subheadline)
                                 .lineLimit(1)
-                                .frame(width: labelWidth, alignment: .leading)
+                            Spacer()
                             if let applied = store.job.dateApplied {
                                 Text(applied.formatted(date: .abbreviated, time: .omitted))
-                                    .font(.subheadline)
+                                    .font(DS.Typography.subheadline)
+                                    .foregroundColor(DS.Color.textSecondary)
                             } else {
-                                Text("Not yet applied")
-                                    .font(.subheadline).foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            if store.job.dateApplied == nil {
                                 Button("Mark Applied") { store.send(.markApplied) }
-                                    .font(.subheadline).buttonStyle(.bordered).controlSize(.mini)
+                                    .font(DS.Typography.subheadline).buttonStyle(DSActionButtonStyle())
                             }
                         }
-                        .padding(.vertical, 7).padding(.horizontal, 8)
+                        .detailRow()
 
-                        ForEach(store.job.interviews.sorted(by: { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) })) { interview in
+                        let sorted = store.job.interviews.sorted { a, b in
+                            // Interviews with dates first (sorted by date), then no-date sorted by round
+                            switch (a.date, b.date) {
+                            case let (ad?, bd?): return ad < bd
+                            case (_?, nil): return true
+                            case (nil, _?): return false
+                            case (nil, nil): return a.round < b.round
+                            }
+                        }
+                        ForEach(sorted) { interview in
                             Divider()
                             timelineRow(
                                 icon: interview.completed ? "checkmark.circle.fill" : "person.line.dotted.person",
@@ -236,49 +239,49 @@ struct OverviewTab: View {
                                 label: interview.type.isEmpty
                                     ? "Round \(interview.round)"
                                     : "Round \(interview.round) · \(interview.type)",
-                                date: interview.date?.formatted(date: .abbreviated, time: .omitted),
-                                labelWidth: labelWidth
+                                date: interview.date?.formatted(date: .abbreviated, time: .omitted)
                             )
                         }
                     }
                 }
 
                 GroupBox("Resume & Documents") {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                         HStack {
                             Label("Resume Version", systemImage: "doc.fill")
-                                .font(.subheadline).foregroundColor(.secondary)
+                                .font(DS.Typography.subheadline).foregroundColor(DS.Color.textSecondary)
                             Spacer()
                         }
-                        TextField("e.g. resume_v3_tailored.pdf", text: $store.resumeUsed)
-                            .textFieldStyle(.roundedBorder).font(.subheadline)
+                        DSTextField("e.g. resume_v3_tailored.pdf", text: $store.resumeUsed)
+                            .outlinedField("Resume Used", isEmpty: store.resumeUsed.isEmpty)
                     }
-                    .padding(4)
+                    .padding(DS.Spacing.xxs)
                 }
 
                 GroupBox("Labels") {
                     LabelsEditor(labels: $store.labels).padding(4)
                 }
             }
-            .padding(16)
+            .padding(DS.Spacing.lg)
         }
     }
 
-    private func timelineRow(icon: String, iconColor: Color, label: String, date: String?, labelWidth: CGFloat) -> some View {
-        HStack(spacing: 6) {
+    private func timelineRow(icon: String, iconColor: Color, label: String, date: String?) -> some View {
+        HStack(spacing: DS.Spacing.xs) {
             Image(systemName: icon)
                 .foregroundColor(iconColor)
                 .frame(width: 20)
             Text(label)
-                .font(.subheadline).foregroundColor(.secondary)
+                .font(DS.Typography.subheadline)
                 .lineLimit(1)
-                .frame(width: labelWidth, alignment: .leading)
-            if let date {
-                Text(date).font(.subheadline)
-            }
             Spacer()
+            if let date {
+                Text(date)
+                    .font(DS.Typography.subheadline)
+                    .foregroundColor(DS.Color.textSecondary)
+            }
         }
-        .padding(.vertical, 7).padding(.horizontal, 8)
+        .detailRow()
     }
 }
 
@@ -298,7 +301,7 @@ struct TaskRowView: View {
             }
             .buttonStyle(.plain)
             Text(task.title)
-                .font(.subheadline)
+                .font(DS.Typography.subheadline)
                 .strikethrough(task.isCompleted)
                 .foregroundColor(task.isCompleted ? .secondary : .primary)
             Spacer()
@@ -310,8 +313,8 @@ struct TaskRowView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 5)
-        .padding(.horizontal, 8)
+        .padding(.vertical, DS.Spacing.xs)
+        .padding(.horizontal, DS.Spacing.sm)
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
     }
@@ -325,13 +328,14 @@ struct DetailRow<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        HStack {
-            Label(label, systemImage: icon)
-                .font(.subheadline).foregroundColor(.secondary)
-                .frame(minWidth: 80, idealWidth: 110, maxWidth: 110, alignment: .leading)
-            content().font(.body)
+        HStack(spacing: DS.Spacing.sm) {
+            Image(systemName: icon)
+                .font(DS.Typography.subheadline)
+                .foregroundColor(DS.Color.textSecondary)
+                .frame(width: 20)
+            content()
         }
-        .padding(.vertical, 7).padding(.horizontal, 8)
+        .detailRow()
     }
 }
 
@@ -343,11 +347,11 @@ struct LabelsEditor: View {
     @State private var customColor = Color.blue
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            FlowLayout(spacing: 6) {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+            FlowLayout(spacing: DS.Spacing.xs) {
                 ForEach(labels) { label in
                     HStack(spacing: 3) {
-                        Text(label.name).font(.footnote)
+                        Text(label.name).font(DS.Typography.footnote)
                         Button {
                             labels.removeAll { $0.id == label.id }
                         } label: {
@@ -355,39 +359,37 @@ struct LabelsEditor: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 7).padding(.vertical, 3)
-                    .background(label.color.opacity(0.15)).foregroundColor(label.color)
+                    .padding(.horizontal, DS.Spacing.sm).padding(.vertical, DS.Spacing.xxxs)
+                    .background(label.color.opacity(DS.Color.Opacity.tint)).foregroundColor(label.color)
                     .clipShape(Capsule())
                 }
             }
 
-            Text("Quick add:").font(.footnote).foregroundColor(.secondary)
-            FlowLayout(spacing: 4) {
+            Text("Quick add:").font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
+            FlowLayout(spacing: DS.Spacing.xxs) {
                 ForEach(JobLabel.presets.filter { p in !labels.contains { $0.name == p.name } }) { preset in
                     Button { labels.append(preset) } label: {
                         Text("+ \(preset.name)")
-                            .font(.footnote).padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color.secondary.opacity(0.1)).clipShape(Capsule())
+                            .font(DS.Typography.footnote).padding(.horizontal, DS.Spacing.xs).padding(.vertical, DS.Spacing.xxxs)
+                            .background(Color.secondary.opacity(DS.Color.Opacity.subtle)).clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
                 }
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: DS.Spacing.sm) {
                 ColorPicker("Color", selection: $customColor)
                     .labelsHidden()
                     .frame(width: 32, height: 32)
                     .fixedSize()
-                TextField("Custom label...", text: $customName)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.footnote)
+                DSTextField("Custom label...", text: $customName)
+                    .outlinedField("Label", isEmpty: customName.isEmpty)
                 Button("Add") {
                     guard !customName.isEmpty else { return }
                     labels.append(JobLabel(name: customName, colorHex: customColor.hexString))
                     customName = ""
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
+                .buttonStyle(DSActionButtonStyle())
                 .disabled(customName.isEmpty)
             }
         }
@@ -403,59 +405,60 @@ struct DescriptionTab: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Paste the full job description here before it gets taken down!")
-                    .font(.footnote).foregroundColor(.secondary)
+                    .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
                 Spacer()
 
                 if store.job.hasPDF {
                     Button { store.send(.viewPDFTapped) } label: {
-                        Label("View PDF", systemImage: "doc.fill").font(.footnote)
+                        Label("View PDF", systemImage: "doc.fill").font(DS.Typography.footnote)
                     }
-                    .buttonStyle(.bordered).controlSize(.mini)
+                    .buttonStyle(DSActionButtonStyle())
                 }
 
                 if !store.jobDescription.isEmpty {
                     Button { store.send(.savePDFTapped) } label: {
                         if store.isGeneratingPDF {
-                            HStack(spacing: 4) {
+                            HStack(spacing: DS.Spacing.xxs) {
                                 ProgressView().controlSize(.mini)
-                                Text("Saving…").font(.footnote)
+                                Text("Saving…").font(DS.Typography.footnote)
                             }
                         } else {
-                            Label("Save PDF", systemImage: "square.and.arrow.down").font(.footnote)
+                            Label("Save PDF", systemImage: "square.and.arrow.down").font(DS.Typography.footnote)
                         }
                     }
-                    .buttonStyle(.bordered).controlSize(.mini).disabled(store.isGeneratingPDF)
+                    .buttonStyle(DSActionButtonStyle()).disabled(store.isGeneratingPDF)
 
                     Button { store.send(.printTapped) } label: {
-                        Label("Print", systemImage: "printer").font(.footnote)
+                        Label("Print", systemImage: "printer").font(DS.Typography.footnote)
                     }
-                    .buttonStyle(.bordered).controlSize(.mini)
+                    .buttonStyle(DSActionButtonStyle())
 
                     Button { store.send(.copyDescriptionTapped) } label: {
                         Label(store.showCopied ? "Copied!" : "Copy",
                               systemImage: store.showCopied ? "checkmark" : "doc.on.doc")
-                            .font(.footnote)
+                            .font(DS.Typography.footnote)
                     }
-                    .buttonStyle(.bordered).controlSize(.mini)
+                    .buttonStyle(DSActionButtonStyle())
 
                     Text("\(store.jobDescription.wordCount) words")
-                        .font(.footnote).foregroundColor(.secondary)
+                        .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            .actionBar()
 
             if let err = store.pdfError {
-                Text(err).font(.footnote).foregroundColor(.red)
-                    .padding(.horizontal, 16).padding(.vertical, 4)
-                    .background(Color.red.opacity(0.1))
+                Text(err).font(DS.Typography.footnote).foregroundColor(.red)
+                    .padding(.horizontal, DS.Spacing.lg).padding(.vertical, DS.Spacing.xxs)
+                    .background(Color.red.opacity(DS.Color.Opacity.subtle))
             }
 
             Divider()
 
             TextEditor(text: $store.jobDescription)
-                .font(.system(.body, design: .monospaced))
-                .padding(12)
+                .font(DS.Typography.body)
+                .scrollContentBackground(.hidden)
+                .outlinedField("Job Description", isEmpty: store.jobDescription.isEmpty)
+                .padding(DS.Spacing.md)
         }
     }
 }
@@ -476,16 +479,41 @@ struct NotesTab: View {
     ]
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                TasksSectionView(store: store)
-                NotesSectionView(
-                    store: store,
-                    cardColors: NotesTab.cardColors,
-                    selectedNoteID: $selectedNoteID
-                )
+        if let noteID = selectedNoteID,
+           store.noteCards.contains(where: { $0.id == noteID }) {
+            NoteEditorView(
+                note: Binding(
+                    get: { store.noteCards.first(where: { $0.id == noteID }) ?? Note() },
+                    set: { new in
+                        var updated = new
+                        updated.updatedAt = Date()
+                        var copy = store.noteCards
+                        if let idx = copy.firstIndex(where: { $0.id == updated.id }) {
+                            copy[idx] = updated
+                            store.send(.binding(.set(\.noteCards, copy)))
+                        }
+                    }
+                ),
+                accentColor: NotesTab.cardColors[abs(noteID.hashValue) % NotesTab.cardColors.count],
+                onBack: { selectedNoteID = nil },
+                onDelete: {
+                    store.send(.deleteNote(noteID))
+                    selectedNoteID = nil
+                }
+            )
+            .padding(DS.Spacing.lg)
+        } else {
+            ScrollView {
+                VStack(spacing: DS.Spacing.lg) {
+                    TasksSectionView(store: store)
+                    NotesSectionView(
+                        store: store,
+                        cardColors: NotesTab.cardColors,
+                        selectedNoteID: $selectedNoteID
+                    )
+                }
+                .padding(DS.Spacing.lg)
             }
-            .padding(16)
         }
     }
 }
@@ -520,33 +548,33 @@ struct TasksSectionView: View {
             HStack {
                 let totalRemaining = store.job.tasks.filter { !$0.isCompleted }.count
                 Text(totalRemaining > 0 ? "Tasks (\(totalRemaining) remaining)" : "Tasks")
-                    .font(.headline)
+                    .sectionHeaderStyle()
                 Spacer()
                 if !store.isAddingTask {
                     Button { store.send(.addTaskTapped) } label: {
-                        Label("Add Task", systemImage: "plus").font(.footnote)
+                        Label("Add Task", systemImage: "plus").font(DS.Typography.footnote)
                     }
-                    .buttonStyle(.bordered).controlSize(.mini)
+                    .buttonStyle(DSActionButtonStyle())
                 }
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, DS.Spacing.md)
 
             // Add task UI (adds to current status)
             if store.isAddingTask {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: DS.Spacing.sm) {
                     let suggestions = store.job.status.suggestedTaskTitles.filter { s in
                         !store.job.tasks.contains { $0.title == s && $0.forStatus == store.job.status }
                     }
                     if !suggestions.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: DS.Spacing.xs) {
                                 ForEach(suggestions, id: \.self) { suggestion in
                                     Button { store.send(.addSuggestedTask(suggestion)) } label: {
                                         Text("+ \(suggestion)")
-                                            .font(.footnote)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color.accentColor.opacity(0.1))
+                                            .font(DS.Typography.footnote)
+                                            .padding(.horizontal, DS.Spacing.sm)
+                                            .padding(.vertical, DS.Spacing.xxs)
+                                            .background(Color.accentColor.opacity(DS.Color.Opacity.subtle))
                                             .foregroundColor(.accentColor)
                                             .clipShape(Capsule())
                                     }
@@ -556,25 +584,21 @@ struct TasksSectionView: View {
                         }
                     }
                     HStack {
-                        TextField("Task title...", text: Binding(
+                        DSTextField("Task title...", text: Binding(
                             get: { store.newTaskText },
                             set: { store.send(.newTaskTextChanged($0)) }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                        .font(.subheadline)
-                        .onSubmit { store.send(.saveNewTask) }
+                        ), onSubmit: { store.send(.saveNewTask) })
+                        .outlinedField("Task", isEmpty: store.newTaskText.isEmpty)
                         Button("Save") { store.send(.saveNewTask) }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
+                            .buttonStyle(DSActionButtonStyle())
                             .disabled(store.newTaskText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         Button("Cancel") { store.send(.cancelNewTask) }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            .buttonStyle(GhostButtonStyle())
                     }
                 }
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color(NSColor.controlBackgroundColor)))
-                .padding(.bottom, 8)
+                .padding(DS.Spacing.md)
+                .background(RoundedRectangle(cornerRadius: DS.Radius.medium).fill(DS.Color.controlBackground))
+                .padding(.bottom, DS.Spacing.sm)
             }
 
             // Grouped by status
@@ -584,18 +608,18 @@ struct TasksSectionView: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     // Status group header
-                    HStack(spacing: 6) {
+                    HStack(spacing: DS.Spacing.xs) {
                         Image(systemName: status.icon)
-                            .font(.caption)
+                            .font(DS.Typography.caption)
                             .foregroundColor(status.color)
                         Text(status.rawValue)
-                            .font(.subheadline).fontWeight(.medium)
+                            .font(DS.Typography.subheadline).fontWeight(.medium)
                             .foregroundColor(isCurrent ? .primary : .secondary)
                         if isCurrent {
                             Text("current")
-                                .font(.system(size: 9, weight: .medium))
-                                .padding(.horizontal, 5).padding(.vertical, 1)
-                                .background(status.color.opacity(0.15))
+                                .font(DS.Typography.micro)
+                                .padding(.horizontal, DS.Spacing.xs).padding(.vertical, 1)
+                                .background(status.color.opacity(DS.Color.Opacity.tint))
                                 .foregroundColor(status.color)
                                 .clipShape(Capsule())
                         }
@@ -603,15 +627,15 @@ struct TasksSectionView: View {
                         if !tasksForStatus.isEmpty {
                             let done = tasksForStatus.filter { $0.isCompleted }.count
                             Text("\(done)/\(tasksForStatus.count)")
-                                .font(.caption).foregroundColor(.secondary)
+                                .font(DS.Typography.caption).foregroundColor(DS.Color.textSecondary)
                         }
                     }
-                    .padding(.vertical, 6).padding(.horizontal, 8)
+                    .padding(.vertical, DS.Spacing.xs).padding(.horizontal, DS.Spacing.sm)
 
                     if tasksForStatus.isEmpty {
                         Text("No tasks")
-                            .font(.caption).foregroundColor(.secondary)
-                            .padding(.horizontal, 8).padding(.bottom, 6)
+                            .font(DS.Typography.caption).foregroundColor(DS.Color.textSecondary)
+                            .padding(.horizontal, DS.Spacing.sm).padding(.bottom, DS.Spacing.xs)
                     } else {
                         ForEach(tasksForStatus) { task in
                             TaskRowView(
@@ -625,9 +649,9 @@ struct TasksSectionView: View {
                         }
                     }
                 }
-                .padding(.vertical, 4)
-                .background(RoundedRectangle(cornerRadius: 8).fill(
-                    isCurrent ? Color(NSColor.controlBackgroundColor) : Color.clear
+                .padding(.vertical, DS.Spacing.xxs)
+                .background(RoundedRectangle(cornerRadius: DS.Radius.medium).fill(
+                    isCurrent ? DS.Color.controlBackground : Color.clear
                 ))
             }
         }
@@ -642,47 +666,24 @@ struct NotesSectionView: View {
     @Binding var selectedNoteID: UUID?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if selectedNoteID == nil {
-                HStack {
-                    Text("Notes")
-                        .font(.headline)
-                    Spacer()
-                    Button { store.send(.addNote) } label: {
-                        Label("New Note", systemImage: "plus").font(.footnote)
-                    }
-                    .buttonStyle(.bordered).controlSize(.mini)
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
+            HStack {
+                Text("Notes")
+                    .sectionHeaderStyle()
+                Spacer()
+                Button { store.send(.addNote) } label: {
+                    Label("New Note", systemImage: "plus").font(DS.Typography.footnote)
                 }
+                .buttonStyle(DSActionButtonStyle())
             }
 
-            if let noteID = selectedNoteID,
-               store.noteCards.contains(where: { $0.id == noteID }) {
-                NoteEditorView(
-                    note: Binding(
-                        get: { store.noteCards.first(where: { $0.id == noteID }) ?? Note() },
-                        set: { new in
-                            var updated = new
-                            updated.updatedAt = Date()
-                            var copy = store.noteCards
-                            if let idx = copy.firstIndex(where: { $0.id == updated.id }) {
-                                copy[idx] = updated
-                                store.send(.binding(.set(\.noteCards, copy)))
-                            }
-                        }
-                    ),
-                    onBack: { selectedNoteID = nil },
-                    onDelete: {
-                        store.send(.deleteNote(noteID))
-                        selectedNoteID = nil
-                    }
-                )
-            } else if store.noteCards.isEmpty {
-                Text("No notes yet — add one to capture research, salary info, or anything relevant.")
-                    .font(.subheadline).foregroundColor(.secondary)
+            if store.noteCards.isEmpty {
+                Text("No notes yet; add one to capture research, salary info, or anything relevant.")
+                    .font(DS.Typography.subheadline).foregroundColor(DS.Color.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 20)
+                    .padding(.vertical, DS.Spacing.xl)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180))], spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180))], spacing: DS.Spacing.md) {
                     ForEach(store.noteCards) { note in
                         NoteCard(
                             note: note,
@@ -711,48 +712,48 @@ struct NoteCard: View {
                     .fill(accentColor)
                     .frame(height: 6)
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: DS.Spacing.xs) {
                     Text(note.title.isEmpty ? "Untitled" : note.title)
-                        .font(.subheadline).fontWeight(.semibold)
+                        .font(DS.Typography.subheadline).fontWeight(.semibold)
                         .lineLimit(1)
 
                     if !note.subtitle.isEmpty {
                         Text(note.subtitle)
-                            .font(.footnote).foregroundColor(.secondary)
+                            .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
                             .lineLimit(1)
                     }
 
                     if !note.body.isEmpty {
                         Text(note.body)
-                            .font(.footnote).foregroundColor(.secondary)
+                            .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
                             .lineLimit(2)
                     }
 
                     if !note.tags.isEmpty {
-                        FlowLayout(spacing: 4) {
+                        FlowLayout(spacing: DS.Spacing.xxs) {
                             ForEach(note.tags, id: \.self) { tag in
                                 Text(tag)
-                                    .font(.system(size: 12))
-                                    .padding(.horizontal, 6).padding(.vertical, 2)
+                                    .font(DS.Typography.caption)
+                                    .padding(.horizontal, DS.Spacing.xs).padding(.vertical, DS.Spacing.xxxs)
                                     .background(accentColor.opacity(0.5))
                                     .clipShape(Capsule())
                             }
                         }
                     }
                 }
-                .padding(10)
+                .padding(DS.Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .background(Color(NSColor.controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .contentShape(RoundedRectangle(cornerRadius: 10))
+            .background(DS.Color.controlBackground)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.large))
+            .contentShape(RoundedRectangle(cornerRadius: DS.Radius.large))
         }
         .buttonStyle(.plain)
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DS.Radius.large)
+                .stroke(Color.secondary.opacity(DS.Color.Opacity.tint), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
+        .dsShadow(DS.Shadow.card)
     }
 }
 
@@ -760,57 +761,57 @@ struct NoteCard: View {
 
 struct NoteEditorView: View {
     @Binding var note: Note
+    var accentColor: Color = .accentColor
     let onBack: () -> Void
     let onDelete: () -> Void
 
     @State private var tagInput: String = ""
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Accent bar matching the note card
+            Rectangle()
+                .fill(accentColor)
+                .frame(height: 6)
+
             // Nav bar
             HStack {
                 Button(action: onBack) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: DS.Spacing.xxs) {
                         Image(systemName: "chevron.left")
                         Text("Notes")
                     }
-                    .font(.subheadline)
+                    .font(DS.Typography.subheadline)
                 }
                 .buttonStyle(.plain).foregroundColor(.accentColor)
 
                 Spacer()
 
                 Button(role: .destructive, action: onDelete) {
-                    Label("Delete", systemImage: "trash").font(.footnote)
+                    Label("Delete", systemImage: "trash").font(DS.Typography.footnote)
                 }
-                .buttonStyle(.bordered).controlSize(.mini)
+                .buttonStyle(GhostButtonStyle())
             }
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
-
-            Divider()
+            .padding(.horizontal, DS.Spacing.lg)
+            .padding(.vertical, DS.Spacing.sm)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    // Title
-                    TextField("Title", text: $note.title)
-                        .font(.title3).fontWeight(.semibold)
-                        .textFieldStyle(.plain)
+                VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+                    // Title as inline heading
+                    DSTextField("Untitled", text: $note.title, font: .systemFont(ofSize: 20, weight: .bold))
+                        .frame(minHeight: 28)
 
-                    // Subtitle
-                    TextField("Subtitle", text: $note.subtitle)
-                        .font(.subheadline).foregroundColor(.secondary)
-                        .textFieldStyle(.plain)
-
-                    Divider()
+                    // Subtitle as secondary text
+                    DSTextField("Add a subtitle...", text: $note.subtitle, font: .systemFont(ofSize: 13))
+                        .opacity(note.subtitle.isEmpty ? 0.5 : 1.0)
 
                     // Tags
-                    VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: DS.Spacing.xs) {
                         if !note.tags.isEmpty {
-                            FlowLayout(spacing: 6) {
+                            FlowLayout(spacing: DS.Spacing.xs) {
                                 ForEach(note.tags, id: \.self) { tag in
                                     HStack(spacing: 3) {
-                                        Text(tag).font(.footnote)
+                                        Text(tag).font(DS.Typography.caption)
                                         Button {
                                             note.tags.removeAll { $0 == tag }
                                         } label: {
@@ -818,36 +819,39 @@ struct NoteEditorView: View {
                                         }
                                         .buttonStyle(.plain)
                                     }
-                                    .padding(.horizontal, 7).padding(.vertical, 3)
-                                    .background(Color.accentColor.opacity(0.1))
-                                    .foregroundColor(.accentColor)
+                                    .padding(.horizontal, DS.Spacing.sm)
+                                    .padding(.vertical, DS.Spacing.xxs)
+                                    .background(accentColor.opacity(0.5))
                                     .clipShape(Capsule())
                                 }
                             }
                         }
-
-                        HStack(spacing: 6) {
-                            Image(systemName: "tag").font(.footnote).foregroundColor(.secondary)
-                            TextField("Add tag…", text: $tagInput)
-                                .font(.footnote).textFieldStyle(.plain)
-                                .onSubmit { addTag() }
-                            Button("Add") { addTag() }
-                                .buttonStyle(.bordered).controlSize(.mini)
-                                .disabled(tagInput.trimmingCharacters(in: .whitespaces).isEmpty)
-                        }
+                        DSTextField("Add tag...", text: $tagInput, font: .systemFont(ofSize: 10), onSubmit: addTag)
+                            .frame(maxWidth: 120)
                     }
 
-                    Divider()
+                    Divider().padding(.vertical, DS.Spacing.xs)
 
                     // Body
                     TextEditor(text: $note.body)
-                        .font(.body)
-                        .frame(minHeight: 200)
+                        .font(DS.Typography.body)
+                        .focusEffectDisabled()
+                        .scrollDisabled(true)
                         .scrollContentBackground(.hidden)
+                        .frame(maxWidth: .infinity, minHeight: 300)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(16)
+                .padding(DS.Spacing.lg)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .background(DS.Color.controlBackground)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.large))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.large)
+                .stroke(Color.secondary.opacity(DS.Color.Opacity.tint), lineWidth: 1)
+        )
+        .frame(maxWidth: .infinity)
     }
 
     private func addTag() {
@@ -867,17 +871,14 @@ struct ContactsTab: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Recruiters, hiring managers, connections")
-                    .font(.footnote).foregroundColor(.secondary)
+                    .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
                 Spacer()
                 Button { store.send(.addContact) } label: {
-                    Label("Add Contact", systemImage: "person.badge.plus").font(.footnote)
+                    Label("Add Contact", systemImage: "person.badge.plus").font(DS.Typography.footnote)
                 }
-                .buttonStyle(.bordered).controlSize(.mini)
+                .buttonStyle(DSActionButtonStyle())
             }
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
-
-            Divider()
+            .actionBar()
 
             if store.contacts.isEmpty {
                 ContentUnavailableView("No Contacts", systemImage: "person.crop.circle.badge.xmark",
@@ -886,24 +887,32 @@ struct ContactsTab: View {
             } else {
                 List {
                     ForEach(store.contacts, id: \.id) { contact in
-                        ContactRow(contact: Binding(
-                            get: {
-                                store.contacts.first(where: { $0.id == contact.id }) ?? contact
-                            },
-                            set: { new in
-                                var copy = store.contacts
-                                if let idx = copy.firstIndex(where: { $0.id == new.id }) {
-                                    copy[idx] = new
-                                    store.send(.binding(.set(\.contacts, copy)))
+                        ContactRow(
+                            contact: Binding(
+                                get: {
+                                    store.contacts.first(where: { $0.id == contact.id }) ?? contact
+                                },
+                                set: { new in
+                                    var copy = store.contacts
+                                    if let idx = copy.firstIndex(where: { $0.id == new.id }) {
+                                        copy[idx] = new
+                                        store.send(.binding(.set(\.contacts, copy)))
+                                    }
                                 }
+                            ),
+                            onDelete: {
+                                var copy = store.contacts
+                                copy.removeAll { $0.id == contact.id }
+                                store.send(.binding(.set(\.contacts, copy)))
                             }
-                        ))
+                        )
                     }
                     .onDelete { indices in
                         var copy = store.contacts
                         copy.remove(atOffsets: indices)
                         store.send(.binding(.set(\.contacts, copy)))
                     }
+                    .listRowSeparator(.hidden)
                 }
                 .listStyle(.inset)
             }
@@ -913,46 +922,75 @@ struct ContactsTab: View {
 
 struct ContactRow: View {
     @Binding var contact: Contact
+    let onDelete: (() -> Void)?
     @State private var isExpanded = false
 
+    init(contact: Binding<Contact>, onDelete: (() -> Void)? = nil) {
+        self._contact = contact
+        self.onDelete = onDelete
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
+            // Header: icon, name summary, toggle, chevron
             HStack {
                 Image(systemName: contact.connected ? "person.fill.checkmark" : "person.circle")
-                    .foregroundColor(contact.connected ? .green : .secondary)
-                VStack(alignment: .leading, spacing: 1) {
-                    TextField("Name", text: $contact.name)
-                        .font(.subheadline).fontWeight(.medium).textFieldStyle(.plain)
-                    TextField("Title / Role", text: $contact.title)
-                        .font(.footnote).foregroundColor(.secondary).textFieldStyle(.plain)
+                    .font(DS.Typography.heading2)
+                    .foregroundColor(contact.connected ? .green : DS.Color.textSecondary)
+                VStack(alignment: .leading, spacing: DS.Spacing.xxxs) {
+                    Text(contact.name.isEmpty ? "New Contact" : contact.name)
+                        .font(DS.Typography.bodySemibold)
+                    if !contact.title.isEmpty {
+                        Text(contact.title)
+                            .font(DS.Typography.caption)
+                            .foregroundColor(DS.Color.textSecondary)
+                    }
                 }
                 Spacer()
                 Toggle("Connected", isOn: $contact.connected)
                     .toggleStyle(.checkbox).labelsHidden().help("LinkedIn connected")
-                Button { isExpanded.toggle() } label: {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.footnote).foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
+                Image(systemName: "chevron.right")
+                    .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
             }
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Image(systemName: "envelope").frame(width: 16)
-                        TextField("email@company.com", text: $contact.email)
-                    }
-                    HStack {
-                        Image(systemName: "link").frame(width: 16)
-                        TextField("linkedin.com/in/...", text: $contact.linkedin)
-                    }
-                    TextEditor(text: $contact.notes)
-                        .frame(height: 60)
-                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.2)))
-                }
-                .font(.footnote).padding(.leading, 28)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                let anim: Animation = isExpanded ? .easeIn(duration: 0.2) : .easeOut(duration: 0.25)
+                withAnimation(anim) { isExpanded.toggle() }
             }
+
+            VStack(alignment: .leading, spacing: DS.Spacing.md) {
+                DSTextField("Name", text: $contact.name, font: .systemFont(ofSize: 13, weight: .medium))
+                    .outlinedField("Name", isEmpty: contact.name.isEmpty)
+                DSTextField("Title / Role", text: $contact.title)
+                    .outlinedField("Title", isEmpty: contact.title.isEmpty)
+                DSTextField("Email", text: $contact.email)
+                    .outlinedField("Email", isEmpty: contact.email.isEmpty)
+                DSTextField("LinkedIn", text: $contact.linkedin)
+                    .outlinedField("LinkedIn", isEmpty: contact.linkedin.isEmpty)
+                DSOutlinedTextEditor("Notes", text: $contact.notes, minHeight: 48)
+
+                if let onDelete {
+                    HStack {
+                        Spacer()
+                        Button(role: .destructive, action: onDelete) {
+                            Label("Remove Contact", systemImage: "trash")
+                                .font(DS.Typography.footnote)
+                        }
+                        .buttonStyle(GhostButtonStyle())
+                    }
+                }
+            }
+            .frame(maxHeight: isExpanded ? .infinity : 0, alignment: .top)
+            .opacity(isExpanded ? 1 : 0)
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, DS.Spacing.md)
+        .padding(.vertical, isExpanded ? DS.Spacing.md : DS.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DS.Radius.medium)
+                .fill(DS.Color.controlBackground)
+        )
+        .dsShadow(DS.Shadow.card)
     }
 }
 
@@ -965,18 +1003,15 @@ struct InterviewsTab: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Track each interview round").font(.footnote).foregroundColor(.secondary)
+                Text("Track each interview round").font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
                 Spacer()
                 Button { store.send(.addInterview) } label: {
-                    Label("Add Round", systemImage: "plus").font(.footnote)
+                    Label("Add Round", systemImage: "plus").font(DS.Typography.footnote)
                 }
-                .buttonStyle(.bordered).controlSize(.mini)
+                .buttonStyle(DSActionButtonStyle())
             }
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            .actionBar()
 
-
-            Divider()
 
             if store.interviews.isEmpty {
                 ContentUnavailableView("No Interviews Yet",
@@ -1011,6 +1046,7 @@ struct InterviewsTab: View {
                     .onDelete { indices in
                         store.send(.deleteInterview(indices))
                     }
+                    .listRowSeparator(.hidden)
                 }
                 .listStyle(.inset)
             }
@@ -1024,84 +1060,61 @@ struct InterviewRoundRow: View {
     let calendarStore: StoreOf<CalendarFeature>
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
             HStack {
                 Label("Round \(round.round)",
                       systemImage: round.completed ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(round.completed ? .green : .primary)
-                    .fontWeight(.semibold).font(.subheadline)
+                    .fontWeight(.semibold).font(DS.Typography.subheadline)
                 Spacer()
                 Toggle("Done", isOn: $round.completed).toggleStyle(.checkbox).labelsHidden()
             }
-            HStack(spacing: 8) {
-                TextField("Type (Technical, Behavioral...)", text: $round.type)
-                    .textFieldStyle(.roundedBorder).font(.footnote)
-                DatePicker("", selection: Binding(
-                    get: { round.date ?? Date() },
-                    set: { round.date = $0 }
-                ), displayedComponents: [.date, .hourAndMinute])
-                .labelsHidden().font(.footnote).frame(width: 160)
-            }
-            TextField("Interviewers", text: $round.interviewers).textFieldStyle(.roundedBorder).font(.footnote)
-            TextEditor(text: $round.notes)
-                .font(.footnote)
-                .scrollContentBackground(.hidden)
-                .padding(4)
-                .frame(minHeight: 36, maxHeight: 120)
-                .fixedSize(horizontal: false, vertical: true)
-                .background(Color(NSColor.textBackgroundColor))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                )
-                .overlay(alignment: .topLeading) {
-                    if round.notes.isEmpty {
-                        Text("Notes / Feedback")
-                            .font(.footnote).foregroundColor(.secondary)
-                            .padding(.horizontal, 8).padding(.vertical, 8)
-                            .allowsHitTesting(false)
-                    }
-                }
+            DSTextField("Type", text: $round.type)
+                .outlinedField("Type", isEmpty: round.type.isEmpty)
+            DSDateField("Date & Time", date: $round.date)
+            DSTextField("Interviewers", text: $round.interviewers)
+                .outlinedField("Interviewers", isEmpty: round.interviewers.isEmpty)
+            DSOutlinedTextEditor("Notes", text: $round.notes, minHeight: 36)
             if round.calendarEventIdentifier != nil {
                 VStack(alignment: .leading, spacing: 2) {
                     Label(round.calendarEventTitle ?? "Linked event", systemImage: "calendar")
-                        .font(.footnote)
+                        .font(DS.Typography.footnote)
                     if let date = round.date {
                         Text(date.formatted(date: .abbreviated, time: .shortened))
-                            .font(.footnote).foregroundColor(.secondary)
+                            .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
                     }
                     Button("Unlink") {
                         calendarStore.send(.unlinkEvent(jobId: jobId, interviewId: round.id))
                     }
-                    .font(.footnote)
+                    .font(DS.Typography.footnote)
                 }
             } else if calendarStore.accessGranted == false {
                 Text("Calendar access required in System Settings to link events.")
-                    .foregroundColor(.secondary)
-                    .font(.footnote)
+                    .foregroundColor(DS.Color.textSecondary)
+                    .font(DS.Typography.footnote)
             } else {
                 Button {
                     calendarStore.send(.openPicker(jobId: jobId, interviewId: round.id))
                 } label: {
                     Label("Link Calendar Event", systemImage: "link")
                 }
-                .font(.footnote)
+                .font(DS.Typography.footnote)
             }
             if let warning = calendarStore.syncWarnings[InterviewKey(jobId: jobId, interviewId: round.id)], warning == .eventMissing {
-                HStack(spacing: 6) {
+                HStack(spacing: DS.Spacing.xs) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.yellow)
                     Text("Event deleted from Calendar")
-                        .font(.footnote)
+                        .font(DS.Typography.footnote)
                     Spacer()
                     Button("Unlink") {
                         calendarStore.send(.unlinkEvent(jobId: jobId, interviewId: round.id))
                     }
-                    .font(.footnote)
+                    .font(DS.Typography.footnote)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .cardStyle()
         .popover(isPresented: Binding(
             get: { calendarStore.showPicker && calendarStore.pickerInterviewId == round.id },
             set: { if !$0 { calendarStore.send(.dismissPicker) } }
@@ -1128,15 +1141,12 @@ struct DocumentsTab: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Attached documents (drag files onto job cards to add)")
-                    .font(.footnote).foregroundColor(.secondary)
+                    .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
                 Spacer()
                 Text("\(store.job.documents.count) document\(store.job.documents.count == 1 ? "" : "s")")
-                    .font(.footnote).foregroundColor(.secondary)
+                    .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
             }
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
-
-            Divider()
+            .actionBar()
 
             if store.job.documents.isEmpty {
                 Spacer()
@@ -1155,6 +1165,7 @@ struct DocumentsTab: View {
                             onProcess: { store.send(.processDocumentWithAI(doc.id)) }
                         )
                     }
+                    .listRowSeparator(.hidden)
                 }
                 .listStyle(.inset)
             }
@@ -1167,51 +1178,58 @@ struct DocumentRow: View {
     let onDelete: () -> Void
     let onProcess: () -> Void
     @State private var isExpanded = false
+    @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
             HStack {
                 Image(systemName: document.documentType.icon)
+                    .font(DS.Typography.heading2)
                     .foregroundColor(.accentColor)
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: DS.Spacing.xxxs) {
                     Text(document.filename)
-                        .font(.subheadline).fontWeight(.medium)
-                    HStack(spacing: 8) {
+                        .font(DS.Typography.subheadline).fontWeight(.medium)
+                    HStack(spacing: DS.Spacing.sm) {
                         Text(document.documentType.rawValue.uppercased())
-                            .font(.caption2).foregroundColor(.secondary)
+                            .font(DS.Typography.caption2)
+                            .padding(.horizontal, DS.Spacing.xs).padding(.vertical, 1)
+                            .background(Color.accentColor.opacity(DS.Color.Opacity.subtle))
+                            .clipShape(Capsule())
                         if let size = document.fileSize {
                             Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-                                .font(.caption2).foregroundColor(.secondary)
+                                .font(DS.Typography.caption2).foregroundColor(DS.Color.textSecondary)
                         }
                         Text(document.addedAt.relativeString)
-                            .font(.caption2).foregroundColor(.secondary)
+                            .font(DS.Typography.caption2).foregroundColor(DS.Color.textSecondary)
                     }
                 }
                 Spacer()
-                Button("Process with AI") { onProcess() }
-                    .buttonStyle(.bordered).controlSize(.mini)
-                Button { isExpanded.toggle() } label: {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.footnote).foregroundColor(.secondary)
+                if isHovered {
+                    Button("Process with AI") { onProcess() }
+                        .buttonStyle(DSActionButtonStyle())
+                }
+                Button { withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() } } label: {
+                    Image(systemName: "chevron.right")
+                        .font(DS.Typography.footnote).foregroundColor(DS.Color.textSecondary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
                 .buttonStyle(.plain)
             }
 
             if isExpanded {
-                ScrollView {
-                    Text(document.rawText)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
-                }
-                .frame(maxHeight: 200)
-                .background(Color(NSColor.textBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.2)))
+                Text(document.rawText)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(DS.Spacing.sm)
+                    .frame(maxHeight: 200)
+                    .background(DS.Color.textBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.small))
+                    .overlay(RoundedRectangle(cornerRadius: DS.Radius.small).stroke(DS.Color.border))
             }
         }
-        .padding(.vertical, 4)
+        .cardStyle()
+        .onHover { isHovered = $0 }
         .onTapGesture(count: 2) {
             if let path = document.sourcePath {
                 NSWorkspace.shared.open(URL(fileURLWithPath: path))

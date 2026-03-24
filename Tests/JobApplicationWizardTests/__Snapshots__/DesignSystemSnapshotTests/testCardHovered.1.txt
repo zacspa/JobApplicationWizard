@@ -1,0 +1,69 @@
+▿ ModifiedContent<ModifiedContent<VStack<TupleView<(Text, Text)>>, _FrameLayout>, CardModifier>
+  ▿ content: ModifiedContent<VStack<TupleView<(Text, Text)>>, _FrameLayout>
+    ▿ content: VStack<TupleView<(Text, Text)>>
+      ▿ _tree: Tree<_VStackLayout, TupleView<(Text, Text)>>
+        ▿ content: TupleView<(Text, Text)>
+          ▿ value: (2 elements)
+            ▿ .0: Text
+              ▿ modifiers: 1 element
+                ▿ Modifier
+                  ▿ font: Optional<Font>
+                    ▿ some: Font
+                      ▿ provider: FontBox<ModifierProvider<WeightModifier>>
+                        ▿ base: ModifierProvider<WeightModifier>
+                          ▿ base: Font
+                            ▿ provider: FontBox<TextStyleProvider>
+                              ▿ base: TextStyleProvider
+                                - design: Optional<Design>.none
+                                - style: TextStyle.body
+                                - weight: Optional<Weight>.none
+                          ▿ modifier: WeightModifier
+                            ▿ weight: Weight
+                              - value: 0.3
+              ▿ storage: Storage
+                ▿ anyTextStorage: LocalizedTextStorage
+                  - bundle: Optional<NSBundle>.none
+                  ▿ key: LocalizedStringKey
+                    - arguments: 0 elements
+                    - hasFormatting: false
+                    - key: "Acme Corp"
+                  - table: Optional<String>.none
+            ▿ .1: Text
+              ▿ modifiers: 1 element
+                ▿ Modifier
+                  ▿ font: Optional<Font>
+                    ▿ some: Font
+                      ▿ provider: FontBox<TextStyleProvider>
+                        ▿ base: TextStyleProvider
+                          - design: Optional<Design>.none
+                          - style: TextStyle.caption
+                          - weight: Optional<Weight>.none
+              ▿ storage: Storage
+                ▿ anyTextStorage: LocalizedTextStorage
+                  - bundle: Optional<NSBundle>.none
+                  ▿ key: LocalizedStringKey
+                    - arguments: 0 elements
+                    - hasFormatting: false
+                    - key: "Senior Engineer"
+                  - table: Optional<String>.none
+        ▿ root: _VStackLayout
+          ▿ alignment: HorizontalAlignment
+            ▿ key: AlignmentKey
+              - bits: 2
+          - spacing: Optional<CGFloat>.none
+    ▿ modifier: _FrameLayout
+      ▿ alignment: Alignment
+        ▿ horizontal: HorizontalAlignment
+          ▿ key: AlignmentKey
+            - bits: 4
+        ▿ vertical: VerticalAlignment
+          ▿ key: AlignmentKey
+            - bits: 7
+      - height: Optional<CGFloat>.none
+      ▿ width: Optional<CGFloat>
+        - some: 200.0
+  ▿ modifier: CardModifier
+    - backgroundColor: Optional<Color>.none
+    - isHovered: true
+    - isSelected: false
+    - tintColor: Optional<Color>.none

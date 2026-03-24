@@ -1,0 +1,24 @@
+▿ ModifiedContent<DSDateField, _PaddingLayout>
+  ▿ content: DSDateField
+    ▿ _date: Binding<Optional<Date>>
+      ▿ _value: Optional<Date>
+      ▿ location: LocationBox<ConstantLocation<Optional<Date>>>
+        ▿ _cache: AtomicBox<LocationProjectionCache>
+          - buffer: AtomicBuffer<LocationProjectionCache>
+        ▿ location: ConstantLocation<Optional<Date>>
+          ▿ value: Optional<Date>
+      ▿ transaction: Transaction
+        ▿ plist: []
+          - elements: Optional<Element>.none
+    ▿ _pickerDate: State<Date>
+      - _location: Optional<AnyLocation<Date>>.none
+    ▿ _showPicker: State<Bool>
+      - _location: Optional<AnyLocation<Bool>>.none
+      - _value: false
+    ▿ components: DatePickerComponents
+      - rawValue: 124
+    - label: "Interview Date"
+  ▿ modifier: _PaddingLayout
+    ▿ edges: Set
+      - rawValue: 15
+    - insets: Optional<EdgeInsets>.none

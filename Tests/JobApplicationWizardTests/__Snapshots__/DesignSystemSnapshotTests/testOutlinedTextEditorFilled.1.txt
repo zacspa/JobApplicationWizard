@@ -1,0 +1,27 @@
+▿ ModifiedContent<DSOutlinedTextEditor, _PaddingLayout>
+  ▿ content: DSOutlinedTextEditor
+    ▿ _labelPadding: ScaledMetric<CGFloat>
+      ▿ _dynamicTypeSize: Environment<DynamicTypeSize>
+        ▿ content: Content
+          - keyPath: WritableKeyPath<EnvironmentValues, DynamicTypeSize>
+      ▿ _pixelLength: Environment<CGFloat>
+        ▿ content: Content
+          - keyPath: KeyPath<EnvironmentValues, CGFloat>
+      - textStyle: TextStyle.body
+      - value: 4.0
+    ▿ _text: Binding<String>
+      - _value: "Meeting went well, discussed next steps."
+      ▿ location: LocationBox<ConstantLocation<String>>
+        ▿ _cache: AtomicBox<LocationProjectionCache>
+          - buffer: AtomicBuffer<LocationProjectionCache>
+        ▿ location: ConstantLocation<String>
+          - value: "Meeting went well, discussed next steps."
+      ▿ transaction: Transaction
+        ▿ plist: []
+          - elements: Optional<Element>.none
+    - label: "Notes"
+    - minHeight: 60.0
+  ▿ modifier: _PaddingLayout
+    ▿ edges: Set
+      - rawValue: 15
+    - insets: Optional<EdgeInsets>.none

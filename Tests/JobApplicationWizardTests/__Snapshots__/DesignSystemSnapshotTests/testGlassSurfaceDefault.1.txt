@@ -1,0 +1,42 @@
+▿ ModifiedContent<ModifiedContent<Text, _PaddingLayout>, GlassSurfaceModifier>
+  ▿ content: ModifiedContent<Text, _PaddingLayout>
+    ▿ content: Text
+      ▿ modifiers: 1 element
+        ▿ Modifier
+          ▿ font: Optional<Font>
+            ▿ some: Font
+              ▿ provider: FontBox<TextStyleProvider>
+                ▿ base: TextStyleProvider
+                  - design: Optional<Design>.none
+                  - style: TextStyle.body
+                  - weight: Optional<Weight>.none
+      ▿ storage: Storage
+        ▿ anyTextStorage: LocalizedTextStorage
+          - bundle: Optional<NSBundle>.none
+          ▿ key: LocalizedStringKey
+            - arguments: 0 elements
+            - hasFormatting: false
+            - key: "Glass Panel"
+          - table: Optional<String>.none
+    ▿ modifier: _PaddingLayout
+      ▿ edges: Set
+        - rawValue: 15
+      ▿ insets: Optional<EdgeInsets>
+        ▿ some: EdgeInsets
+          - bottom: 20.0
+          - leading: 20.0
+          - top: 20.0
+          - trailing: 20.0
+  ▿ modifier: GlassSurfaceModifier
+    - border: true
+    - radius: 12.0
+    ▿ shadow: ShadowStyle
+      ▿ color: 30% black
+        ▿ provider: ColorBox<OpacityColor>
+          ▿ base: 30% black
+            ▿ base: black
+              ▿ provider: ColorBox<ResolvedColorProvider>
+                ▿ base: ResolvedColorProvider
+                  ▿ color: #000000FF
+      - radius: 12.0
+      - y: 4.0

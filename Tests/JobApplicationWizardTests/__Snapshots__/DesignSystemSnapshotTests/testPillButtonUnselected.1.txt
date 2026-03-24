@@ -1,0 +1,26 @@
+▿ ModifiedContent<ModifiedContent<Button<Text>, ButtonStyleContainerModifier<PillButtonStyle>>, _PaddingLayout>
+  ▿ content: ModifiedContent<Button<Text>, ButtonStyleContainerModifier<PillButtonStyle>>
+    ▿ content: Button<Text>
+      ▿ action: ButtonAction
+        - closure: (Function)
+      ▿ label: Text
+        - modifiers: 0 elements
+        ▿ storage: Storage
+          ▿ anyTextStorage: LocalizedTextStorage
+            - bundle: Optional<NSBundle>.none
+            ▿ key: LocalizedStringKey
+              - arguments: 0 elements
+              - hasFormatting: false
+              - key: "Applied"
+            - table: Optional<String>.none
+      - role: Optional<ButtonRole>.none
+    ▿ modifier: ButtonStyleContainerModifier<PillButtonStyle>
+      ▿ style: PillButtonStyle
+        - isSelected: false
+        ▿ tint: AccentColorProvider()
+          ▿ provider: ColorBox<AccentColorProvider>
+            - base: AccentColorProvider
+  ▿ modifier: _PaddingLayout
+    ▿ edges: Set
+      - rawValue: 15
+    - insets: Optional<EdgeInsets>.none

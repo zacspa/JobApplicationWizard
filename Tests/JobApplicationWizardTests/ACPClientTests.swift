@@ -360,7 +360,7 @@ final class ACPClientTests: XCTestCase {
     // MARK: - Disconnect
 
     func testDisconnectACPAgent() async {
-        var initialState = AppFeature.State()
+        let initialState = AppFeature.State()
         initialState.$acpConnection.withLock {
             $0.isConnected = true
             $0.connectedAgentName = "goose"

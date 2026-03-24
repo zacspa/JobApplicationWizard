@@ -91,6 +91,19 @@ public extension EnvironmentValues {
     }
 }
 
+// MARK: - Current Context Environment Key
+
+private struct CuttleCurrentContextKey: EnvironmentKey {
+    static let defaultValue: CuttleContext? = nil
+}
+
+public extension EnvironmentValues {
+    var cuttleCurrentContext: CuttleContext? {
+        get { self[CuttleCurrentContextKey.self] }
+        set { self[CuttleCurrentContextKey.self] = newValue }
+    }
+}
+
 // MARK: - .cuttleDockable() View Modifier
 
 public extension View {
@@ -104,6 +117,8 @@ public extension View {
 struct CuttleDockableModifier: ViewModifier {
     let context: CuttleContext
     @Environment(\.cuttlePendingContext) private var pendingContext
+    @Environment(\.cuttleCurrentContext) private var currentContext
+    @State private var isCuttleDocked = false
 
     private var dropZoneId: String {
         switch context {
@@ -131,5 +146,9 @@ struct CuttleDockableModifier: ViewModifier {
                     .opacity(pendingContext == context ? 0.6 : 0)
                     .animation(.easeInOut(duration: 0.2), value: pendingContext)
             )
+            .iridescentSheen(isActive: isCuttleDocked, cornerRadius: DS.Radius.medium)
+            .onChange(of: currentContext) { _, newContext in
+                isCuttleDocked = newContext == context
+            }
     }
 }

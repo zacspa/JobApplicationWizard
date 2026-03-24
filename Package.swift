@@ -20,6 +20,10 @@ let package = Package(
         .package(
             url: "https://github.com/gonzalezreal/swift-markdown-ui",
             from: "2.4.0"
+        ),
+        .package(
+            url: "https://github.com/pointfreeco/swift-snapshot-testing",
+            from: "1.17.0"
         )
     ],
     targets: [
@@ -32,8 +36,7 @@ let package = Package(
                 .product(name: "ACPModel", package: "swift-sdk"),
                 .product(name: "MarkdownUI", package: "swift-markdown-ui")
             ],
-            path: "Sources/JobApplicationWizardCore",
-            resources: [.process("Resources")]
+            path: "Sources/JobApplicationWizardCore"
         ),
         .executableTarget(
             name: "JobApplicationWizard",
@@ -43,13 +46,22 @@ let package = Package(
             ],
             path: "Sources/JobApplicationWizard"
         ),
+        .executableTarget(
+            name: "DesignSystemShowcase",
+            dependencies: [
+                "JobApplicationWizardCore"
+            ],
+            path: "Sources/DesignSystemShowcase"
+        ),
         .testTarget(
             name: "JobApplicationWizardTests",
             dependencies: [
                 "JobApplicationWizardCore",
-                .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+                .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
             ],
-            path: "Tests/JobApplicationWizardTests"
+            path: "Tests/JobApplicationWizardTests",
+            exclude: ["__Snapshots__"]
         )
     ]
 )

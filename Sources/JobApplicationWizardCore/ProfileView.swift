@@ -19,7 +19,7 @@ public struct ProfileView: View {
             // Navigation bar
             HStack {
                 Text("My Profile")
-                    .font(.title3)
+                    .font(DS.Typography.heading2)
                     .fontWeight(.bold)
                 Spacer()
                 Button("Done") {
@@ -29,47 +29,48 @@ public struct ProfileView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.return, modifiers: .command)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-            .background(Color(NSColor.windowBackgroundColor))
+            .padding(.horizontal, DS.Spacing.xl)
+            .padding(.vertical, DS.Spacing.lg)
+            .background(DS.Color.windowBackground)
 
             Divider()
 
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: DS.Spacing.lg) {
                     // Identity
                     GroupBox(label: Label("Identity", systemImage: "person.fill")) {
-                        VStack(spacing: 10) {
-                            ProfileField("Name", text: $draft.name)
-                            ProfileField("Current Title", text: $draft.currentTitle)
-                            ProfileField("Location", text: $draft.location)
-                            ProfileField("LinkedIn URL", text: $draft.linkedIn)
-                            ProfileField("Website", text: $draft.website)
+                        VStack(spacing: DS.Spacing.md) {
+                            DSTextField("Name", text: $draft.name)
+                                .outlinedField("Name", isEmpty: draft.name.isEmpty)
+                            DSTextField("Current Title", text: $draft.currentTitle)
+                                .outlinedField("Current Title", isEmpty: draft.currentTitle.isEmpty)
+                            DSTextField("Location", text: $draft.location)
+                                .outlinedField("Location", isEmpty: draft.location.isEmpty)
+                            DSTextField("LinkedIn URL", text: $draft.linkedIn)
+                                .outlinedField("LinkedIn", isEmpty: draft.linkedIn.isEmpty)
+                            DSTextField("Website", text: $draft.website)
+                                .outlinedField("Website", isEmpty: draft.website.isEmpty)
                         }
-                        .padding(.top, 6)
+                        .padding(.top, DS.Spacing.xs)
                     }
 
                     // What I'm Looking For
                     GroupBox(label: Label("What I'm Looking For", systemImage: "target")) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            // Target Roles
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Target Roles")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TagInputSection(
-                                    tags: $draft.targetRoles,
-                                    newTag: $newRole,
-                                    placeholder: "e.g. iOS Engineer"
-                                )
-                            }
+                        VStack(alignment: .leading, spacing: DS.Spacing.md) {
+                            TagInputSection(
+                                label: "Target Roles",
+                                tags: $draft.targetRoles,
+                                newTag: $newRole,
+                                placeholder: "e.g. iOS Engineer"
+                            )
 
-                            ProfileField("Preferred Salary", text: $draft.preferredSalary, placeholder: "e.g. $150k–$200k")
+                            DSTextField("e.g. $150k-$200k", text: $draft.preferredSalary)
+                                .outlinedField("Preferred Salary", isEmpty: draft.preferredSalary.isEmpty)
 
-                            VStack(alignment: .leading, spacing: 6) {
+                            VStack(alignment: .leading, spacing: DS.Spacing.xs) {
                                 Text("Work Preference")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(DS.Typography.caption)
+                                    .foregroundColor(DS.Color.textSecondary)
                                 Picker("Work Preference", selection: $draft.workPreference) {
                                     ForEach(WorkPreference.allCases, id: \.self) { pref in
                                         Text(pref.rawValue).tag(pref)
@@ -79,59 +80,49 @@ public struct ProfileView: View {
                                 .labelsHidden()
                             }
                         }
-                        .padding(.top, 6)
+                        .padding(.top, DS.Spacing.xs)
                     }
 
                     // Skills
                     GroupBox(label: Label("Skills", systemImage: "wrench.and.screwdriver")) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            TagInputSection(
-                                tags: $draft.skills,
-                                newTag: $newSkill,
-                                placeholder: "e.g. Swift, SwiftUI, TCA"
-                            )
-                        }
-                        .padding(.top, 6)
+                        TagInputSection(
+                            label: "Skills",
+                            tags: $draft.skills,
+                            newTag: $newSkill,
+                            placeholder: "e.g. Swift, SwiftUI, TCA"
+                        )
+                        .padding(.top, DS.Spacing.xs)
                     }
 
                     // Summary
                     GroupBox(label: Label("Summary / Bio", systemImage: "text.quote")) {
-                        TextEditor(text: $draft.summary)
-                            .font(.body)
-                            .frame(minHeight: 70, maxHeight: 100)
-                            .scrollContentBackground(.hidden)
-                            .padding(.top, 6)
+                        DSOutlinedTextEditor("Summary", text: $draft.summary, minHeight: 70)
+                            .padding(.top, DS.Spacing.xs)
                     }
 
                     // Resume
                     GroupBox(label: Label("Resume", systemImage: "doc.text")) {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: DS.Spacing.xxs) {
                             Text("Paste your resume as plain text")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            TextEditor(text: $draft.resume)
-                                .font(.system(.body, design: .monospaced))
-                                .frame(minHeight: 200)
-                                .scrollContentBackground(.hidden)
+                                .font(DS.Typography.caption)
+                                .foregroundColor(DS.Color.textSecondary)
+                            DSOutlinedTextEditor("Resume", text: $draft.resume, minHeight: 200)
                         }
-                        .padding(.top, 6)
+                        .padding(.top, DS.Spacing.xs)
                     }
 
                     // Cover Letter Template
                     GroupBox(label: Label("Cover Letter Template", systemImage: "envelope")) {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: DS.Spacing.xxs) {
                             Text("Reusable boilerplate Claude will adapt for each job")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            TextEditor(text: $draft.coverLetterTemplate)
-                                .font(.body)
-                                .frame(minHeight: 150)
-                                .scrollContentBackground(.hidden)
+                                .font(DS.Typography.caption)
+                                .foregroundColor(DS.Color.textSecondary)
+                            DSOutlinedTextEditor("Cover Letter", text: $draft.coverLetterTemplate, minHeight: 150)
                         }
-                        .padding(.top, 6)
+                        .padding(.top, DS.Spacing.xs)
                     }
                 }
-                .padding(20)
+                .padding(DS.Spacing.xl)
             }
         }
     }
@@ -139,43 +130,20 @@ public struct ProfileView: View {
 
 // MARK: - Helpers
 
-private struct ProfileField: View {
-    let label: String
-    @Binding var text: String
-    var placeholder: String
-
-    init(_ label: String, text: Binding<String>, placeholder: String? = nil) {
-        self.label = label
-        self._text = text
-        self.placeholder = placeholder ?? label
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .frame(width: 120, alignment: .leading)
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.roundedBorder)
-        }
-    }
-}
-
 private struct TagInputSection: View {
+    var label: String
     @Binding var tags: [String]
     @Binding var newTag: String
     let placeholder: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Existing tags
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
             if !tags.isEmpty {
-                FlowLayout(spacing: 6) {
+                FlowLayout(spacing: DS.Spacing.xs) {
                     ForEach(tags, id: \.self) { tag in
-                        HStack(spacing: 4) {
+                        HStack(spacing: DS.Spacing.xxs) {
                             Text(tag)
-                                .font(.caption)
+                                .font(DS.Typography.caption)
                             Button {
                                 tags.removeAll { $0 == tag }
                             } label: {
@@ -184,23 +152,17 @@ private struct TagInputSection: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.accentColor.opacity(0.12))
+                        .padding(.horizontal, DS.Spacing.sm)
+                        .padding(.vertical, DS.Spacing.xxs)
+                        .background(Color.accentColor.opacity(DS.Color.Opacity.wash))
                         .foregroundColor(.accentColor)
                         .clipShape(Capsule())
                     }
                 }
             }
 
-            // Add new tag
-            HStack(spacing: 6) {
-                TextField(placeholder, text: $newTag)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { addTag() }
-                Button("Add") { addTag() }
-                    .disabled(newTag.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
+            DSTextField(placeholder, text: $newTag, onSubmit: addTag)
+                .outlinedField(label, isEmpty: newTag.isEmpty)
         }
     }
 
@@ -211,4 +173,3 @@ private struct TagInputSection: View {
         newTag = ""
     }
 }
-

@@ -1,0 +1,36 @@
+▿ ModifiedContent<ModifiedContent<Text, OutlinedFieldModifier>, _PaddingLayout>
+  ▿ content: ModifiedContent<Text, OutlinedFieldModifier>
+    ▿ content: Text
+      ▿ modifiers: 1 element
+        ▿ Modifier
+          ▿ color: Optional<Color>
+            ▿ some: secondary
+              ▿ provider: ColorBox<SystemColorType>
+                - base: SystemColorType.secondary
+      ▿ storage: Storage
+        ▿ anyTextStorage: LocalizedTextStorage
+          - bundle: Optional<NSBundle>.none
+          ▿ key: LocalizedStringKey
+            - arguments: 0 elements
+            - hasFormatting: false
+            - key: "Placeholder"
+          - table: Optional<String>.none
+    ▿ modifier: OutlinedFieldModifier
+      ▿ _isFocused: FocusState<Bool>
+        - location: Optional<AnyLocation<Bool>>.none
+        - resetValue: false
+        - value: false
+      ▿ _laneAccent: Environment<Color>
+        ▿ content: Content
+          - keyPath: WritableKeyPath<EnvironmentValues, Color>
+      ▿ _measuredLabelWidth: State<CGFloat>
+        - _location: Optional<AnyLocation<CGFloat>>.none
+        - _value: 0.0
+      - gapInset: 8.0
+      - gapPad: 4.0
+      - isEmpty: true
+      - label: "Company"
+  ▿ modifier: _PaddingLayout
+    ▿ edges: Set
+      - rawValue: 15
+    - insets: Optional<EdgeInsets>.none
