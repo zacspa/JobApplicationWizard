@@ -68,8 +68,9 @@ public struct AddJobView: View {
     @ViewBuilder
     private var aiImportSection: some View {
         Section {
-            HStack {
-                TextField("Job URL (optional)", text: $store.url)
+            HStack(spacing: DS.Spacing.sm) {
+                DSTextField("Job URL (optional)", text: $store.url)
+                    .outlinedField("URL", isEmpty: store.url.isEmpty)
                 Button {
                     store.send(.createFromPasteTapped)
                 } label: {
@@ -80,36 +81,35 @@ public struct AddJobView: View {
                         Label("Extract", systemImage: "sparkles")
                     }
                 }
+                .buttonStyle(PillButtonStyle())
                 .disabled(!store.canParse)
             }
             if store.isImporting {
-                HStack(spacing: 6) {
+                HStack(spacing: DS.Spacing.xs) {
                     ProgressView()
                         .controlSize(.small)
                     Text(store.importProgress == .fetching ? "Fetching job data..." : "Enriching with AI...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
                 }
             }
             Text("Paste the job listing below and let AI extract the details.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            TextEditor(text: $store.pastedText)
-                .frame(minHeight: 150)
-                .font(.body)
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Color.textSecondary)
+            DSOutlinedTextEditor("Paste job listing here", text: $store.pastedText, minHeight: 150)
             if let error = store.parseError ?? store.importError {
-                HStack {
+                HStack(spacing: DS.Spacing.sm) {
                     Image(systemName: error.contains("requires login") ? "lock.fill" : "exclamationmark.triangle.fill")
                         .foregroundColor(.orange)
                     Text(error)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DS.Typography.caption)
+                        .foregroundColor(DS.Color.textSecondary)
                     Spacer()
                     Button("Dismiss") {
                         store.send(.dismissParseError)
                         store.send(.dismissImportError)
                     }
-                    .font(.caption)
+                    .font(DS.Typography.caption)
                 }
             }
         } header: {
