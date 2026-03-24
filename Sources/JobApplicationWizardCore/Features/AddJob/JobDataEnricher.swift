@@ -8,17 +8,15 @@ Respond ONLY with a JSON object containing these keys: title, company, location,
 Use empty strings for fields you cannot determine. Do not include any other text.
 """
 
-/// Builds the full prompt for parsing a job listing. For ACP, this is sent as a single message
-/// (system instructions + user content). For Claude API, only the user portion is used.
-func jobParsePrompt(for text: String) -> String {
+/// Builds the user portion of the prompt for parsing a job listing.
+func jobParseUserPrompt(for text: String) -> String {
     let truncated = String(text.prefix(12_000))
-    return """
-    \(jobParseSystemPrompt)
+    return "Extract structured job data from this text:\n\n\(truncated)"
+}
 
-    Extract structured job data from this text:
-
-    \(truncated)
-    """
+/// Builds the full prompt for ACP (system instructions + user content in a single message).
+func jobParsePromptACP(for text: String) -> String {
+    return "\(jobParseSystemPrompt)\n\n\(jobParseUserPrompt(for: text))"
 }
 
 /// Parses the JSON response from either ACP or Claude API into ScrapedJobData.
@@ -63,27 +61,16 @@ private func scrapedData(from json: [String: Any]) -> ScrapedJobData {
     )
 }
 
-// MARK: - Enrichment (HTML fallback, Claude API only)
+// MARK: - Enrichment (ACP or Claude API)
 
-/// Takes scraped job data and uses Claude to fill in missing fields.
-/// Skips enrichment entirely when the scraped data is already complete.
-public func enrichJobData(
-    scraped: ScrapedJobData,
-    chat: @Sendable (String, String, [ChatMessage], Bool) async throws -> (String, AITokenUsage, AgentActionBlock?),
-    apiKey: String
-) async throws -> ScrapedJobData {
-    // Skip enrichment when ATS API returned complete data
-    guard !scraped.isComplete else { return scraped }
-    guard !apiKey.isEmpty else { return scraped }
+private let enrichSystemPrompt = """
+You are a job posting data extractor. Given partial job data and raw page content, extract structured fields. \
+Respond ONLY with a JSON object containing these keys: title, company, location, salary, description, requirements. \
+Use empty strings for fields you cannot determine. Do not include any other text.
+"""
 
+private func enrichUserMessage(scraped: ScrapedJobData) -> String {
     let truncatedHTML = String(scraped.rawHTML.prefix(8_000))
-
-    let systemPrompt = """
-    You are a job posting data extractor. Given partial job data and raw HTML, extract structured fields. \
-    Respond ONLY with a JSON object containing these keys: title, company, location, salary, description, requirements. \
-    Use empty strings for fields you cannot determine. Do not include any other text.
-    """
-
     var contextParts: [String] = []
     if !scraped.title.isEmpty { contextParts.append("Title: \(scraped.title)") }
     if !scraped.company.isEmpty { contextParts.append("Company: \(scraped.company)") }
@@ -91,43 +78,52 @@ public func enrichJobData(
     if !scraped.salary.isEmpty { contextParts.append("Salary: \(scraped.salary)") }
     if !scraped.description.isEmpty { contextParts.append("Description: \(scraped.description.prefix(2_000))") }
 
-    let userMessage = """
+    return """
     Known fields:
     \(contextParts.isEmpty ? "(none)" : contextParts.joined(separator: "\n"))
 
-    Raw HTML (truncated):
+    Raw page content (truncated):
     \(truncatedHTML)
     """
+}
 
-    let messages = [ChatMessage(role: .user, content: userMessage)]
-    let (responseText, _, _) = try await chat(apiKey, systemPrompt, messages, false)
+/// Takes scraped job data and uses AI to fill in missing fields.
+/// Supports both ACP and Claude API paths.
+public func enrichJobData(
+    scraped: ScrapedJobData,
+    useACP: Bool,
+    acpSend: @Sendable (String, [ChatMessage]) async throws -> (String, AITokenUsage),
+    chat: @Sendable (String, String, [ChatMessage], Bool) async throws -> (String, AITokenUsage, AgentActionBlock?),
+    apiKey: String
+) async throws -> ScrapedJobData {
+    guard !scraped.isComplete else { return scraped }
 
-    // Parse the JSON response
-    guard let data = responseText.data(using: .utf8),
-          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-        return scraped
+    let userMessage = enrichUserMessage(scraped: scraped)
+    let responseText: String
+
+    if useACP {
+        let fullPrompt = "\(enrichSystemPrompt)\n\n\(userMessage)"
+        let (text, _) = try await acpSend(fullPrompt, [])
+        responseText = text
+    } else {
+        guard !apiKey.isEmpty else { return scraped }
+        let messages = [ChatMessage(role: .user, content: userMessage)]
+        let (text, _, _) = try await chat(apiKey, enrichSystemPrompt, messages, false)
+        responseText = text
     }
+
+    // Parse the JSON response, handling code fences
+    let parsed = try? parseJobJSON(responseText)
+    guard let parsed else { return scraped }
 
     // Merge: scraped data wins when both present
     var enriched = scraped
-    if enriched.title.isEmpty, let v = json["title"] as? String, !v.isEmpty {
-        enriched.title = v
-    }
-    if enriched.company.isEmpty, let v = json["company"] as? String, !v.isEmpty {
-        enriched.company = v
-    }
-    if enriched.location.isEmpty, let v = json["location"] as? String, !v.isEmpty {
-        enriched.location = v
-    }
-    if enriched.salary.isEmpty, let v = json["salary"] as? String, !v.isEmpty {
-        enriched.salary = v
-    }
-    if enriched.description.isEmpty, let v = json["description"] as? String, !v.isEmpty {
-        enriched.description = v
-    }
-    if enriched.requirements.isEmpty, let v = json["requirements"] as? String, !v.isEmpty {
-        enriched.requirements = v
-    }
+    if enriched.title.isEmpty { enriched.title = parsed.title }
+    if enriched.company.isEmpty { enriched.company = parsed.company }
+    if enriched.location.isEmpty { enriched.location = parsed.location }
+    if enriched.salary.isEmpty { enriched.salary = parsed.salary }
+    if enriched.description.isEmpty { enriched.description = parsed.description }
+    if enriched.requirements.isEmpty { enriched.requirements = parsed.requirements }
 
     return enriched
 }

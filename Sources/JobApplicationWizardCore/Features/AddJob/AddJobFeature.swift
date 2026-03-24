@@ -168,17 +168,18 @@ public struct AddJobFeature {
                 let acpClient = self.acpClient
                 let claudeClient = self.claudeClient
                 let apiKey = state.apiKey
-                let prompt = jobParsePrompt(for: text)
 
                 return .run { send in
                     await send(.parseResponse(Result {
                         let responseText: String
                         if useACP {
+                            let prompt = jobParsePromptACP(for: text)
                             let (text, _) = try await acpClient.sendPrompt(prompt, [])
                             responseText = text
                         } else {
+                            let userPrompt = jobParseUserPrompt(for: text)
                             let (text, _, _) = try await claudeClient.chat(
-                                apiKey, jobParseSystemPrompt, [ChatMessage(role: .user, content: prompt)], false
+                                apiKey, jobParseSystemPrompt, [ChatMessage(role: .user, content: userPrompt)], false
                             )
                             responseText = text
                         }
@@ -206,8 +207,11 @@ public struct AddJobFeature {
             // MARK: - URL Import
 
             case .importURLTapped:
-                guard let url = URL(string: state.url) else {
-                    state.importError = "Invalid URL"
+                guard let url = URL(string: state.url),
+                      let scheme = url.scheme?.lowercased(),
+                      (scheme == "http" || scheme == "https"),
+                      url.host != nil else {
+                    state.importError = "Please enter a valid HTTP or HTTPS URL"
                     return .none
                 }
                 state.isImporting = true
@@ -223,21 +227,28 @@ public struct AddJobFeature {
 
             case .importResponse(.success(let scraped)):
                 state.importProgress = .enriching
-                // If data is complete or no API key, populate immediately
-                if scraped.isComplete || state.apiKey.isEmpty {
-                    applyScrapedData(&state, scraped)
+                // Always apply scraped data immediately so it is not lost if enrichment fails
+                applyScrapedData(&state, scraped)
+
+                // Decide whether AI enrichment is available and needed
+                let useACP = state.acpConnection.aiProvider == .acpAgent && state.acpConnection.isConnected
+                let hasAI = useACP || !state.apiKey.isEmpty
+                if scraped.isComplete || !hasAI {
                     state.isImporting = false
                     state.importProgress = .done
                     state.entryMode = .manual
                     return .none
                 }
-                // Otherwise, enrich via Claude
-                let apiKey = state.apiKey
+                // Enrich via ACP or Claude API
+                let acpClient = self.acpClient
                 let claudeClient = self.claudeClient
+                let apiKey = state.apiKey
                 return .run { send in
                     await send(.enrichmentResponse(Result {
                         try await enrichJobData(
                             scraped: scraped,
+                            useACP: useACP,
+                            acpSend: acpClient.sendPrompt,
                             chat: claudeClient.chat,
                             apiKey: apiKey
                         )

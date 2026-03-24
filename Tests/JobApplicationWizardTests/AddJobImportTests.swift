@@ -142,17 +142,17 @@ final class AddJobImportTests: XCTestCase {
 
         await store.receive(\.importResponse) {
             $0.importProgress = .enriching
+            $0.title = "Engineer"
+            $0.importedATSProvider = .unknown
         }
 
         await store.receive(\.enrichmentResponse) {
             $0.isImporting = false
             $0.importProgress = .done
             $0.entryMode = .manual
-            $0.title = "Engineer"
             $0.company = "Enriched Co"
             $0.location = "New York"
             $0.jobDescription = "Great job description"
-            $0.importedATSProvider = .unknown
         }
     }
 
@@ -231,7 +231,7 @@ final class AddJobImportTests: XCTestCase {
         }
 
         await store.send(.importURLTapped) {
-            $0.importError = "Invalid URL"
+            $0.importError = "Please enter a valid HTTP or HTTPS URL"
         }
     }
 
@@ -434,11 +434,14 @@ final class AddJobImportTests: XCTestCase {
 
         await store.receive(\.importResponse) {
             $0.importProgress = .enriching
+            $0.title = "Manager"
+            $0.importedATSProvider = .unknown
         }
 
         await store.receive(\.enrichmentResponse) {
             $0.isImporting = false
             $0.importProgress = .idle
+            // Scraped data (title = "Manager") survives; only an error is added
             $0.importError = "Enrichment failed: The operation couldn\u{2019}t be completed. (test error 500.)"
         }
     }

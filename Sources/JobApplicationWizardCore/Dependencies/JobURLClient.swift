@@ -131,11 +131,18 @@ private func parseGreenhouseURL(_ url: URL) -> (boardToken: String, jobID: Strin
     return nil
 }
 
+/// Characters allowed in ATS path components (alphanumeric, hyphens, underscores).
+private let safePathChars = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+
 private func fetchGreenhouseJob(boardToken: String, jobID: String) async throws -> ScrapedJobData {
+    guard boardToken.unicodeScalars.allSatisfy({ safePathChars.contains($0) }),
+          jobID.unicodeScalars.allSatisfy({ safePathChars.contains($0) }) else {
+        throw JobURLError.parsingError("Invalid Greenhouse board token or job ID")
+    }
     guard let apiURL = URL(string: "https://boards-api.greenhouse.io/v1/boards/\(boardToken)/jobs/\(jobID)") else {
         throw JobURLError.parsingError("Could not build Greenhouse API URL")
     }
-    let (data, response) = try await URLSession.shared.data(from: apiURL)
+    let (data, response) = try await fetchData(from: apiURL)
     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
         throw JobURLError.networkError("Greenhouse API returned non-200 status")
     }
@@ -147,7 +154,7 @@ private func fetchGreenhouseJob(boardToken: String, jobID: String) async throws 
     let location = (json["location"] as? [String: Any])?["name"] as? String ?? ""
     let htmlContent = json["content"] as? String ?? ""
     // Strip HTML tags for plain-text description
-    let description = htmlContent.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+    let description = stripHTML(htmlContent)
 
     // Company name from metadata
     let company: String
@@ -180,10 +187,14 @@ private func parseLeverURL(_ url: URL) -> (company: String, postingID: String)? 
 }
 
 private func fetchLeverJob(company: String, postingID: String) async throws -> ScrapedJobData {
+    guard company.unicodeScalars.allSatisfy({ safePathChars.contains($0) }),
+          postingID.unicodeScalars.allSatisfy({ safePathChars.contains($0) }) else {
+        throw JobURLError.parsingError("Invalid Lever company or posting ID")
+    }
     guard let apiURL = URL(string: "https://api.lever.co/v0/postings/\(company)/\(postingID)") else {
         throw JobURLError.parsingError("Could not build Lever API URL")
     }
-    let (data, response) = try await URLSession.shared.data(from: apiURL)
+    let (data, response) = try await fetchData(from: apiURL)
     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
         throw JobURLError.networkError("Lever API returned non-200 status")
     }
@@ -194,7 +205,7 @@ private func fetchLeverJob(company: String, postingID: String) async throws -> S
     let title = json["text"] as? String ?? ""
     let categories = json["categories"] as? [String: Any] ?? [:]
     let location = categories["location"] as? String ?? ""
-    let commitment = categories["commitment"] as? String ?? ""
+    let team = categories["team"] as? String ?? ""
 
     // Build description from lists
     var descriptionParts: [String] = []
@@ -207,8 +218,7 @@ private func fetchLeverJob(company: String, postingID: String) async throws -> S
                 descriptionParts.append("\n\(heading)")
             }
             if let items = list["content"] as? String {
-                let plain = items.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-                descriptionParts.append(plain)
+                descriptionParts.append(stripHTML(items))
             }
         }
     }
@@ -217,7 +227,7 @@ private func fetchLeverJob(company: String, postingID: String) async throws -> S
         title: title,
         company: company.replacingOccurrences(of: "-", with: " ").capitalized,
         location: location,
-        salary: commitment,
+        salary: "",
         description: descriptionParts.joined(separator: "\n"),
         atsProvider: .lever,
         rawHTML: String(data: data, encoding: .utf8) ?? ""
@@ -264,7 +274,7 @@ private func fetchHTMLFallback(url: URL) async throws -> ScrapedJobData {
 
     var request = URLRequest(url: url)
     request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", forHTTPHeaderField: "User-Agent")
-    let (data, response) = try await URLSession.shared.data(for: request)
+    let (data, response) = try await fetchData(for: request)
     guard let http = response as? HTTPURLResponse, (200..<400).contains(http.statusCode) else {
         throw JobURLError.networkError("HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
     }
@@ -328,9 +338,7 @@ private func fetchHTMLFallback(url: URL) async throws -> ScrapedJobData {
 
     // Strip HTML from description if present
     if result.description.contains("<") {
-        result.description = result.description.replacingOccurrences(
-            of: "<[^>]+>", with: "", options: .regularExpression
-        )
+        result.description = stripHTML(result.description)
     }
 
     // Known gated domains that returned truncated data
@@ -339,6 +347,72 @@ private func fetchHTMLFallback(url: URL) async throws -> ScrapedJobData {
     }
 
     return result
+}
+
+// MARK: - Size-Limited Fetch
+
+/// Maximum response size (2 MB) to prevent unbounded memory use.
+private let maxResponseBytes = 2 * 1024 * 1024
+
+/// Fetches data from a URL with a size cap and 30-second timeout.
+private func fetchData(from url: URL) async throws -> (Data, URLResponse) {
+    let config = URLSessionConfiguration.ephemeral
+    config.timeoutIntervalForRequest = 30
+    config.timeoutIntervalForResource = 30
+    let session = URLSession(configuration: config)
+    let (bytes, response) = try await session.bytes(from: url)
+    var collected = Data()
+    for try await byte in bytes {
+        collected.append(byte)
+        if collected.count > maxResponseBytes {
+            throw JobURLError.parsingError("Response too large (over 2 MB)")
+        }
+    }
+    return (collected, response)
+}
+
+private func fetchData(for request: URLRequest) async throws -> (Data, URLResponse) {
+    let config = URLSessionConfiguration.ephemeral
+    config.timeoutIntervalForRequest = 30
+    config.timeoutIntervalForResource = 30
+    let session = URLSession(configuration: config)
+    let (bytes, response) = try await session.bytes(for: request)
+    var collected = Data()
+    for try await byte in bytes {
+        collected.append(byte)
+        if collected.count > maxResponseBytes {
+            throw JobURLError.parsingError("Response too large (over 2 MB)")
+        }
+    }
+    return (collected, response)
+}
+
+// MARK: - HTML Text Cleaning
+
+/// Strips HTML tags, decodes common entities, and normalizes whitespace.
+/// Inserts newlines for block-level elements so lists remain readable.
+private func stripHTML(_ html: String) -> String {
+    var text = html
+    // Remove script and style blocks entirely
+    text = text.replacingOccurrences(of: #"<(script|style)[^>]*>[\s\S]*?</\1>"#, with: "", options: .regularExpression)
+    // Insert newlines before block elements
+    text = text.replacingOccurrences(of: #"<(br|p|div|li|tr|h[1-6])[^>]*/?\s*>"#, with: "\n", options: .regularExpression)
+    // Strip remaining tags
+    text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+    // Decode common HTML entities
+    let entities: [(String, String)] = [
+        ("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""),
+        ("&#39;", "'"), ("&apos;", "'"), ("&nbsp;", " "), ("&#x27;", "'"),
+        ("&ndash;", "\u{2013}"), ("&mdash;", "\u{2014}"),
+    ]
+    for (entity, replacement) in entities {
+        text = text.replacingOccurrences(of: entity, with: replacement)
+    }
+    // Strip any remaining unrecognized entities
+    text = text.replacingOccurrences(of: #"&#?\w+;"#, with: "", options: .regularExpression)
+    // Collapse multiple blank lines
+    text = text.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+    return text.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
 // MARK: - HTML Parsing Helpers
@@ -358,6 +432,11 @@ private func extractJSONLD(from html: String) -> [String: Any]? {
         if let type = obj["@type"] as? String, type == "JobPosting" {
             return obj
         }
+        // Check for @graph array (common wrapper pattern)
+        if let graph = obj["@graph"] as? [[String: Any]],
+           let posting = graph.first(where: { ($0["@type"] as? String) == "JobPosting" }) {
+            return posting
+        }
         // Could be an array of schemas
         if let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
             if let posting = arr.first(where: { ($0["@type"] as? String) == "JobPosting" }) {
@@ -369,23 +448,38 @@ private func extractJSONLD(from html: String) -> [String: Any]? {
 }
 
 private func extractMetaContent(from html: String, property: String) -> String? {
-    let pattern = #"<meta[^>]*property\s*=\s*"\#(NSRegularExpression.escapedPattern(for: property))"[^>]*content\s*=\s*"([^"]*)"[^>]*/?\s*>"#
-    guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
+    let escaped = NSRegularExpression.escapedPattern(for: property)
+    // Match both attribute orders: property then content, or content then property
+    let patterns = [
+        #"<meta[^>]*property\s*=\s*"\#(escaped)"[^>]*content\s*=\s*"([^"]*)"[^>]*/?\s*>"#,
+        #"<meta[^>]*content\s*=\s*"([^"]*)"[^>]*property\s*=\s*"\#(escaped)"[^>]*/?\s*>"#
+    ]
     let range = NSRange(html.startIndex..., in: html)
-    guard let match = regex.firstMatch(in: html, range: range),
-          let contentRange = Range(match.range(at: 1), in: html) else { return nil }
-    let value = String(html[contentRange])
-    return value.isEmpty ? nil : value
+    for pattern in patterns {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { continue }
+        guard let match = regex.firstMatch(in: html, range: range),
+              let contentRange = Range(match.range(at: 1), in: html) else { continue }
+        let value = String(html[contentRange])
+        if !value.isEmpty { return value }
+    }
+    return nil
 }
 
 private func extractMetaContent(from html: String, name: String) -> String? {
-    let pattern = #"<meta[^>]*name\s*=\s*"\#(NSRegularExpression.escapedPattern(for: name))"[^>]*content\s*=\s*"([^"]*)"[^>]*/?\s*>"#
-    guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
+    let escaped = NSRegularExpression.escapedPattern(for: name)
+    let patterns = [
+        #"<meta[^>]*name\s*=\s*"\#(escaped)"[^>]*content\s*=\s*"([^"]*)"[^>]*/?\s*>"#,
+        #"<meta[^>]*content\s*=\s*"([^"]*)"[^>]*name\s*=\s*"\#(escaped)"[^>]*/?\s*>"#
+    ]
     let range = NSRange(html.startIndex..., in: html)
-    guard let match = regex.firstMatch(in: html, range: range),
-          let contentRange = Range(match.range(at: 1), in: html) else { return nil }
-    let value = String(html[contentRange])
-    return value.isEmpty ? nil : value
+    for pattern in patterns {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { continue }
+        guard let match = regex.firstMatch(in: html, range: range),
+              let contentRange = Range(match.range(at: 1), in: html) else { continue }
+        let value = String(html[contentRange])
+        if !value.isEmpty { return value }
+    }
+    return nil
 }
 
 private func extractTag(from html: String, tag: String) -> String? {
@@ -407,6 +501,11 @@ extension JobURLClient: DependencyKey {
                 detectATSProvider(url)
             },
             fetchJobData: { url in
+                // Validate URL scheme at the entry point
+                guard let scheme = url.scheme?.lowercased(),
+                      (scheme == "http" || scheme == "https") else {
+                    throw JobURLError.invalidURL
+                }
                 let provider = detectATSProvider(url)
 
                 switch provider {
