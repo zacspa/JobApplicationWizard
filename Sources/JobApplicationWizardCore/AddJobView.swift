@@ -47,17 +47,19 @@ public struct AddJobView: View {
             .padding(.vertical, 8)
             .background(Color(NSColor.windowBackgroundColor))
 
-            Form {
-                if store.entryMode == .aiImport {
-                    aiImportSection
-                } else {
-                    basicInfoSection
-                    statusSection
-                    labelsSection
-                    jobDescriptionSection
+            ScrollView {
+                VStack(spacing: DS.Spacing.md) {
+                    if store.entryMode == .aiImport {
+                        aiImportSection
+                    } else {
+                        basicInfoSection
+                        statusSection
+                        labelsSection
+                        jobDescriptionSection
+                    }
                 }
+                .padding(DS.Spacing.lg)
             }
-            .formStyle(.grouped)
         }
     }
 

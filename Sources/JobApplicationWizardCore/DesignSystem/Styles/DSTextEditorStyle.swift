@@ -17,6 +17,14 @@ public struct DSOutlinedTextEditor: View {
 
     public var body: some View {
         ZStack(alignment: .topLeading) {
+            // Hidden Text that sizes to the content, driving the frame height
+            Text(text.isEmpty ? " " : text)
+                .font(DS.Typography.footnote)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minHeight: minHeight)
+                .opacity(0)
+
             TextEditor(text: $text)
                 .font(DS.Typography.footnote)
                 .focusEffectDisabled()
@@ -24,8 +32,6 @@ public struct DSOutlinedTextEditor: View {
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, -5)
                 .padding(.top, -1)
-                .frame(minHeight: minHeight)
-                .fixedSize(horizontal: false, vertical: true)
 
             if text.isEmpty {
                 Text(label)
