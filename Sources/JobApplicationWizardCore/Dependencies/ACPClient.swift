@@ -172,7 +172,7 @@ private actor JobWizardACPClient: Client {
 
 /// Actor that manages the ACP agent subprocess lifecycle.
 /// Keeps Process and ClientConnection state out of TCA (which requires Equatable).
-private actor ACPProcessManager {
+actor ACPProcessManager {
     private var process: Process?
     private var connection: ClientConnection?
     private var transport: SubprocessTransport?
@@ -416,27 +416,33 @@ private actor ACPProcessManager {
     }
 
     /// Runs the user's login shell to resolve their full PATH (includes Homebrew, nvm, etc.).
-    /// Cached after first call.
-    private static let _cachedShellPath: String? = {
-        guard let shell = ProcessInfo.processInfo.environment["SHELL"], !shell.isEmpty else { return nil }
-        let probe = Process()
-        probe.executableURL = URL(fileURLWithPath: shell)
-        probe.arguments = ["-ilc", "echo $PATH"]
-        let pipe = Pipe()
-        probe.standardOutput = pipe
-        probe.standardError = FileHandle.nullDevice
-        do {
-            try probe.run()
-            probe.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            return (path?.isEmpty == false) ? path : nil
-        } catch {
-            return nil
-        }
-    }()
-
-    private static func resolveShellPath() -> String? { _cachedShellPath }
+    /// Lazy: only runs when ACP connection is first attempted, not at app launch.
+    /// Uses `-lc` (login, command) without `-i` (interactive) to avoid sourcing
+    /// interactive shell plugins that can trigger macOS permission prompts (e.g. Apple Music).
+    private static var _cachedShellPath: String??
+    static func resolveShellPath() -> String? {
+        if let cached = _cachedShellPath { return cached }
+        let result: String? = {
+            guard let shell = ProcessInfo.processInfo.environment["SHELL"], !shell.isEmpty else { return nil }
+            let probe = Process()
+            probe.executableURL = URL(fileURLWithPath: shell)
+            probe.arguments = ["-lc", "echo $PATH"]
+            let pipe = Pipe()
+            probe.standardOutput = pipe
+            probe.standardError = FileHandle.nullDevice
+            do {
+                try probe.run()
+                probe.waitUntilExit()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+                return (path?.isEmpty == false) ? path : nil
+            } catch {
+                return nil
+            }
+        }()
+        _cachedShellPath = .some(result)
+        return result
+    }
 }
 
 extension ACPClient: DependencyKey {
