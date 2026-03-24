@@ -4,6 +4,7 @@ public struct IridescentSheenModifier: ViewModifier {
     public var isActive: Bool
     public var cornerRadius: CGFloat
 
+    @State private var phase: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
 
     /// Cycle duration in seconds; all sheens share the same clock.
@@ -38,44 +39,64 @@ public struct IridescentSheenModifier: ViewModifier {
         }
     }
 
-    /// Phase derived from absolute time so every sheen instance stays in sync.
-    private static func phase(at date: Date) -> CGFloat {
-        let t = date.timeIntervalSinceReferenceDate
+    /// Compute starting phase from absolute time so new instances sync with existing ones.
+    private static func currentPhase() -> CGFloat {
+        let t = Date().timeIntervalSinceReferenceDate
         return CGFloat(t.truncatingRemainder(dividingBy: cycleDuration) / cycleDuration)
     }
 
-    public func body(content: Content) -> some View {
-        // Guard wraps TimelineView so inactive sheens pay zero scheduling cost
-        if isActive {
-            content.overlay {
-                TimelineView(.animation) { timeline in
-                    let phase = Self.phase(at: timeline.date)
-                    GeometryReader { geo in
-                        let width = geo.size.width
-                        let height = geo.size.height
-                        let bandWidth: CGFloat = 100
-                        let startOffset = -bandWidth - height
-                        let endOffset = width + height
-                        let offset = startOffset + phase * (endOffset - startOffset)
+    /// Start the repeating animation from the current absolute-time phase.
+    private func startAnimation() {
+        let startPhase = Self.currentPhase()
+        phase = startPhase
+        // Animate to end of this cycle, then repeat full cycles
+        withAnimation(.linear(duration: Self.cycleDuration * Double(1 - startPhase))) {
+            phase = 1
+        }
+        // Schedule the repeating loop after the first partial cycle completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.cycleDuration * Double(1 - startPhase)) {
+            phase = 0
+            withAnimation(.linear(duration: Self.cycleDuration).repeatForever(autoreverses: false)) {
+                phase = 1
+            }
+        }
+    }
 
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    colors: sheenColors,
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+    public func body(content: Content) -> some View {
+        content.overlay {
+            if isActive {
+                GeometryReader { geo in
+                    let width = geo.size.width
+                    let height = geo.size.height
+                    let bandWidth: CGFloat = 100
+                    let startOffset = -bandWidth - height
+                    let endOffset = width + height
+                    let offset = startOffset + phase * (endOffset - startOffset)
+
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: sheenColors,
+                                startPoint: .leading,
+                                endPoint: .trailing
                             )
-                            .frame(width: bandWidth, height: sqrt(width * width + height * height) * 2.5)
-                            .rotationEffect(.degrees(25))
-                            .offset(x: offset, y: -height * 0.75)
-                    }
+                        )
+                        .frame(width: bandWidth, height: sqrt(width * width + height * height) * 2.5)
+                        .rotationEffect(.degrees(25))
+                        .offset(x: offset, y: -height * 0.75)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 .allowsHitTesting(false)
+                .onAppear { startAnimation() }
+                .onDisappear { phase = 0 }
             }
-        } else {
-            content
+        }
+        .onChange(of: isActive) { _, active in
+            if active {
+                startAnimation()
+            } else {
+                withAnimation(.linear(duration: 0.3)) { phase = 0 }
+            }
         }
     }
 }
