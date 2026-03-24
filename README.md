@@ -42,7 +42,7 @@ Cuttle is a free-floating, draggable AI assistant that docks to any panel in the
 | Interview Prep | Behavioral and technical questions with STAR-framework answers |
 | Analyze Fit | Fit score and gap analysis against the job description |
 
-Cuttle includes an agent action system with reversible history, so AI-suggested changes can be reviewed and undone.
+Cuttle has full control over job application data: it can update fields, add notes, log contacts, and modify status autonomously based on your conversation. All AI-driven changes are tracked through the reversible history system, so anything Cuttle does can be reviewed and undone.
 
 ### Calendar Integration
 Link interview rounds to macOS Calendar events. The app syncs on activate, detects rescheduled or deleted events, and shows interview countdown badges on both Kanban cards and List rows.
