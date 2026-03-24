@@ -9,3 +9,4 @@ xcuserdata/
 JobApplicationWizard.app
 JobApplicationWizard.dmg
 .env.local
+.claude/worktrees/
