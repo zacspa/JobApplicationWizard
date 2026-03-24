@@ -260,33 +260,6 @@ public struct CuttleOnboardingOverlay: View {
                 Link("Learn more at \(websiteDisplayName(website))", destination: URL(string: website)!)
                     .font(DS.Typography.caption)
             }
-
-            Divider()
-
-            // Install command
-            Text("Install command:")
-                .font(DS.Typography.captionSemibold)
-
-            if let npx = agent.distribution.npx {
-                let args = npx.args?.joined(separator: " ") ?? ""
-                let command = "npx -y \(npx.package)\(args.isEmpty ? "" : " \(args)")"
-                copyableCommand(command)
-            } else if let uvx = agent.distribution.uvx {
-                let args = uvx.args?.joined(separator: " ") ?? ""
-                let command = "uvx \(uvx.package)\(args.isEmpty ? "" : " \(args)")"
-                copyableCommand(command)
-            } else if let binaries = agent.distribution.binary {
-                #if arch(arm64)
-                let platform = "darwin-aarch64"
-                #else
-                let platform = "darwin-x86_64"
-                #endif
-                if let binary = binaries[platform] {
-                    let command = "curl -L \(binary.archive) | tar xz && ./\(binary.cmd)"
-                    copyableCommand(command)
-                }
-            }
-
         }
         .padding(DS.Spacing.sm)
         .background(DS.Color.controlBackground)
@@ -341,26 +314,6 @@ public struct CuttleOnboardingOverlay: View {
             return domain
         }
         return host
-    }
-
-    @ViewBuilder
-    private func copyableCommand(_ command: String) -> some View {
-        HStack {
-            Text(command)
-                .font(.system(size: 11, design: .monospaced))
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer()
-            Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(command, forType: .string)
-            } label: {
-                Image(systemName: "doc.on.doc")
-                    .font(DS.Typography.caption)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-        }
     }
 
     // MARK: - Connect Agent Card
