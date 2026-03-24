@@ -267,3 +267,31 @@ echo "▶ appcast.xml updated (sig: ${SIG:0:16}...)"
 
 echo ""
 echo "✓  $DMG_FINAL  ($(du -sh "$DMG_FINAL" | awk '{print $1}')) — notarized & stapled"
+
+# ── 10. Upload DMG to GitHub release and verify signature ────────────────────
+read -rp "Upload to GitHub release v${VERSION}? [y/N] " UPLOAD
+if [[ "$UPLOAD" =~ ^[Yy]$ ]]; then
+    echo "▶ Creating GitHub release and uploading DMG..."
+    gh release create "v${VERSION}" "$DMG_FINAL" \
+        --title "v${VERSION}" \
+        --draft \
+        --notes "Release ${VERSION}" \
+        2>/dev/null \
+    || gh release upload "v${VERSION}" "$DMG_FINAL" --clobber
+
+    echo "▶ Verifying uploaded DMG matches local signature..."
+    REMOTE_DMG=$(mktemp)
+    curl -sL "${DOWNLOAD_URL}" -o "$REMOTE_DMG"
+    REMOTE_SIG=$("$SPARKLE_SIGN" "$REMOTE_DMG" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
+    REMOTE_SIZE=$(stat -f%z "$REMOTE_DMG")
+    rm -f "$REMOTE_DMG"
+
+    if [[ "$REMOTE_SIG" != "$SIG" || "$REMOTE_SIZE" != "$SIZE" ]]; then
+        echo "✗  SIGNATURE MISMATCH — uploaded DMG does not match appcast!"
+        echo "   Local:  sig=${SIG:0:24}... size=${SIZE}"
+        echo "   Remote: sig=${REMOTE_SIG:0:24}... size=${REMOTE_SIZE}"
+        echo "   Fix: re-upload the exact DMG that was signed, or re-run this script."
+        exit 1
+    fi
+    echo "✓  Upload verified: signature and size match appcast"
+fi
