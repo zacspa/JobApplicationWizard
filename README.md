@@ -10,6 +10,9 @@ A native macOS app for managing your job search: track applications on a Kanban 
 
 ## Features
 
+### Job Posting Import
+Paste in a job posting URL and it pulls the title, company, salary, location, and requirements automatically into a kanban and a table view. Pipeline stages, notes per application, company profiles. It detects ATS systems like Greenhouse and Lever and hits their APIs directly. Falls back to scraping when needed, with Claude filling the gaps.
+
 ### Kanban Board & List View
 Pipeline across all stages: Wishlist, Applied, Phone Screen, Interview, Offer, Rejected, Withdrawn. Toggle between a Kanban board and a sortable List view at any time. The List view supports column sorting by company, excitement, status, location, salary, and date added. A status filter bar lets you narrow to a single stage; in Kanban mode, filtering shows only that column.
 
