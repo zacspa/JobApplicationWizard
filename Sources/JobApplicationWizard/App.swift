@@ -20,6 +20,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Restore real data if debug fake data was active, so it gets persisted
+        #if DEBUG
+        if let store {
+            DebugDataManager.shared.restoreIfNeeded(store: store)
+        }
+        #endif
         // Fire-and-forget: the TCA effect will tear down the ACP process.
         // We cannot block the main thread here (deadlocks with Swift concurrency),
         // and the OS will clean up child processes when the app exits anyway.

@@ -188,6 +188,7 @@ struct KanbanRow: View {
                             isActive: !(job.id == pinnedJobID && pinnedCardIsStuck)
                         )
                         .opacity(job.id == pinnedJobID && pinnedCardIsStuck ? 0 : 1)
+                        .transaction { $0.animation = nil }
                         .dropDestination(for: URL.self) { urls, _ in
                             guard !urls.isEmpty else { return false }
                             onDocumentDrop(job.id, urls)
@@ -205,15 +206,20 @@ struct KanbanRow: View {
                             .frame(width: 220)
                             .opacity(0.8)
                         }
-                        // Track the docked card's position within the scroll viewport
+                        // Track the docked card's position within the scroll viewport.
+                        // Threshold of 0.5pt prevents sub-pixel jitter from triggering re-renders.
                         .onGeometryChange(for: CGRect.self) { geo in
                             geo.frame(in: .named(rowCoordinateSpace))
                         } action: { frame in
                             if job.id == pinnedJobID {
-                                pinnedCardNaturalFrame = frame
-                                // First valid geometry from the new pinned card; safe to evaluate sticky
-                                if awaitingFirstGeometry {
-                                    awaitingFirstGeometry = false
+                                let dx = abs(frame.minX - pinnedCardNaturalFrame.minX)
+                                let dy = abs(frame.minY - pinnedCardNaturalFrame.minY)
+                                let dw = abs(frame.width - pinnedCardNaturalFrame.width)
+                                if awaitingFirstGeometry || dx > 0.5 || dy > 0.5 || dw > 0.5 {
+                                    pinnedCardNaturalFrame = frame
+                                    if awaitingFirstGeometry {
+                                        awaitingFirstGeometry = false
+                                    }
                                 }
                             }
                         }
@@ -254,6 +260,7 @@ struct KanbanRow: View {
                     // v1: overlay is visual-only; interaction goes through the original card.
                     // Future: route clicks through the overlay for full interactivity.
                     .allowsHitTesting(false)
+                    .transaction { $0.animation = nil }
                 }
             }
         }

@@ -63,6 +63,57 @@ final class AppFeatureTests: XCTestCase {
         await store.receive(\.saveSettingsKey)
     }
 
+    // MARK: - Jobs Loaded (used by debug fake data swap)
+
+    func testJobsLoadedReplacesAllJobs() async {
+        let original = [JobApplication.mock(company: "Original")]
+        var state = AppFeature.State()
+        state.jobs = IdentifiedArray(uniqueElements: original)
+
+        let store = TestStore(initialState: state) { AppFeature() }
+        store.exhaustivity = .off
+
+        let replacement = [
+            JobApplication.mock(
+                id: UUID(uuidString: "00000000-0000-0000-0000-000000000099")!,
+                company: "Replacement"
+            )
+        ]
+
+        await store.send(.jobsLoaded(.success(replacement))) {
+            $0.jobs = IdentifiedArray(uniqueElements: replacement)
+        }
+    }
+
+    func testJobsLoadedThenRestoreRoundTrips() async {
+        let originalJobs = [
+            JobApplication.mock(company: "Alpha"),
+            JobApplication.mock(
+                id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+                company: "Beta"
+            ),
+        ]
+        var state = AppFeature.State()
+        state.jobs = IdentifiedArray(uniqueElements: originalJobs)
+
+        let store = TestStore(initialState: state) { AppFeature() }
+        store.exhaustivity = .off
+
+        // Swap in fake data
+        let fakeJobs = [JobApplication.mock(
+            id: UUID(uuidString: "DEADBEEF-0000-0000-0000-000000000000")!,
+            company: "Fake Corp"
+        )]
+        await store.send(.jobsLoaded(.success(fakeJobs))) {
+            $0.jobs = IdentifiedArray(uniqueElements: fakeJobs)
+        }
+
+        // Restore original
+        await store.send(.jobsLoaded(.success(originalJobs))) {
+            $0.jobs = IdentifiedArray(uniqueElements: originalJobs)
+        }
+    }
+
     // MARK: - Search & Filter
 
     func testSearchQueryChanged() async {
