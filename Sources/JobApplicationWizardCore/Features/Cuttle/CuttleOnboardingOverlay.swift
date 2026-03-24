@@ -245,7 +245,25 @@ public struct CuttleOnboardingOverlay: View {
 
     @ViewBuilder
     private func installInstructions(for agent: ACPAgentEntry) -> some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+            // Prerequisites
+            Text("Prerequisites:")
+                .font(DS.Typography.captionSemibold)
+
+            let prereq = prerequisite(for: agent)
+            Text(prereq)
+                .font(DS.Typography.caption)
+                .foregroundColor(DS.Color.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let website = agent.website, !website.isEmpty {
+                Link("Learn more at \(websiteDisplayName(website))", destination: URL(string: website)!)
+                    .font(DS.Typography.caption)
+            }
+
+            Divider()
+
+            // Install command
             Text("Install command:")
                 .font(DS.Typography.captionSemibold)
 
@@ -277,6 +295,56 @@ public struct CuttleOnboardingOverlay: View {
         .padding(DS.Spacing.sm)
         .background(DS.Color.controlBackground)
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.medium))
+    }
+
+    private func prerequisite(for agent: ACPAgentEntry) -> String {
+        // Hardcoded prerequisites for well-known agents
+        switch agent.id {
+        case "claude-acp":
+            return "Install Claude Code (npm i -g @anthropic-ai/claude-code) or Claude Desktop, and sign in with your Anthropic account."
+        case "github-copilot-cli":
+            return "Install GitHub CLI (brew install gh) with the Copilot extension (gh extension install github/gh-copilot), and sign in with a GitHub Copilot subscription."
+        case "cursor":
+            return "Install Cursor IDE from cursor.com and sign in."
+        case "codex-acp":
+            return "Install OpenAI Codex CLI (npm i -g @openai/codex) and set your OpenAI API key."
+        case "gemini":
+            return "Sign in with your Google account (gcloud auth login) or set a Google AI API key."
+        case "goose":
+            return "Standalone agent; configure your preferred LLM provider API key on first run."
+        case "amp-acp":
+            return "Install Amp CLI and sign in with your Amp account."
+        default:
+            return defaultPrerequisite(for: agent)
+        }
+    }
+
+    private func defaultPrerequisite(for agent: ACPAgentEntry) -> String {
+        if let website = agent.website, !website.isEmpty {
+            return "Check \(websiteDisplayName(website)) for setup instructions."
+        }
+        // Fall back to runtime requirement
+        if agent.distribution.npx != nil {
+            return "Requires Node.js installed on your system."
+        } else if agent.distribution.uvx != nil {
+            return "Requires Python with uv installed on your system."
+        } else if agent.distribution.binary != nil {
+            return "Standalone binary; no additional runtime needed."
+        }
+        return "See the agent's documentation for setup instructions."
+    }
+
+    private func websiteDisplayName(_ url: String) -> String {
+        var host = url
+            .replacingOccurrences(of: "https://", with: "")
+            .replacingOccurrences(of: "http://", with: "")
+        if host.hasSuffix("/") { host = String(host.dropLast()) }
+        // Trim long paths
+        if let slash = host.firstIndex(of: "/") {
+            let domain = String(host[host.startIndex..<slash])
+            return domain
+        }
+        return host
     }
 
     @ViewBuilder
