@@ -85,12 +85,23 @@ public struct ChangeLog: Codable, Equatable {
         lastSyncTimestamp = timestamp
     }
 
+    /// Prune events that have already been synced to prevent unbounded growth.
+    public mutating func pruneSynced() {
+        guard let lastSync = lastSyncTimestamp else { return }
+        events.removeAll { $0.timestamp <= lastSync }
+    }
+
     /// Apply events to a job array, returning the updated array.
+    /// Pass `excludingDeviceId` to skip events from the current device (e.g. when applying remote events).
     public static func apply(
         events: [ChangeEvent],
-        to jobs: inout IdentifiedArrayOf<JobApplication>
+        to jobs: inout IdentifiedArrayOf<JobApplication>,
+        excludingDeviceId: String? = nil
     ) {
-        for event in events.sorted(by: { $0.timestamp < $1.timestamp }) {
+        let filtered = excludingDeviceId != nil
+            ? events.filter { $0.deviceId != excludingDeviceId }
+            : events
+        for event in filtered.sorted(by: { $0.timestamp < $1.timestamp }) {
             switch event.action {
             case .addJob(let job):
                 if jobs[id: job.id] == nil {
@@ -113,18 +124,22 @@ public struct ChangeLog: Codable, Equatable {
             case .setExcitement(let jobId, let excitement):
                 jobs[id: jobId]?.excitement = excitement
             case .addNote(let jobId, let note):
+                guard jobs[id: jobId]?.noteCards.contains(where: { $0.id == note.id }) != true else { break }
                 jobs[id: jobId]?.noteCards.append(note)
             case .deleteNote(let jobId, let noteId):
                 jobs[id: jobId]?.noteCards.removeAll { $0.id == noteId }
             case .addContact(let jobId, let contact):
+                guard jobs[id: jobId]?.contacts.contains(where: { $0.id == contact.id }) != true else { break }
                 jobs[id: jobId]?.contacts.append(contact)
             case .deleteContact(let jobId, let contactId):
                 jobs[id: jobId]?.contacts.removeAll { $0.id == contactId }
             case .addInterview(let jobId, let interview):
+                guard jobs[id: jobId]?.interviews.contains(where: { $0.id == interview.id }) != true else { break }
                 jobs[id: jobId]?.interviews.append(interview)
             case .deleteInterview(let jobId, let interviewId):
                 jobs[id: jobId]?.interviews.removeAll { $0.id == interviewId }
             case .addTask(let jobId, let task):
+                guard jobs[id: jobId]?.tasks.contains(where: { $0.id == task.id }) != true else { break }
                 jobs[id: jobId]?.tasks.append(task)
             case .toggleTask(let jobId, let taskId, let isCompleted):
                 if let idx = jobs[id: jobId]?.tasks.firstIndex(where: { $0.id == taskId }) {
@@ -133,6 +148,7 @@ public struct ChangeLog: Codable, Equatable {
             case .deleteTask(let jobId, let taskId):
                 jobs[id: jobId]?.tasks.removeAll { $0.id == taskId }
             case .addLabel(let jobId, let label):
+                guard jobs[id: jobId]?.labels.contains(where: { $0.id == label.id }) != true else { break }
                 jobs[id: jobId]?.labels.append(label)
             case .removeLabel(let jobId, let labelId):
                 jobs[id: jobId]?.labels.removeAll { $0.id == labelId }
@@ -140,6 +156,18 @@ public struct ChangeLog: Codable, Equatable {
                 break // Settings applied separately
             }
         }
+    }
+
+    // MARK: - Persistence
+
+    public func save(to url: URL) throws {
+        let data = try JSONEncoder().encode(self)
+        try data.write(to: url, options: .atomic)
+    }
+
+    public static func load(from url: URL) throws -> ChangeLog {
+        let data = try Data(contentsOf: url)
+        return try JSONDecoder().decode(ChangeLog.self, from: data)
     }
 }
 

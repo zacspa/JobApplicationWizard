@@ -42,6 +42,7 @@ struct iOSAppFeature {
         case dismissImportError
         // Sync
         case syncSignIn
+        case syncAuthSucceeded
         case syncSignOut
         case syncNow
         case syncCompleted(Result<[ChangeEvent], Error>)
@@ -59,6 +60,9 @@ struct iOSAppFeature {
                 return .none
 
             case .onAppear:
+                if let log = try? ChangeLog.load(from: SharedPersistenceClient.changeLogURL) {
+                    state.changeLog = log
+                }
                 return .run { send in
                     do {
                         let jobs = try await persistence.loadJobs()
@@ -163,11 +167,15 @@ struct iOSAppFeature {
                 return .run { send in
                     do {
                         try await syncClient.authenticate()
-                        await send(.syncNow)
+                        await send(.syncAuthSucceeded)
                     } catch {
                         await send(.syncCompleted(.failure(error)))
                     }
                 }
+
+            case .syncAuthSucceeded:
+                state.isSyncEnabled = true
+                return .send(.syncNow)
 
             case .syncSignOut:
                 syncClient.signOut()
@@ -198,12 +206,13 @@ struct iOSAppFeature {
                 let now = Date()
                 state.lastSyncDate = now
                 state.changeLog.markSynced(through: now)
+                state.changeLog.pruneSynced()
                 // Apply remote events to local state
                 if !remoteEvents.isEmpty {
                     ChangeLog.apply(events: remoteEvents, to: &state.jobs)
-                    return saveJobs(state.jobs)
+                    return .merge(saveJobs(state.jobs), saveChangeLog(state.changeLog))
                 }
-                return .none
+                return saveChangeLog(state.changeLog)
 
             case .syncCompleted(.failure(let error)):
                 state.isSyncing = false
@@ -226,6 +235,12 @@ struct iOSAppFeature {
         }
     }
 
+    private func saveChangeLog(_ changeLog: ChangeLog) -> Effect<Action> {
+        .run { _ in
+            try? changeLog.save(to: SharedPersistenceClient.changeLogURL)
+        }
+    }
+
     /// Record a change event and push if sync is enabled.
     private func recordAndSync(
         _ action: ChangeAction,
@@ -235,7 +250,9 @@ struct iOSAppFeature {
         let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
         let event = ChangeEvent(deviceId: deviceId, action: action)
         state.changeLog.append(event)
+        let changeLog = state.changeLog
         return .run { [event] send in
+            try? changeLog.save(to: SharedPersistenceClient.changeLogURL)
             do {
                 try await syncClient.pushEvent(event)
                 await send(.syncPushCompleted(.success(())))

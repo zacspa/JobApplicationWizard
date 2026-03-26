@@ -8,13 +8,9 @@ extension SharedPersistenceClient: @retroactive DependencyKey {
     public static let liveValue = SharedPersistenceClient(
         loadJobs: {
             let url = Self.jobsURL
-            print("[Persistence] Loading jobs from: \(url.path)")
-            print("[Persistence] File exists: \(FileManager.default.fileExists(atPath: url.path))")
             guard FileManager.default.fileExists(atPath: url.path) else { return [] }
             let data = try Data(contentsOf: url)
-            print("[Persistence] Data size: \(data.count) bytes")
             let jobs = try JSONDecoder().decode([JobApplication].self, from: data)
-            print("[Persistence] Loaded \(jobs.count) jobs")
             return jobs
         },
         saveJobs: { jobs in
@@ -48,7 +44,13 @@ extension SharedPersistenceClient: @retroactive DependencyKey {
             )
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            return (try? encoder.encode(export)) ?? Data()
+            // Encoding Codable structs should not fail; crash in debug builds if it does
+            do {
+                return try encoder.encode(export)
+            } catch {
+                assertionFailure("Failed to encode AppDataExport: \(error)")
+                return Data()
+            }
         },
         importAllData: { data in
             try JSONDecoder().decode(AppDataExport.self, from: data)
@@ -91,4 +93,5 @@ extension SharedPersistenceClient {
 
     static let jobsURL = containerURL.appendingPathComponent("jobs.json")
     static let settingsURL = containerURL.appendingPathComponent("settings.json")
+    static let changeLogURL = containerURL.appendingPathComponent("changelog.json")
 }

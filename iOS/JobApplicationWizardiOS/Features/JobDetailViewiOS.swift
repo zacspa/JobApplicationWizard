@@ -6,59 +6,59 @@ struct JobDetailViewiOS: View {
     let store: StoreOf<iOSAppFeature>
     let jobId: UUID
 
-    private var job: JobApplication? {
-        store.jobs[id: jobId]
-    }
-
     @State private var showStatusPicker = false
     @State private var showAddNote = false
     @State private var newNoteTitle = ""
     @State private var newNoteBody = ""
 
+    private var job: JobApplication {
+        store.jobs[id: jobId] ?? JobApplication()
+    }
+
     var body: some View {
-        if let job {
-        List {
-            headerSection
-            infoSection
-            labelsSection
-            notesSection
-            contactsSection
-            interviewsSection
-            tasksSection
-        }
-        .navigationTitle(job.displayTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        store.send(.toggleFavorite(job.id))
+        if store.jobs[id: jobId] != nil {
+            List {
+                headerSection
+                infoSection
+                labelsSection
+                notesSection
+                contactsSection
+                interviewsSection
+                tasksSection
+            }
+            .navigationTitle(job.displayTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            store.send(.toggleFavorite(job.id))
+                        } label: {
+                            Label(
+                                job.isFavorite ? "Unfavorite" : "Favorite",
+                                systemImage: job.isFavorite ? "star.slash" : "star.fill"
+                            )
+                        }
+                        Button {
+                            showStatusPicker = true
+                        } label: {
+                            Label("Change Status", systemImage: "arrow.triangle.swap")
+                        }
                     } label: {
-                        Label(
-                            job.isFavorite ? "Unfavorite" : "Favorite",
-                            systemImage: job.isFavorite ? "star.slash" : "star.fill"
-                        )
+                        Image(systemName: "ellipsis.circle")
                     }
-                    Button {
-                        showStatusPicker = true
-                    } label: {
-                        Label("Change Status", systemImage: "arrow.triangle.swap")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
             }
-        }
-        .confirmationDialog("Change Status", isPresented: $showStatusPicker) {
-            ForEach(JobStatus.allCases) { status in
-                Button(status.rawValue) {
-                    store.send(.moveJob(job.id, status))
+            .confirmationDialog("Change Status", isPresented: $showStatusPicker) {
+                ForEach(JobStatus.allCases) { status in
+                    Button(status.rawValue) {
+                        store.send(.moveJob(job.id, status))
+                    }
                 }
             }
-        }
-        .sheet(isPresented: $showAddNote) {
-            addNoteSheet
-        }
+            .sheet(isPresented: $showAddNote) {
+                addNoteSheet
+            }
         } else {
             ContentUnavailableView("Job Not Found", systemImage: "questionmark.circle")
         }

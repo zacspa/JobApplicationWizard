@@ -22,11 +22,28 @@ enum GoogleDriveSync {
     // MARK: - Token Storage
 
     private static let tokenKey = "google_drive_refresh_token"
-    private static var accessToken: String?
-    private static var accessTokenExpiry: Date?
+    private static let tokenManager = TokenManager()
 
     static var isAuthenticated: Bool {
         getRefreshToken() != nil
+    }
+
+    // MARK: - HTTP Helpers
+
+    private static func checkedData(for request: URLRequest) async throws -> Data {
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SyncError.networkError(URLError(.badServerResponse))
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw SyncError.driveAPIError("HTTP \(httpResponse.statusCode): \(body)")
+        }
+        return data
+    }
+
+    private static func urlEncode(_ string: String) -> String {
+        string.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? string
     }
 
     // MARK: - OAuth Flow
@@ -57,6 +74,7 @@ enum GoogleDriveSync {
                 url: authURL,
                 callbackURLScheme: callbackScheme
             ) { url, error in
+                WebAuthContextProvider.shared.currentSession = nil
                 if let error {
                     continuation.resume(throwing: error)
                 } else if let url {
@@ -67,6 +85,7 @@ enum GoogleDriveSync {
             }
             session.prefersEphemeralWebBrowserSession = false
             session.presentationContextProvider = WebAuthContextProvider.shared
+            WebAuthContextProvider.shared.currentSession = session
             session.start()
         }
 
@@ -88,19 +107,18 @@ enum GoogleDriveSync {
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
         let body = [
-            "code=\(code)",
-            "client_id=\(clientID)",
-            "redirect_uri=\(redirectURI)",
+            "code=\(urlEncode(code))",
+            "client_id=\(urlEncode(clientID))",
+            "redirect_uri=\(urlEncode(redirectURI))",
             "grant_type=authorization_code",
-            "code_verifier=\(codeVerifier)",
+            "code_verifier=\(urlEncode(codeVerifier))",
         ].joined(separator: "&")
         request.httpBody = body.data(using: .utf8)
 
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let data = try await checkedData(for: request)
         let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
 
-        accessToken = tokenResponse.access_token
-        accessTokenExpiry = Date().addingTimeInterval(TimeInterval(tokenResponse.expires_in - 60))
+        await tokenManager.setToken(tokenResponse)
 
         if let refreshToken = tokenResponse.refresh_token {
             saveRefreshToken(refreshToken)
@@ -117,28 +135,20 @@ enum GoogleDriveSync {
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
         let body = [
-            "refresh_token=\(refreshToken)",
-            "client_id=\(clientID)",
+            "refresh_token=\(urlEncode(refreshToken))",
+            "client_id=\(urlEncode(clientID))",
             "grant_type=refresh_token",
         ].joined(separator: "&")
         request.httpBody = body.data(using: .utf8)
 
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let data = try await checkedData(for: request)
         let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
 
-        accessToken = tokenResponse.access_token
-        accessTokenExpiry = Date().addingTimeInterval(TimeInterval(tokenResponse.expires_in - 60))
+        await tokenManager.setToken(tokenResponse)
     }
 
     static func getValidAccessToken() async throws -> String {
-        if let token = accessToken, let expiry = accessTokenExpiry, expiry > Date() {
-            return token
-        }
-        try await refreshAccessToken()
-        guard let token = accessToken else {
-            throw SyncError.notAuthenticated
-        }
-        return token
+        try await tokenManager.getValidToken(refreshing: refreshAccessToken)
     }
 
     // MARK: - Keychain Helpers
@@ -176,8 +186,7 @@ enum GoogleDriveSync {
             kSecAttrAccount as String: tokenKey,
         ]
         SecItemDelete(query as CFDictionary)
-        accessToken = nil
-        accessTokenExpiry = nil
+        Task { await tokenManager.clear() }
     }
 
     // MARK: - Drive API: File Operations
@@ -199,7 +208,7 @@ enum GoogleDriveSync {
         var request = URLRequest(url: components.url!)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let data = try await checkedData(for: request)
         let response = try JSONDecoder().decode(DriveFileListResponse.self, from: data)
         return response.files
     }
@@ -244,7 +253,7 @@ enum GoogleDriveSync {
         request.setValue("multipart/related; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
 
-        let (responseData, _) = try await URLSession.shared.data(for: request)
+        let responseData = try await checkedData(for: request)
         let file = try JSONDecoder().decode(DriveFile.self, from: responseData)
         return file.id
     }
@@ -259,7 +268,7 @@ enum GoogleDriveSync {
         var request = URLRequest(url: components.url!)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let data = try await checkedData(for: request)
         return data
     }
 
@@ -271,36 +280,57 @@ enum GoogleDriveSync {
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        let _ = try await URLSession.shared.data(for: request)
+        let _ = try await checkedData(for: request)
     }
 
     // MARK: - Sync Operations
 
-    /// Push a change event: encode as JSON, upload as a timestamped file.
-    static func pushChangeEvent(_ event: ChangeEvent) async throws {
-        let data = try JSONEncoder().encode(event)
-        let filename = "event_\(event.timestamp.timeIntervalSinceReferenceDate)_\(event.id.uuidString).json"
-        _ = try await uploadFile(name: filename, data: data)
-    }
-
-    /// Pull change events since a given timestamp.
-    static func pullChangeEvents(since: Date?) async throws -> [ChangeEvent] {
-        let files: [DriveFile]
-        if let since {
-            let iso = ISO8601DateFormatter().string(from: since)
-            files = try await listFiles(query: "name contains 'event_' and modifiedTime > '\(iso)'")
-        } else {
-            files = try await listFiles(query: "name contains 'event_'")
+    /// Push multiple change events by appending to a single changelog.ndjson file on Drive.
+    static func pushChangeEvents(_ events: [ChangeEvent]) async throws {
+        // Download existing changelog.ndjson (or start empty)
+        let existing = try await listFiles(query: "name = 'changelog.ndjson'")
+        var lines: [Data] = []
+        if let file = existing.first {
+            let data = try await downloadFile(fileId: file.id)
+            lines = data.split(separator: UInt8(ascii: "\n")).map { Data($0) }
         }
 
+        // Append new events as NDJSON lines
+        let encoder = JSONEncoder()
+        for event in events {
+            lines.append(try encoder.encode(event))
+        }
+
+        // Upload the combined file
+        let combined = lines.map { String(data: $0, encoding: .utf8)! }.joined(separator: "\n")
+        let data = combined.data(using: .utf8)!
+
+        if let file = existing.first {
+            _ = try await uploadFile(name: "changelog.ndjson", data: data, existingFileId: file.id)
+        } else {
+            _ = try await uploadFile(name: "changelog.ndjson", data: data)
+        }
+    }
+
+    /// Push a single change event (convenience wrapper).
+    static func pushChangeEvent(_ event: ChangeEvent) async throws {
+        try await pushChangeEvents([event])
+    }
+
+    /// Pull change events since a given timestamp from the single changelog.ndjson file.
+    static func pullChangeEvents(since: Date?) async throws -> [ChangeEvent] {
+        let files = try await listFiles(query: "name = 'changelog.ndjson'")
+        guard let file = files.first else { return [] }
+        let data = try await downloadFile(fileId: file.id)
+
+        let decoder = JSONDecoder()
         var events: [ChangeEvent] = []
-        for file in files {
-            let data = try await downloadFile(fileId: file.id)
-            if let event = try? JSONDecoder().decode(ChangeEvent.self, from: data) {
+        for line in data.split(separator: UInt8(ascii: "\n")) {
+            if let event = try? decoder.decode(ChangeEvent.self, from: Data(line)) {
+                if let since, event.timestamp <= since { continue }
                 events.append(event)
             }
         }
-
         return events.sorted { $0.timestamp < $1.timestamp }
     }
 
@@ -328,7 +358,7 @@ enum GoogleDriveSync {
             authenticate: { try await authenticate() },
             isAuthenticated: { isAuthenticated },
             signOut: { deleteRefreshToken() },
-            pushEvent: { event in try await pushChangeEvent(event) },
+            pushEvent: { event in try await pushChangeEvents([event]) },
             pullEvents: { since in try await pullChangeEvents(since: since) },
             pushSnapshot: { data in try await pushStateSnapshot(data) },
             pullSnapshot: { try await pullStateSnapshot() }
@@ -376,11 +406,40 @@ private func generateCodeChallenge(from verifier: String) -> String {
         .replacingOccurrences(of: "=", with: "")
 }
 
+// MARK: - Token Manager (Actor)
+
+private actor TokenManager {
+    var accessToken: String?
+    var accessTokenExpiry: Date?
+
+    func getValidToken(refreshing: () async throws -> Void) async throws -> String {
+        if let token = accessToken, let expiry = accessTokenExpiry, expiry > Date() {
+            return token
+        }
+        try await refreshing()
+        guard let token = accessToken else {
+            throw SyncError.notAuthenticated
+        }
+        return token
+    }
+
+    func setToken(_ response: TokenResponse) {
+        accessToken = response.access_token
+        accessTokenExpiry = Date().addingTimeInterval(TimeInterval(response.expires_in - 60))
+    }
+
+    func clear() {
+        accessToken = nil
+        accessTokenExpiry = nil
+    }
+}
+
 // MARK: - ASWebAuthenticationSession Context
 
 @MainActor
 class WebAuthContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
     static let shared = WebAuthContextProvider()
+    var currentSession: ASWebAuthenticationSession?
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         UIApplication.shared.connectedScenes
