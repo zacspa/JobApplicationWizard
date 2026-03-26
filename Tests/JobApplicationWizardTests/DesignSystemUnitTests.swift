@@ -1,4 +1,5 @@
 import Testing
+import JobApplicationShared
 import SwiftUI
 @testable import JobApplicationWizardCore
 

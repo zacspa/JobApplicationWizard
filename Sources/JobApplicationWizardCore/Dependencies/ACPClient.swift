@@ -1,9 +1,13 @@
 import Foundation
+import JobApplicationShared
 import ComposableArchitecture
+#if canImport(ACP)
 import ACP
 import ACPModel
+#endif
 import os.log
 
+#if canImport(ACP)
 private let acpLog = Logger(subsystem: "com.jobwizard.acp", category: "ACPClient")
 
 // MARK: - ACPClient Dependency
@@ -506,3 +510,4 @@ public enum ACPClientError: LocalizedError {
         }
     }
 }
+#endif

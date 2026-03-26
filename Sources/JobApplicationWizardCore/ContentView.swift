@@ -1,4 +1,5 @@
 import SwiftUI
+import JobApplicationShared
 import ComposableArchitecture
 
 public struct ContentView: View {

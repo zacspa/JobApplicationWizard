@@ -1,4 +1,5 @@
 import XCTest
+import JobApplicationShared
 import SwiftUI
 import ComposableArchitecture
 @testable import JobApplicationWizardCore

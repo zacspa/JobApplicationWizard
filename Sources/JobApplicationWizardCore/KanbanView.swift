@@ -1,4 +1,5 @@
 import SwiftUI
+import JobApplicationShared
 import ComposableArchitecture
 
 // MARK: - Main Kanban Board

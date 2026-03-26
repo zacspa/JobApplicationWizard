@@ -1,5 +1,8 @@
 import SwiftUI
+import JobApplicationShared
+#if canImport(MarkdownUI)
 import MarkdownUI
+#endif
 import AppKit
 
 // MARK: - Chat Bubble
@@ -28,9 +31,15 @@ public struct ChatBubble: View {
     var bubbleContent: some View {
         Group {
             if message.role == .assistant {
+                #if canImport(MarkdownUI)
                 Markdown(message.content)
                     .markdownTextStyle { FontSize(13) }
                     .textSelection(.enabled)
+                #else
+                Text(message.content)
+                    .font(DS.Typography.body)
+                    .textSelection(.enabled)
+                #endif
             } else {
                 Text(message.content)
                     .font(DS.Typography.body)

@@ -1,4 +1,5 @@
 import XCTest
+import JobApplicationShared
 import SwiftUI
 import SnapshotTesting
 @testable import JobApplicationWizardCore

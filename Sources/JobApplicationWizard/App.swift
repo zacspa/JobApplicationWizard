@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import JobApplicationShared
 #endif
 import SwiftUI
 import ComposableArchitecture

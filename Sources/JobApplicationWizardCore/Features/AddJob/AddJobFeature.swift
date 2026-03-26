@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import JobApplicationShared
 import Foundation
 
 // MARK: - Entry Mode

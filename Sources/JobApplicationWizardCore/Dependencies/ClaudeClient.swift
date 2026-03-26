@@ -1,4 +1,5 @@
 import Foundation
+import JobApplicationShared
 import ComposableArchitecture
 
 // MARK: - Token Usage

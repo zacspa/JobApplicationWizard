@@ -1,4 +1,5 @@
 import Foundation
+import JobApplicationShared
 
 // MARK: - Agent Action
 
@@ -184,13 +185,6 @@ public struct PendingAgentReview: Equatable {
         self.summary = summary
         self.accepted = Set(actions.indices)
     }
-}
-
-// MARK: - Agent Action Mode
-
-public enum AgentActionMode: String, Codable, CaseIterable, Equatable, Sendable {
-    case applyImmediately = "Apply Immediately"
-    case requireApproval = "Require Approval"
 }
 
 // MARK: - Tool Use JSON Schema

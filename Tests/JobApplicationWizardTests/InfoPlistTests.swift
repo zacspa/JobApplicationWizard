@@ -1,4 +1,5 @@
 import XCTest
+import JobApplicationShared
 
 final class InfoPlistTests: XCTestCase {
 

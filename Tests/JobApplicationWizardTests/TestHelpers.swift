@@ -1,4 +1,5 @@
 import Foundation
+import JobApplicationShared
 @testable import JobApplicationWizardCore
 
 extension JobApplication {

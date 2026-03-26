@@ -1,4 +1,5 @@
 import Foundation
+import JobApplicationShared
 
 // MARK: - Job Parse Prompt (shared by ACP and Claude API paths)
 

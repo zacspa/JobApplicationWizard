@@ -1,4 +1,5 @@
 import SwiftUI
+import JobApplicationShared
 
 public struct ProfileView: View {
     let onSave: (UserProfile) -> Void

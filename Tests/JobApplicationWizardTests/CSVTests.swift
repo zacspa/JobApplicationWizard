@@ -1,4 +1,5 @@
 import XCTest
+import JobApplicationShared
 @testable import JobApplicationWizardCore
 
 final class CSVTests: XCTestCase {

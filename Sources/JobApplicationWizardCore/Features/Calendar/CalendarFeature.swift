@@ -1,4 +1,5 @@
 import AppKit
+import JobApplicationShared
 import ComposableArchitecture
 import Foundation
 

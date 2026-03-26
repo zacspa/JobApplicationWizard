@@ -1,4 +1,5 @@
 import Foundation
+import JobApplicationShared
 
 // MARK: - Agent Writable Field
 

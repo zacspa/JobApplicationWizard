@@ -1,4 +1,5 @@
 import Foundation
+import JobApplicationShared
 import AppKit
 import ComposableArchitecture
 import UniformTypeIdentifiers

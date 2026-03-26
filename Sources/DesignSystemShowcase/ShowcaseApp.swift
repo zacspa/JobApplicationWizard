@@ -1,4 +1,5 @@
 import AppKit
+import JobApplicationShared
 import SwiftUI
 import JobApplicationWizardCore
 

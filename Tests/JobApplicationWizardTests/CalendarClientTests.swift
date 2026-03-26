@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import JobApplicationShared
 import CoreGraphics
 import XCTest
 @testable import JobApplicationWizardCore

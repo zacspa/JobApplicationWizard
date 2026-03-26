@@ -1,4 +1,5 @@
 import SwiftUI
+import JobApplicationShared
 import JobApplicationWizardCore
 
 // MARK: - Colors
