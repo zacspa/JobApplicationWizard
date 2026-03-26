@@ -1,0 +1,624 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0F28243D8A5641D980BE3020 /* SettingsViewiOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 554518668E49B6B3B23F177B /* SettingsViewiOS.swift */; };
+		1C50FB562692520E4825BC61 /* JobApplicationShared in Frameworks */ = {isa = PBXBuildFile; productRef = 91A8070D772701F9CB28D2ED /* JobApplicationShared */; };
+		243BF654DF630FFFBC4DAB68 /* iOSPersistenceClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF28377127E830EAF57E832 /* iOSPersistenceClient.swift */; };
+		28C1A571666963689337DE4B /* QuickAddView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27365E0C3E87AA93428B9867 /* QuickAddView.swift */; };
+		29AB8D7642AD03393F041F06 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A598CD2FF309147730CEBB24 /* SwiftUI.framework */; };
+		3A78B78B5CD9FC5DF1FA7030 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 0406B754E0617A30047D90BA /* ComposableArchitecture */; };
+		47A4DAAEDC500D812E781AE3 /* JobApplicationShared in Frameworks */ = {isa = PBXBuildFile; productRef = 5B354F225361A426513DD6EC /* JobApplicationShared */; };
+		5EA8BE348831E7778DE5DD9F /* PipelineWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38F5AF6CE06D486C43B5AB9E /* PipelineWidget.swift */; };
+		7C94BB6201B00B77323681AA /* JobApplicationShared in Frameworks */ = {isa = PBXBuildFile; productRef = 88369D1A9BDDAC806A0C91D3 /* JobApplicationShared */; };
+		B86248B25F6BD04111520CA5 /* iOSAppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE3C4B50E655B28989470A5 /* iOSAppFeature.swift */; };
+		BF88746B326E3BD29A36B6E1 /* JobDetailViewiOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2968A4A7A4B89E5A12A80E2 /* JobDetailViewiOS.swift */; };
+		D209FACE74894B6A349972A5 /* PipelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59ABE44C7342A51CC9514412 /* PipelineView.swift */; };
+		E8112B9E4882D6BDB8C74B6C /* JobRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CABBC8091F423A63D9F1580B /* JobRow.swift */; };
+		EF0FEA75522E72CBA1C5BDE9 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B70751115E96EB7D1EB66CE6 /* WidgetKit.framework */; };
+		F34C2015EE703D9B9CD38686 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 217764F480A06FBCBA5E2407 /* App.swift */; };
+		F677DAD735D675754736C2A0 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0CA605FCDF9768419421E4D /* ShareViewController.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0593A71C5F95A7A380907A8C /* WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WidgetExtension.entitlements; sourceTree = "<group>"; };
+		217764F480A06FBCBA5E2407 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		27365E0C3E87AA93428B9867 /* QuickAddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddView.swift; sourceTree = "<group>"; };
+		2EE3C4B50E655B28989470A5 /* iOSAppFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSAppFeature.swift; sourceTree = "<group>"; };
+		38F5AF6CE06D486C43B5AB9E /* PipelineWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineWidget.swift; sourceTree = "<group>"; };
+		3ABDC6654DEBA76444BF114E /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
+		554518668E49B6B3B23F177B /* SettingsViewiOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewiOS.swift; sourceTree = "<group>"; };
+		59ABE44C7342A51CC9514412 /* PipelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineView.swift; sourceTree = "<group>"; };
+		7F0D79B8CCE69BBDA4FD2F7D /* JobApplicationWizardiOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JobApplicationWizardiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8AC1C543BBC07D40BC73E6A2 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		94EE01D036F9547CF812D150 /* ShareJobExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ShareJobExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		98BCE5002AC9DC4D1FDDF3DB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A27515EE05796AEE613C95B9 /* JobApplicationWizard */ = {isa = PBXFileReference; lastKnownFileType = folder; name = JobApplicationWizard; path = ..; sourceTree = SOURCE_ROOT; };
+		A598CD2FF309147730CEBB24 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		B0CA605FCDF9768419421E4D /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		B70751115E96EB7D1EB66CE6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		CABBC8091F423A63D9F1580B /* JobRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRow.swift; sourceTree = "<group>"; };
+		D2968A4A7A4B89E5A12A80E2 /* JobDetailViewiOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobDetailViewiOS.swift; sourceTree = "<group>"; };
+		D8D9E815572110EFF39C7E7C /* PipelineWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PipelineWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		DAF28377127E830EAF57E832 /* iOSPersistenceClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSPersistenceClient.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3AF77C629D9DD2CA8A31660B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1C50FB562692520E4825BC61 /* JobApplicationShared in Frameworks */,
+				EF0FEA75522E72CBA1C5BDE9 /* WidgetKit.framework in Frameworks */,
+				29AB8D7642AD03393F041F06 /* SwiftUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		419ACBABD5858C0A51F78FE7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47A4DAAEDC500D812E781AE3 /* JobApplicationShared in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F86611DB908610F8EADA5E13 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7C94BB6201B00B77323681AA /* JobApplicationShared in Frameworks */,
+				3A78B78B5CD9FC5DF1FA7030 /* ComposableArchitecture in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4BA3D1E20A646B48BE8B774F /* WidgetExtension */ = {
+			isa = PBXGroup;
+			children = (
+				38F5AF6CE06D486C43B5AB9E /* PipelineWidget.swift */,
+				0593A71C5F95A7A380907A8C /* WidgetExtension.entitlements */,
+			);
+			path = WidgetExtension;
+			sourceTree = "<group>";
+		};
+		4BB02AD74CB11DADAF18C32B /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				98BCE5002AC9DC4D1FDDF3DB /* Info.plist */,
+				3ABDC6654DEBA76444BF114E /* ShareExtension.entitlements */,
+				B0CA605FCDF9768419421E4D /* ShareViewController.swift */,
+			);
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
+		760F4212DF08D7BF0FD03A07 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				A27515EE05796AEE613C95B9 /* JobApplicationWizard */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		89D5FAD0CCE77C884DA9F41D /* JobApplicationWizardiOS */ = {
+			isa = PBXGroup;
+			children = (
+				217764F480A06FBCBA5E2407 /* App.swift */,
+				B58EA318D72D6DE1171494C8 /* Features */,
+				BA794F491DA6E011CF661FBB /* Persistence */,
+				91834674DEC252D9E5047489 /* Resources */,
+			);
+			path = JobApplicationWizardiOS;
+			sourceTree = "<group>";
+		};
+		8B372FB5E50733887B00AA5E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7F0D79B8CCE69BBDA4FD2F7D /* JobApplicationWizardiOS.app */,
+				D8D9E815572110EFF39C7E7C /* PipelineWidget.appex */,
+				94EE01D036F9547CF812D150 /* ShareJobExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		91834674DEC252D9E5047489 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				8AC1C543BBC07D40BC73E6A2 /* App.entitlements */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B58EA318D72D6DE1171494C8 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				2EE3C4B50E655B28989470A5 /* iOSAppFeature.swift */,
+				D2968A4A7A4B89E5A12A80E2 /* JobDetailViewiOS.swift */,
+				CABBC8091F423A63D9F1580B /* JobRow.swift */,
+				59ABE44C7342A51CC9514412 /* PipelineView.swift */,
+				27365E0C3E87AA93428B9867 /* QuickAddView.swift */,
+				554518668E49B6B3B23F177B /* SettingsViewiOS.swift */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		BA794F491DA6E011CF661FBB /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				DAF28377127E830EAF57E832 /* iOSPersistenceClient.swift */,
+			);
+			path = Persistence;
+			sourceTree = "<group>";
+		};
+		D5CFC0BDC4438AA4C78B59D3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A598CD2FF309147730CEBB24 /* SwiftUI.framework */,
+				B70751115E96EB7D1EB66CE6 /* WidgetKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		E57B9D940A906155F228B35E = {
+			isa = PBXGroup;
+			children = (
+				89D5FAD0CCE77C884DA9F41D /* JobApplicationWizardiOS */,
+				760F4212DF08D7BF0FD03A07 /* Packages */,
+				4BB02AD74CB11DADAF18C32B /* ShareExtension */,
+				4BA3D1E20A646B48BE8B774F /* WidgetExtension */,
+				D5CFC0BDC4438AA4C78B59D3 /* Frameworks */,
+				8B372FB5E50733887B00AA5E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		37D35F63133000A78EFDBB6A /* JobApplicationWizardiOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A24F5567D11D5E75B4334EB3 /* Build configuration list for PBXNativeTarget "JobApplicationWizardiOS" */;
+			buildPhases = (
+				F3E244608C13151A596CFE10 /* Sources */,
+				F86611DB908610F8EADA5E13 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = JobApplicationWizardiOS;
+			packageProductDependencies = (
+				88369D1A9BDDAC806A0C91D3 /* JobApplicationShared */,
+				0406B754E0617A30047D90BA /* ComposableArchitecture */,
+			);
+			productName = JobApplicationWizardiOS;
+			productReference = 7F0D79B8CCE69BBDA4FD2F7D /* JobApplicationWizardiOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		686B3FEC8A8DAFED5A49D3F7 /* PipelineWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 05AE1B7AD7761967401ABC22 /* Build configuration list for PBXNativeTarget "PipelineWidget" */;
+			buildPhases = (
+				93EAB11AF45CB7CD13D77A27 /* Sources */,
+				3AF77C629D9DD2CA8A31660B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PipelineWidget;
+			packageProductDependencies = (
+				91A8070D772701F9CB28D2ED /* JobApplicationShared */,
+			);
+			productName = PipelineWidget;
+			productReference = D8D9E815572110EFF39C7E7C /* PipelineWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		961197CBCCB3E315FC3810BC /* ShareJobExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 04B9AD34F10805C7D216915E /* Build configuration list for PBXNativeTarget "ShareJobExtension" */;
+			buildPhases = (
+				378CBE1909DB8538D4ED3807 /* Sources */,
+				419ACBABD5858C0A51F78FE7 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShareJobExtension;
+			packageProductDependencies = (
+				5B354F225361A426513DD6EC /* JobApplicationShared */,
+			);
+			productName = ShareJobExtension;
+			productReference = 94EE01D036F9547CF812D150 /* ShareJobExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		030615703B65C614C9E273EE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = DF9DA82AC36EF8DDB5D0B535 /* Build configuration list for PBXProject "JobApplicationWizardiOS" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = E57B9D940A906155F228B35E;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				55FFBB4B6FD18E8CB0115717 /* XCLocalSwiftPackageReference ".." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8B372FB5E50733887B00AA5E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				37D35F63133000A78EFDBB6A /* JobApplicationWizardiOS */,
+				686B3FEC8A8DAFED5A49D3F7 /* PipelineWidget */,
+				961197CBCCB3E315FC3810BC /* ShareJobExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		378CBE1909DB8538D4ED3807 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F677DAD735D675754736C2A0 /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		93EAB11AF45CB7CD13D77A27 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5EA8BE348831E7778DE5DD9F /* PipelineWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F3E244608C13151A596CFE10 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F34C2015EE703D9B9CD38686 /* App.swift in Sources */,
+				BF88746B326E3BD29A36B6E1 /* JobDetailViewiOS.swift in Sources */,
+				E8112B9E4882D6BDB8C74B6C /* JobRow.swift in Sources */,
+				D209FACE74894B6A349972A5 /* PipelineView.swift in Sources */,
+				28C1A571666963689337DE4B /* QuickAddView.swift in Sources */,
+				0F28243D8A5641D980BE3020 /* SettingsViewiOS.swift in Sources */,
+				B86248B25F6BD04111520CA5 /* iOSAppFeature.swift in Sources */,
+				243BF654DF630FFFBC4DAB68 /* iOSPersistenceClient.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		19A74944DE274764D47AB360 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = JobApplicationWizardiOS/Resources/App.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		26A0193EF52EE1C69B9A9809 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		324A1D55F79D72A0FE996B5A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = WidgetExtension/WidgetExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS.PipelineWidget;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		926E2BF7E1868F369980AFF5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = WidgetExtension/WidgetExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS.PipelineWidget;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		99544F3699C672ED01576228 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Save Job";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS.ShareJobExtension;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CE1D52410D9A745D5C60FBF5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Save Job";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS.ShareJobExtension;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		E1D1DA2D47E30DBDECB44CE8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = JobApplicationWizardiOS/Resources/App.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FD9273AE6A48601703F898A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		04B9AD34F10805C7D216915E /* Build configuration list for PBXNativeTarget "ShareJobExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				99544F3699C672ED01576228 /* Debug */,
+				CE1D52410D9A745D5C60FBF5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		05AE1B7AD7761967401ABC22 /* Build configuration list for PBXNativeTarget "PipelineWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				324A1D55F79D72A0FE996B5A /* Debug */,
+				926E2BF7E1868F369980AFF5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A24F5567D11D5E75B4334EB3 /* Build configuration list for PBXNativeTarget "JobApplicationWizardiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E1D1DA2D47E30DBDECB44CE8 /* Debug */,
+				19A74944DE274764D47AB360 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DF9DA82AC36EF8DDB5D0B535 /* Build configuration list for PBXProject "JobApplicationWizardiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				26A0193EF52EE1C69B9A9809 /* Debug */,
+				FD9273AE6A48601703F898A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		55FFBB4B6FD18E8CB0115717 /* XCLocalSwiftPackageReference ".." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0406B754E0617A30047D90BA /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ComposableArchitecture;
+		};
+		5B354F225361A426513DD6EC /* JobApplicationShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JobApplicationShared;
+		};
+		88369D1A9BDDAC806A0C91D3 /* JobApplicationShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JobApplicationShared;
+		};
+		91A8070D772701F9CB28D2ED /* JobApplicationShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JobApplicationShared;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 030615703B65C614C9E273EE /* Project object */;
+}

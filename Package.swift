@@ -4,6 +4,10 @@ import PackageDescription
 let package = Package(
     name: "JobApplicationWizard",
     platforms: [.macOS(.v14), .iOS(.v17)],
+    products: [
+        .library(name: "JobApplicationShared", targets: ["JobApplicationShared"]),
+        .library(name: "JobApplicationWizardCore", targets: ["JobApplicationWizardCore"]),
+    ],
     dependencies: [
         .package(
             url: "https://github.com/pointfreeco/swift-composable-architecture",
