@@ -103,12 +103,6 @@ final class ChangeEventCodableTests: XCTestCase {
         try roundTrip(.removeLabel(jobId: UUID(), labelId: UUID()))
     }
 
-    func testUpdateSettingsRoundTrip() throws {
-        var settings = AppSettings()
-        settings.autoProcessDocuments = true
-        try roundTrip(.updateSettings(settings))
-    }
-
     // MARK: - ChangeLog Round-Trip
 
     func testChangeLogRoundTrip() throws {

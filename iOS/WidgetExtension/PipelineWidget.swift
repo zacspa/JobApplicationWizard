@@ -27,9 +27,20 @@ struct PipelineProvider: TimelineProvider {
             forSecurityApplicationGroupIdentifier: "group.com.zsparks.JobApplicationWizard"
         )
         guard let url = containerURL?.appendingPathComponent("jobs.json"),
-              let data = try? Data(contentsOf: url),
-              let jobs = try? JSONDecoder().decode([JobApplication].self, from: data)
+              FileManager.default.fileExists(atPath: url.path)
         else {
+            return PipelineEntry(date: Date(), statusCounts: [:], nextInterview: nil, totalJobs: 0)
+        }
+
+        var coordinatorError: NSError?
+        var jobs: [JobApplication] = []
+        let coordinator = NSFileCoordinator()
+        coordinator.coordinate(readingItemAt: url, options: [], error: &coordinatorError) { coordURL in
+            if let data = try? Data(contentsOf: coordURL) {
+                jobs = (try? JSONDecoder().decode([JobApplication].self, from: data)) ?? []
+            }
+        }
+        guard coordinatorError == nil, !jobs.isEmpty || FileManager.default.fileExists(atPath: url.path) else {
             return PipelineEntry(date: Date(), statusCounts: [:], nextInterview: nil, totalJobs: 0)
         }
 

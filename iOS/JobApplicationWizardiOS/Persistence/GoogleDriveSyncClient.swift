@@ -42,8 +42,14 @@ enum GoogleDriveSync {
         return data
     }
 
+    private static let formURLAllowed: CharacterSet = {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "&=+")
+        return allowed
+    }()
+
     private static func urlEncode(_ string: String) -> String {
-        string.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? string
+        string.addingPercentEncoding(withAllowedCharacters: formURLAllowed) ?? string
     }
 
     // MARK: - OAuth Flow
@@ -285,70 +291,60 @@ enum GoogleDriveSync {
 
     // MARK: - Sync Operations
 
-    /// Push multiple change events by appending to a single changelog.ndjson file on Drive.
+    /// Push change events as a new immutable batch file on Drive.
     static func pushChangeEvents(_ events: [ChangeEvent]) async throws {
-        // Download existing changelog.ndjson (or start empty)
-        let existing = try await listFiles(query: "name = 'changelog.ndjson'")
-        var lines: [Data] = []
-        if let file = existing.first {
-            let data = try await downloadFile(fileId: file.id)
-            lines = data.split(separator: UInt8(ascii: "\n")).map { Data($0) }
-        }
-
-        // Append new events as NDJSON lines
+        guard !events.isEmpty else { return }
         let encoder = JSONEncoder()
-        for event in events {
-            lines.append(try encoder.encode(event))
-        }
-
-        // Upload the combined file
-        let combined = lines.map { String(data: $0, encoding: .utf8)! }.joined(separator: "\n")
-        let data = combined.data(using: .utf8)!
-
-        if let file = existing.first {
-            _ = try await uploadFile(name: "changelog.ndjson", data: data, existingFileId: file.id)
-        } else {
-            _ = try await uploadFile(name: "changelog.ndjson", data: data)
-        }
+        let lines = try events.map { try encoder.encode($0) }
+        let ndjson = lines.map { String(data: $0, encoding: .utf8)! }.joined(separator: "\n")
+        let data = ndjson.data(using: .utf8)!
+        let batchName = "batch-\(UUID().uuidString).ndjson"
+        _ = try await uploadFile(name: batchName, data: data)
     }
 
-    /// Push a single change event (convenience wrapper).
-    static func pushChangeEvent(_ event: ChangeEvent) async throws {
-        try await pushChangeEvents([event])
-    }
-
-    /// Pull change events since a given timestamp from the single changelog.ndjson file.
+    /// Pull change events from all batch files, optionally filtering by modification date.
     static func pullChangeEvents(since: Date?) async throws -> [ChangeEvent] {
-        let files = try await listFiles(query: "name = 'changelog.ndjson'")
-        guard let file = files.first else { return [] }
-        let data = try await downloadFile(fileId: file.id)
+        var files = try await listFiles(query: "name contains 'batch-'")
 
-        let decoder = JSONDecoder()
-        var events: [ChangeEvent] = []
-        for line in data.split(separator: UInt8(ascii: "\n")) {
-            if let event = try? decoder.decode(ChangeEvent.self, from: Data(line)) {
-                if let since, event.timestamp <= since { continue }
-                events.append(event)
+        if let since {
+            let formatter = ISO8601DateFormatter()
+            files = files.filter { file in
+                guard let modTime = file.modifiedTime,
+                      let date = formatter.date(from: modTime) else { return true }
+                return date > since
             }
         }
-        return events.sorted { $0.timestamp < $1.timestamp }
-    }
 
-    /// Push a full state snapshot, replacing any existing one.
-    static func pushStateSnapshot(_ data: Data) async throws {
-        let existing = try await listFiles(query: "name = 'state_snapshot.json'")
-        if let existingFile = existing.first {
-            _ = try await uploadFile(name: "state_snapshot.json", data: data, existingFileId: existingFile.id)
-        } else {
-            _ = try await uploadFile(name: "state_snapshot.json", data: data)
+        let decoder = JSONDecoder()
+        var allEvents: [ChangeEvent] = []
+        for file in files {
+            let data = try await downloadFile(fileId: file.id)
+            for line in data.split(separator: UInt8(ascii: "\n")) {
+                if let event = try? decoder.decode(ChangeEvent.self, from: Data(line)) {
+                    allEvents.append(event)
+                }
+            }
         }
+        return allEvents.sorted { $0.timestamp < $1.timestamp }
     }
 
-    /// Pull the latest state snapshot.
-    static func pullStateSnapshot() async throws -> Data? {
-        let files = try await listFiles(query: "name = 'state_snapshot.json'")
-        guard let file = files.first else { return nil }
-        return try await downloadFile(fileId: file.id)
+    /// Upload a compacted snapshot and clean up old batch and snapshot files.
+    static func compact(snapshotData: Data) async throws {
+        // Upload new snapshot
+        let existingSnapshots = try await listFiles(query: "name contains 'snapshot-'")
+        let snapshotName = "snapshot-\(ISO8601DateFormatter().string(from: Date())).json"
+        _ = try await uploadFile(name: snapshotName, data: snapshotData)
+
+        // Delete all batch files
+        let batches = try await listFiles(query: "name contains 'batch-'")
+        for batch in batches {
+            try? await deleteFile(fileId: batch.id)
+        }
+
+        // Delete old snapshots
+        for old in existingSnapshots {
+            try? await deleteFile(fileId: old.id)
+        }
     }
 
     // MARK: - Build SyncClient
@@ -358,10 +354,9 @@ enum GoogleDriveSync {
             authenticate: { try await authenticate() },
             isAuthenticated: { isAuthenticated },
             signOut: { deleteRefreshToken() },
-            pushEvent: { event in try await pushChangeEvents([event]) },
+            pushBatch: { events in try await pushChangeEvents(events) },
             pullEvents: { since in try await pullChangeEvents(since: since) },
-            pushSnapshot: { data in try await pushStateSnapshot(data) },
-            pullSnapshot: { try await pullStateSnapshot() }
+            compact: { data in try await compact(snapshotData: data) }
         )
     }
 }
@@ -411,16 +406,26 @@ private func generateCodeChallenge(from verifier: String) -> String {
 private actor TokenManager {
     var accessToken: String?
     var accessTokenExpiry: Date?
+    var refreshTask: Task<String, Error>?
 
-    func getValidToken(refreshing: () async throws -> Void) async throws -> String {
+    func getValidToken(refreshing: @Sendable @escaping () async throws -> Void) async throws -> String {
         if let token = accessToken, let expiry = accessTokenExpiry, expiry > Date() {
             return token
         }
-        try await refreshing()
-        guard let token = accessToken else {
-            throw SyncError.notAuthenticated
+        // Coalesce concurrent refresh requests
+        if let existing = refreshTask {
+            return try await existing.value
         }
-        return token
+        let task = Task<String, Error> {
+            try await refreshing()
+            guard let token = accessToken else {
+                throw SyncError.notAuthenticated
+            }
+            return token
+        }
+        refreshTask = task
+        defer { refreshTask = nil }
+        return try await task.value
     }
 
     func setToken(_ response: TokenResponse) {

@@ -46,8 +46,13 @@ struct iOSAppFeature {
         case syncSignOut
         case syncNow
         case syncCompleted(Result<[ChangeEvent], Error>)
-        case syncPushCompleted(Result<Void, Error>)
+        case syncFlushBatch
+        case syncFlushCompleted(Result<Void, Error>)
+        case scenePhaseChanged(ScenePhase)
+        case syncCompact
     }
+
+    private enum SyncDebounceId { case push }
 
     @Dependency(\.sharedPersistence) var persistence
     @Dependency(\.syncClient) var syncClient
@@ -188,14 +193,19 @@ struct iOSAppFeature {
                 state.syncError = nil
                 let unsyncedEvents = state.changeLog.unsyncedEvents
                 let lastSync = state.changeLog.lastSyncTimestamp
+                let eventCount = state.changeLog.events.count
                 return .run { send in
-                    // Push local events first
-                    for event in unsyncedEvents {
-                        try await syncClient.pushEvent(event)
+                    // Push all unsynced as ONE batch
+                    if !unsyncedEvents.isEmpty {
+                        try await syncClient.pushBatch(unsyncedEvents)
                     }
-                    // Then pull remote events
+                    // Pull remote events
                     let remoteEvents = try await syncClient.pullEvents(lastSync)
                     await send(.syncCompleted(.success(remoteEvents)))
+                    // Trigger compaction if large
+                    if eventCount > 200 {
+                        await send(.syncCompact)
+                    }
                 } catch: { error, send in
                     await send(.syncCompleted(.failure(error)))
                 }
@@ -207,9 +217,9 @@ struct iOSAppFeature {
                 state.lastSyncDate = now
                 state.changeLog.markSynced(through: now)
                 state.changeLog.pruneSynced()
-                // Apply remote events to local state
                 if !remoteEvents.isEmpty {
-                    ChangeLog.apply(events: remoteEvents, to: &state.jobs)
+                    let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+                    ChangeLog.apply(events: remoteEvents, to: &state.jobs, excludingDeviceId: deviceId)
                     return .merge(saveJobs(state.jobs), saveChangeLog(state.changeLog))
                 }
                 return saveChangeLog(state.changeLog)
@@ -219,12 +229,42 @@ struct iOSAppFeature {
                 state.syncError = error.localizedDescription
                 return .none
 
-            case .syncPushCompleted(.success):
+            case .syncFlushBatch:
+                let unsyncedEvents = state.changeLog.unsyncedEvents
+                guard !unsyncedEvents.isEmpty else { return .none }
+                return .run { send in
+                    do {
+                        try await syncClient.pushBatch(unsyncedEvents)
+                        await send(.syncFlushCompleted(.success(())))
+                    } catch {
+                        await send(.syncFlushCompleted(.failure(error)))
+                    }
+                }
+
+            case .syncFlushCompleted(.success):
                 return .none
 
-            case .syncPushCompleted(.failure(let error)):
+            case .syncFlushCompleted(.failure(let error)):
                 state.syncError = error.localizedDescription
                 return .none
+
+            case .scenePhaseChanged(let phase):
+                if phase == .background && state.isSyncEnabled {
+                    return .concatenate(
+                        .cancel(id: SyncDebounceId.push),
+                        .send(.syncFlushBatch)
+                    )
+                }
+                return .none
+
+            case .syncCompact:
+                let jobs = Array(state.jobs)
+                let settings = state.settings
+                return .run { _ in
+                    let export = AppDataExport(jobs: jobs, settings: settings)
+                    let data = try JSONEncoder().encode(export)
+                    try await syncClient.compact(data)
+                }
             }
         }
     }
@@ -241,7 +281,7 @@ struct iOSAppFeature {
         }
     }
 
-    /// Record a change event and push if sync is enabled.
+    /// Record a change event and debounce-push if sync is enabled.
     private func recordAndSync(
         _ action: ChangeAction,
         state: inout State
@@ -251,15 +291,16 @@ struct iOSAppFeature {
         let event = ChangeEvent(deviceId: deviceId, action: action)
         state.changeLog.append(event)
         let changeLog = state.changeLog
-        return .run { [event] send in
-            try? changeLog.save(to: SharedPersistenceClient.changeLogURL)
-            do {
-                try await syncClient.pushEvent(event)
-                await send(.syncPushCompleted(.success(())))
-            } catch {
-                await send(.syncPushCompleted(.failure(error)))
+        return .merge(
+            .run { _ in
+                try? changeLog.save(to: SharedPersistenceClient.changeLogURL)
+            },
+            .run { send in
+                try await Task.sleep(for: .seconds(2))
+                await send(.syncFlushBatch)
             }
-        }
+            .cancellable(id: SyncDebounceId.push, cancelInFlight: true)
+        )
     }
 }
 

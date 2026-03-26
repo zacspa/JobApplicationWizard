@@ -46,7 +46,6 @@ public enum ChangeAction: Codable, Equatable {
     case deleteTask(jobId: UUID, taskId: UUID)
     case addLabel(jobId: UUID, label: JobLabel)
     case removeLabel(jobId: UUID, labelId: UUID)
-    case updateSettings(AppSettings)
 }
 
 // MARK: - Job Field
@@ -152,8 +151,6 @@ public struct ChangeLog: Codable, Equatable {
                 jobs[id: jobId]?.labels.append(label)
             case .removeLabel(let jobId, let labelId):
                 jobs[id: jobId]?.labels.removeAll { $0.id == labelId }
-            case .updateSettings:
-                break // Settings applied separately
             }
         }
     }

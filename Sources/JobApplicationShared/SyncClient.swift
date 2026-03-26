@@ -9,39 +9,34 @@ public struct SyncClient {
     public var authenticate: @Sendable () async throws -> Void
 
     /// Check if user is currently authenticated.
-    public var isAuthenticated: @Sendable () -> Bool
+    public var isAuthenticated: @Sendable () async -> Bool
 
     /// Sign out and clear stored credentials.
     public var signOut: @Sendable () -> Void
 
-    /// Push a single change event to the remote changelog.
-    public var pushEvent: @Sendable (ChangeEvent) async throws -> Void
+    /// Push a batch of change events to the remote store.
+    public var pushBatch: @Sendable ([ChangeEvent]) async throws -> Void
 
     /// Pull all change events since a given timestamp (nil = all events).
     public var pullEvents: @Sendable (Date?) async throws -> [ChangeEvent]
 
-    /// Push a full state snapshot for periodic compaction.
-    public var pushSnapshot: @Sendable (Data) async throws -> Void
-
-    /// Pull the latest full state snapshot.
-    public var pullSnapshot: @Sendable () async throws -> Data?
+    /// Upload a compacted snapshot and delete old batch files.
+    public var compact: @Sendable (Data) async throws -> Void
 
     public init(
         authenticate: @escaping @Sendable () async throws -> Void,
-        isAuthenticated: @escaping @Sendable () -> Bool,
+        isAuthenticated: @escaping @Sendable () async -> Bool,
         signOut: @escaping @Sendable () -> Void,
-        pushEvent: @escaping @Sendable (ChangeEvent) async throws -> Void,
+        pushBatch: @escaping @Sendable ([ChangeEvent]) async throws -> Void,
         pullEvents: @escaping @Sendable (Date?) async throws -> [ChangeEvent],
-        pushSnapshot: @escaping @Sendable (Data) async throws -> Void,
-        pullSnapshot: @escaping @Sendable () async throws -> Data?
+        compact: @escaping @Sendable (Data) async throws -> Void
     ) {
         self.authenticate = authenticate
         self.isAuthenticated = isAuthenticated
         self.signOut = signOut
-        self.pushEvent = pushEvent
+        self.pushBatch = pushBatch
         self.pullEvents = pullEvents
-        self.pushSnapshot = pushSnapshot
-        self.pullSnapshot = pullSnapshot
+        self.compact = compact
     }
 }
 
@@ -53,20 +48,18 @@ extension SyncClient: DependencyKey {
         authenticate: { },
         isAuthenticated: { false },
         signOut: { },
-        pushEvent: { _ in },
+        pushBatch: { _ in },
         pullEvents: { _ in [] },
-        pushSnapshot: { _ in },
-        pullSnapshot: { nil }
+        compact: { _ in }
     )
 
     public static let testValue = SyncClient(
         authenticate: { },
         isAuthenticated: { false },
         signOut: { },
-        pushEvent: { _ in },
+        pushBatch: { _ in },
         pullEvents: { _ in [] },
-        pushSnapshot: { _ in },
-        pullSnapshot: { nil }
+        compact: { _ in }
     )
 }
 

@@ -9,9 +9,20 @@ extension SharedPersistenceClient: @retroactive DependencyKey {
         loadJobs: {
             let url = Self.jobsURL
             guard FileManager.default.fileExists(atPath: url.path) else { return [] }
-            let data = try Data(contentsOf: url)
-            let jobs = try JSONDecoder().decode([JobApplication].self, from: data)
-            return jobs
+            var coordinatorError: NSError?
+            var result: [JobApplication] = []
+            var loadError: Error?
+            let coordinator = NSFileCoordinator()
+            coordinator.coordinate(readingItemAt: url, options: [], error: &coordinatorError) { coordURL in
+                do {
+                    let data = try Data(contentsOf: coordURL)
+                    result = try JSONDecoder().decode([JobApplication].self, from: data)
+                } catch {
+                    loadError = error
+                }
+            }
+            if let err = coordinatorError ?? loadError { throw err }
+            return result
         },
         saveJobs: { jobs in
             let url = Self.jobsURL
@@ -20,13 +31,35 @@ extension SharedPersistenceClient: @retroactive DependencyKey {
                 withIntermediateDirectories: true
             )
             let data = try JSONEncoder().encode(jobs)
-            try data.write(to: url, options: .atomic)
+            var coordinatorError: NSError?
+            var saveError: Error?
+            let coordinator = NSFileCoordinator()
+            coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordinatorError) { coordURL in
+                do {
+                    try data.write(to: coordURL, options: .atomic)
+                } catch {
+                    saveError = error
+                }
+            }
+            if let err = coordinatorError ?? saveError { throw err }
         },
         loadSettings: {
             let url = Self.settingsURL
             guard FileManager.default.fileExists(atPath: url.path) else { return AppSettings() }
-            let data = try Data(contentsOf: url)
-            return try JSONDecoder().decode(AppSettings.self, from: data)
+            var coordinatorError: NSError?
+            var result = AppSettings()
+            var loadError: Error?
+            let coordinator = NSFileCoordinator()
+            coordinator.coordinate(readingItemAt: url, options: [], error: &coordinatorError) { coordURL in
+                do {
+                    let data = try Data(contentsOf: coordURL)
+                    result = try JSONDecoder().decode(AppSettings.self, from: data)
+                } catch {
+                    loadError = error
+                }
+            }
+            if let err = coordinatorError ?? loadError { throw err }
+            return result
         },
         saveSettings: { settings in
             let url = Self.settingsURL
@@ -35,7 +68,17 @@ extension SharedPersistenceClient: @retroactive DependencyKey {
                 withIntermediateDirectories: true
             )
             let data = try JSONEncoder().encode(settings)
-            try data.write(to: url, options: .atomic)
+            var coordinatorError: NSError?
+            var saveError: Error?
+            let coordinator = NSFileCoordinator()
+            coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordinatorError) { coordURL in
+                do {
+                    try data.write(to: coordURL, options: .atomic)
+                } catch {
+                    saveError = error
+                }
+            }
+            if let err = coordinatorError ?? saveError { throw err }
         },
         exportAllData: { jobs, settings in
             let export = AppDataExport(

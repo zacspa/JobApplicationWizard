@@ -208,22 +208,6 @@ final class ChangeLogTests: XCTestCase {
         }
     }
 
-    // MARK: - apply(): Settings
-
-    func testApplyUpdateSettingsIsNoOpOnJobs() {
-        let job = JobApplication.mock()
-        var jobs: IdentifiedArrayOf<JobApplication> = [job]
-        var settings = AppSettings()
-        settings.autoProcessDocuments = true
-
-        let event = ChangeEvent(deviceId: deviceId, action: .updateSettings(settings))
-        ChangeLog.apply(events: [event], to: &jobs)
-
-        // Settings events are skipped during job apply; they're handled separately
-        XCTAssertEqual(jobs.count, 1)
-        XCTAssertEqual(jobs[id: job.id]?.company, "Acme Corp")
-    }
-
     // MARK: - apply(): Labels
 
     func testApplyAddAndRemoveLabel() {

@@ -3,6 +3,7 @@ import ComposableArchitecture
 
 @main
 struct JobApplicationWizardiOSApp: App {
+    @Environment(\.scenePhase) var scenePhase
     @State var store = Store(initialState: iOSAppFeature.State()) {
         iOSAppFeature()
     } withDependencies: {
@@ -12,6 +13,9 @@ struct JobApplicationWizardiOSApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(store: store)
+                .onChange(of: scenePhase) { _, newPhase in
+                    store.send(.scenePhaseChanged(newPhase))
+                }
         }
     }
 }
