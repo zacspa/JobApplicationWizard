@@ -8,9 +8,14 @@ extension SharedPersistenceClient: @retroactive DependencyKey {
     public static let liveValue = SharedPersistenceClient(
         loadJobs: {
             let url = Self.jobsURL
+            print("[Persistence] Loading jobs from: \(url.path)")
+            print("[Persistence] File exists: \(FileManager.default.fileExists(atPath: url.path))")
             guard FileManager.default.fileExists(atPath: url.path) else { return [] }
             let data = try Data(contentsOf: url)
-            return try JSONDecoder().decode([JobApplication].self, from: data)
+            print("[Persistence] Data size: \(data.count) bytes")
+            let jobs = try JSONDecoder().decode([JobApplication].self, from: data)
+            print("[Persistence] Loaded \(jobs.count) jobs")
+            return jobs
         },
         saveJobs: { jobs in
             let url = Self.jobsURL

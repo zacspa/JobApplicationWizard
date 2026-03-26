@@ -10,3 +10,4 @@ JobApplicationWizard.app
 JobApplicationWizard.dmg
 .env.local
 .claude/worktrees/
+iOS/build/
