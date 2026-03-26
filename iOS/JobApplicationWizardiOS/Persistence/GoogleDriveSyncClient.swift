@@ -12,8 +12,8 @@ enum GoogleDriveSync {
     // MARK: - Configuration
 
     // TODO: Replace with your OAuth client ID from Google Cloud Console
-    static let clientID = "YOUR_CLIENT_ID.apps.googleusercontent.com"
-    static let redirectURI = "com.zsparks.JobApplicationWizardiOS:/oauth2callback"
+    static let clientID = "REDACTED_OAUTH_CLIENT_ID.apps.googleusercontent.com"
+    static let redirectURI = "com.googleusercontent.apps.REDACTED_OAUTH_CLIENT_ID:/oauth2callback"
     static let scope = "https://www.googleapis.com/auth/drive.appdata"
     static let tokenURL = "https://oauth2.googleapis.com/token"
     static let driveFilesURL = "https://www.googleapis.com/drive/v3/files"
@@ -50,7 +50,7 @@ enum GoogleDriveSync {
         ]
 
         let authURL = components.url!
-        let callbackScheme = "com.zsparks.jobapplicationwizardios"
+        let callbackScheme = "com.googleusercontent.apps.REDACTED_OAUTH_CLIENT_ID"
 
         let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
             let session = ASWebAuthenticationSession(

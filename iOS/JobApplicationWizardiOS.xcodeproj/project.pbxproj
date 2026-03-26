@@ -45,6 +45,7 @@
 		B0CA605FCDF9768419421E4D /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		B70751115E96EB7D1EB66CE6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		CABBC8091F423A63D9F1580B /* JobRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRow.swift; sourceTree = "<group>"; };
+		CB907FFEBCFECDA93B260257 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D2968A4A7A4B89E5A12A80E2 /* JobDetailViewiOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobDetailViewiOS.swift; sourceTree = "<group>"; };
 		D8D9E815572110EFF39C7E7C /* PipelineWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PipelineWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DAF28377127E830EAF57E832 /* iOSPersistenceClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSPersistenceClient.swift; sourceTree = "<group>"; };
@@ -112,6 +113,7 @@
 			isa = PBXGroup;
 			children = (
 				217764F480A06FBCBA5E2407 /* App.swift */,
+				CB907FFEBCFECDA93B260257 /* Info.plist */,
 				B58EA318D72D6DE1171494C8 /* Features */,
 				BA794F491DA6E011CF661FBB /* Persistence */,
 				91834674DEC252D9E5047489 /* Resources */,
@@ -320,6 +322,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = JobApplicationWizardiOS/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -485,6 +488,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = JobApplicationWizardiOS/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

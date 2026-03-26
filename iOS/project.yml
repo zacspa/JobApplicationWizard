@@ -28,6 +28,12 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         SWIFT_VERSION: "5.9"
         CODE_SIGN_ENTITLEMENTS: JobApplicationWizardiOS/Resources/App.entitlements
+    info:
+      path: JobApplicationWizardiOS/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - com.googleusercontent.apps.REDACTED_OAUTH_CLIENT_ID
     dependencies:
       - package: JobApplicationWizard
         product: JobApplicationShared
