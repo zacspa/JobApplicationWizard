@@ -32,9 +32,7 @@ struct PipelineView: View {
                 }
             }
             .navigationDestination(for: UUID.self) { jobId in
-                if let job = store.jobs[id: jobId] {
-                    JobDetailViewiOS(store: store, job: job)
-                }
+                JobDetailViewiOS(store: store, jobId: jobId)
             }
         }
     }

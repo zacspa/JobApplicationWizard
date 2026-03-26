@@ -181,6 +181,22 @@ struct PipelineWidgetMediumView: View {
     }
 }
 
+// MARK: - Entry View
+
+struct PipelineWidgetEntryView: View {
+    @Environment(\.widgetFamily) var family
+    let entry: PipelineEntry
+
+    var body: some View {
+        switch family {
+        case .systemMedium:
+            PipelineWidgetMediumView(entry: entry)
+        default:
+            PipelineWidgetSmallView(entry: entry)
+        }
+    }
+}
+
 // MARK: - Widget Definition
 
 struct PipelineWidget: Widget {
@@ -188,10 +204,7 @@ struct PipelineWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: PipelineProvider()) { entry in
-            switch WidgetFamily.self {
-            default:
-                PipelineWidgetSmallView(entry: entry)
-            }
+            PipelineWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Job Pipeline")
         .description("Track your active job applications and upcoming interviews.")

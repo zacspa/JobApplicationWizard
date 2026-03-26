@@ -275,8 +275,10 @@ private func scheduleNotifications(
     let granted = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
     guard granted == true else { return }
 
-    // Remove old scheduled notifications
-    center.removeAllPendingNotificationRequests()
+    // Remove only interview notifications (prefixed with "interview-")
+    let pending = await center.pendingNotificationRequests()
+    let interviewIds = pending.filter { $0.identifier.hasPrefix("interview-") }.map(\.identifier)
+    center.removePendingNotificationRequests(withIdentifiers: interviewIds)
 
     let now = Date()
     for (job, interview) in interviews {

@@ -4,7 +4,11 @@ import JobApplicationShared
 
 struct JobDetailViewiOS: View {
     let store: StoreOf<iOSAppFeature>
-    let job: JobApplication
+    let jobId: UUID
+
+    private var job: JobApplication? {
+        store.jobs[id: jobId]
+    }
 
     @State private var showStatusPicker = false
     @State private var showAddNote = false
@@ -12,6 +16,7 @@ struct JobDetailViewiOS: View {
     @State private var newNoteBody = ""
 
     var body: some View {
+        if let job {
         List {
             headerSection
             infoSection
@@ -53,6 +58,9 @@ struct JobDetailViewiOS: View {
         }
         .sheet(isPresented: $showAddNote) {
             addNoteSheet
+        }
+        } else {
+            ContentUnavailableView("Job Not Found", systemImage: "questionmark.circle")
         }
     }
 

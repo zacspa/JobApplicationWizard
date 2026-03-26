@@ -122,17 +122,22 @@ class ShareViewController: UIViewController {
         }
 
         let jobsURL = dirURL.appendingPathComponent("jobs.json")
-        var jobs: [JobApplication] = []
+        let coordinator = NSFileCoordinator()
+        var error: NSError?
 
-        if let data = try? Data(contentsOf: jobsURL) {
-            jobs = (try? JSONDecoder().decode([JobApplication].self, from: data)) ?? []
-        }
-
-        jobs.append(job)
-
-        if let data = try? JSONEncoder().encode(jobs) {
-            try? FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
-            try? data.write(to: jobsURL, options: .atomic)
+        coordinator.coordinate(writingItemAt: jobsURL, options: .forMerging, error: &error) { url in
+            var jobs: [JobApplication] = []
+            if let data = try? Data(contentsOf: url) {
+                jobs = (try? JSONDecoder().decode([JobApplication].self, from: data)) ?? []
+            }
+            jobs.append(job)
+            if let data = try? JSONEncoder().encode(jobs) {
+                try? FileManager.default.createDirectory(
+                    at: dirURL,
+                    withIntermediateDirectories: true
+                )
+                try? data.write(to: url, options: .atomic)
+            }
         }
 
         extensionContext?.completeRequest(returningItems: nil)
