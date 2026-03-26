@@ -5,6 +5,8 @@ import ComposableArchitecture
 struct JobApplicationWizardiOSApp: App {
     @State var store = Store(initialState: iOSAppFeature.State()) {
         iOSAppFeature()
+    } withDependencies: {
+        $0.syncClient = GoogleDriveSync.makeSyncClient()
     }
 
     var body: some Scene {

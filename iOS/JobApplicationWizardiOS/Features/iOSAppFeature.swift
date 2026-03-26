@@ -15,6 +15,11 @@ struct iOSAppFeature {
         var path = NavigationPath()
         var isLoading = true
         var importError: String? = nil
+        var isSyncEnabled = false
+        var isSyncing = false
+        var lastSyncDate: Date? = nil
+        var syncError: String? = nil
+        var changeLog = ChangeLog()
     }
 
     enum Action: BindableAction {
@@ -35,9 +40,16 @@ struct iOSAppFeature {
         case importCompleted(Result<AppDataExport, Error>)
         case exportRequested
         case dismissImportError
+        // Sync
+        case syncSignIn
+        case syncSignOut
+        case syncNow
+        case syncCompleted(Result<[ChangeEvent], Error>)
+        case syncPushCompleted(Result<Void, Error>)
     }
 
     @Dependency(\.sharedPersistence) var persistence
+    @Dependency(\.syncClient) var syncClient
 
     var body: some ReducerOf<Self> {
         BindingReducer()
@@ -77,23 +89,29 @@ struct iOSAppFeature {
 
             case .moveJob(let id, let newStatus):
                 state.jobs[id: id]?.status = newStatus
-                return saveJobs(state.jobs)
+                let syncEffect = recordAndSync(.updateJobStatus(jobId: id, newStatus: newStatus), state: &state)
+                return .merge(saveJobs(state.jobs), syncEffect)
 
             case .toggleFavorite(let id):
                 state.jobs[id: id]?.isFavorite.toggle()
-                return saveJobs(state.jobs)
+                let isFav = state.jobs[id: id]?.isFavorite ?? false
+                let syncEffect = recordAndSync(.toggleFavorite(jobId: id, isFavorite: isFav), state: &state)
+                return .merge(saveJobs(state.jobs), syncEffect)
 
             case .addJob(let job):
                 state.jobs.append(job)
-                return saveJobs(state.jobs)
+                let syncEffect = recordAndSync(.addJob(job), state: &state)
+                return .merge(saveJobs(state.jobs), syncEffect)
 
             case .addNote(let jobId, let note):
                 state.jobs[id: jobId]?.noteCards.append(note)
-                return saveJobs(state.jobs)
+                let syncEffect = recordAndSync(.addNote(jobId: jobId, note: note), state: &state)
+                return .merge(saveJobs(state.jobs), syncEffect)
 
             case .deleteJob(let id):
                 state.jobs.remove(id: id)
-                return saveJobs(state.jobs)
+                let syncEffect = recordAndSync(.deleteJob(jobId: id), state: &state)
+                return .merge(saveJobs(state.jobs), syncEffect)
 
             case .searchQueryChanged(let query):
                 state.searchQuery = query
@@ -138,6 +156,66 @@ struct iOSAppFeature {
             case .dismissImportError:
                 state.importError = nil
                 return .none
+
+            // MARK: - Sync Actions
+
+            case .syncSignIn:
+                return .run { send in
+                    do {
+                        try await syncClient.authenticate()
+                        await send(.syncNow)
+                    } catch {
+                        await send(.syncCompleted(.failure(error)))
+                    }
+                }
+
+            case .syncSignOut:
+                syncClient.signOut()
+                state.isSyncEnabled = false
+                state.lastSyncDate = nil
+                return .none
+
+            case .syncNow:
+                state.isSyncing = true
+                state.syncError = nil
+                let unsyncedEvents = state.changeLog.unsyncedEvents
+                let lastSync = state.changeLog.lastSyncTimestamp
+                return .run { send in
+                    // Push local events first
+                    for event in unsyncedEvents {
+                        try await syncClient.pushEvent(event)
+                    }
+                    // Then pull remote events
+                    let remoteEvents = try await syncClient.pullEvents(lastSync)
+                    await send(.syncCompleted(.success(remoteEvents)))
+                } catch: { error, send in
+                    await send(.syncCompleted(.failure(error)))
+                }
+
+            case .syncCompleted(.success(let remoteEvents)):
+                state.isSyncing = false
+                state.isSyncEnabled = true
+                let now = Date()
+                state.lastSyncDate = now
+                state.changeLog.markSynced(through: now)
+                // Apply remote events to local state
+                if !remoteEvents.isEmpty {
+                    ChangeLog.apply(events: remoteEvents, to: &state.jobs)
+                    return saveJobs(state.jobs)
+                }
+                return .none
+
+            case .syncCompleted(.failure(let error)):
+                state.isSyncing = false
+                state.syncError = error.localizedDescription
+                return .none
+
+            case .syncPushCompleted(.success):
+                return .none
+
+            case .syncPushCompleted(.failure(let error)):
+                state.syncError = error.localizedDescription
+                return .none
             }
         }
     }
@@ -145,6 +223,25 @@ struct iOSAppFeature {
     private func saveJobs(_ jobs: IdentifiedArrayOf<JobApplication>) -> Effect<Action> {
         .run { _ in
             try await persistence.saveJobs(Array(jobs))
+        }
+    }
+
+    /// Record a change event and push if sync is enabled.
+    private func recordAndSync(
+        _ action: ChangeAction,
+        state: inout State
+    ) -> Effect<Action> {
+        guard state.isSyncEnabled else { return .none }
+        let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+        let event = ChangeEvent(deviceId: deviceId, action: action)
+        state.changeLog.append(event)
+        return .run { [event] send in
+            do {
+                try await syncClient.pushEvent(event)
+                await send(.syncPushCompleted(.success(())))
+            } catch {
+                await send(.syncPushCompleted(.failure(error)))
+            }
         }
     }
 }

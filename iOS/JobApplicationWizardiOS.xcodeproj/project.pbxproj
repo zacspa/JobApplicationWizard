@@ -16,6 +16,7 @@
 		47A4DAAEDC500D812E781AE3 /* JobApplicationShared in Frameworks */ = {isa = PBXBuildFile; productRef = 5B354F225361A426513DD6EC /* JobApplicationShared */; };
 		5EA8BE348831E7778DE5DD9F /* PipelineWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38F5AF6CE06D486C43B5AB9E /* PipelineWidget.swift */; };
 		7C94BB6201B00B77323681AA /* JobApplicationShared in Frameworks */ = {isa = PBXBuildFile; productRef = 88369D1A9BDDAC806A0C91D3 /* JobApplicationShared */; };
+		95AD152FD1AFE3F50D15D8EB /* GoogleDriveSyncClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF039786143739D0085E42F /* GoogleDriveSyncClient.swift */; };
 		B86248B25F6BD04111520CA5 /* iOSAppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE3C4B50E655B28989470A5 /* iOSAppFeature.swift */; };
 		BF88746B326E3BD29A36B6E1 /* JobDetailViewiOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2968A4A7A4B89E5A12A80E2 /* JobDetailViewiOS.swift */; };
 		D209FACE74894B6A349972A5 /* PipelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59ABE44C7342A51CC9514412 /* PipelineView.swift */; };
@@ -32,6 +33,7 @@
 		2EE3C4B50E655B28989470A5 /* iOSAppFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSAppFeature.swift; sourceTree = "<group>"; };
 		38F5AF6CE06D486C43B5AB9E /* PipelineWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineWidget.swift; sourceTree = "<group>"; };
 		3ABDC6654DEBA76444BF114E /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
+		4CF039786143739D0085E42F /* GoogleDriveSyncClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveSyncClient.swift; sourceTree = "<group>"; };
 		554518668E49B6B3B23F177B /* SettingsViewiOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewiOS.swift; sourceTree = "<group>"; };
 		59ABE44C7342A51CC9514412 /* PipelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineView.swift; sourceTree = "<group>"; };
 		7F0D79B8CCE69BBDA4FD2F7D /* JobApplicationWizardiOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JobApplicationWizardiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -151,6 +153,7 @@
 		BA794F491DA6E011CF661FBB /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
+				4CF039786143739D0085E42F /* GoogleDriveSyncClient.swift */,
 				DAF28377127E830EAF57E832 /* iOSPersistenceClient.swift */,
 			);
 			path = Persistence;
@@ -295,6 +298,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F34C2015EE703D9B9CD38686 /* App.swift in Sources */,
+				95AD152FD1AFE3F50D15D8EB /* GoogleDriveSyncClient.swift in Sources */,
 				BF88746B326E3BD29A36B6E1 /* JobDetailViewiOS.swift in Sources */,
 				E8112B9E4882D6BDB8C74B6C /* JobRow.swift in Sources */,
 				D209FACE74894B6A349972A5 /* PipelineView.swift in Sources */,

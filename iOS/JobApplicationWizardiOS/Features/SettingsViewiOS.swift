@@ -12,6 +12,7 @@ struct SettingsViewiOS: View {
         NavigationStack {
             List {
                 profileSection
+                syncSection
                 statsSection
                 dataSection
             }
@@ -75,6 +76,54 @@ struct SettingsViewiOS: View {
 
             let interviews = store.jobs.flatMap(\.interviews).filter { !$0.completed }.count
             LabeledContent("Pending Interviews", value: "\(interviews)")
+        }
+    }
+
+    private var syncSection: some View {
+        Section("Google Drive Sync") {
+            if store.isSyncEnabled {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Connected")
+                    Spacer()
+                    if store.isSyncing {
+                        ProgressView()
+                    }
+                }
+
+                if let lastSync = store.lastSyncDate {
+                    LabeledContent("Last Synced") {
+                        Text(lastSync, style: .relative)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Button {
+                    store.send(.syncNow)
+                } label: {
+                    Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(store.isSyncing)
+
+                Button(role: .destructive) {
+                    store.send(.syncSignOut)
+                } label: {
+                    Label("Disconnect", systemImage: "xmark.circle")
+                }
+            } else {
+                Button {
+                    store.send(.syncSignIn)
+                } label: {
+                    Label("Sign in with Google", systemImage: "globe")
+                }
+            }
+
+            if let error = store.syncError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
         }
     }
 
