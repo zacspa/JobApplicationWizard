@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Job Application Wizard</title>
+    <link rel="stylesheet" href="blogs/blog.css">
+</head>
+<body>
+    <a class="back-link" href="https://github.com/zacspa/JobApplicationWizard">&larr; Back to GitHub</a>
+
+    <h1>Privacy Policy</h1>
+    <p class="post-meta">Last updated: March 26, 2026</p>
+
+    <h2>Overview</h2>
+    <p>
+        Job Application Wizard is an open-source macOS and iOS application that helps you
+        track job applications. Your privacy is important to us; this policy explains what
+        data the app accesses, how it is used, and your choices.
+    </p>
+
+    <h2>Data We Collect</h2>
+    <p>
+        <strong>Job Application Wizard does not collect, transmit, or store any personal data
+        on our servers.</strong> All application data (job listings, notes, contacts, interview
+        details, and tasks) is stored locally on your device.
+    </p>
+
+    <h2>Google Drive Sync (Optional)</h2>
+    <p>
+        If you choose to enable Google Drive sync, the app requests access to the
+        <code>drive.appdata</code> scope, which is limited to a private, app-specific
+        folder in your Google Drive. This folder is not visible in your normal Drive
+        file listing.
+    </p>
+    <p>The app syncs the following structured data to your Google Drive app folder:</p>
+    <ul>
+        <li>Job application metadata: company name, job title, URL, salary, location, status, and excitement rating</li>
+        <li>Contact metadata: name, email, phone</li>
+        <li>Interview round metadata: dates, format, interviewer names</li>
+        <li>Sub-task titles and completion status</li>
+        <li>Custom label names and colors</li>
+        <li>App preferences and settings</li>
+    </ul>
+    <p>The following data is <strong>not</strong> synced and remains only on your device:</p>
+    <ul>
+        <li>AI chat history</li>
+        <li>Full-text job descriptions</li>
+        <li>Full-text cover letters</li>
+        <li>Document raw text and bulk note content</li>
+    </ul>
+    <p>
+        Sync data is stored as JSON files in your Google Drive app-data folder using an
+        append-only event log. You can revoke access at any time through your
+        <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.
+    </p>
+
+    <h2>Authentication</h2>
+    <p>
+        Google sign-in uses OAuth 2.0 with PKCE (Proof Key for Code Exchange).
+        Refresh tokens are stored securely in the iOS Keychain or macOS Keychain.
+        We never see or store your Google password.
+    </p>
+
+    <h2>Third-Party Services</h2>
+    <p>
+        Other than the optional Google Drive integration, Job Application Wizard does not
+        communicate with any third-party services, analytics platforms, or advertising
+        networks.
+    </p>
+
+    <h2>AI Features</h2>
+    <p>
+        The app supports optional AI-assisted features. Any AI provider configuration
+        (API keys, endpoints) is stored locally on your device. Conversations with AI
+        providers are sent directly from your device to the provider you configure;
+        no data passes through our infrastructure.
+    </p>
+
+    <h2>Children's Privacy</h2>
+    <p>
+        Job Application Wizard is not directed at children under 13 and does not knowingly
+        collect data from children.
+    </p>
+
+    <h2>Changes to This Policy</h2>
+    <p>
+        We may update this policy from time to time. Changes will be posted on this page
+        with an updated revision date. Because the app is open source, you can also review
+        changes via the
+        <a href="https://github.com/zacspa/JobApplicationWizard">GitHub repository</a>.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+        If you have questions about this policy, please open an issue on the
+        <a href="https://github.com/zacspa/JobApplicationWizard/issues">GitHub repository</a>.
+    </p>
+</body>
+</html>
