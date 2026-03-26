@@ -7,6 +7,9 @@ public struct IridescentSheenModifier: ViewModifier {
     @State private var phase: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
 
+    /// Cycle duration in seconds; all sheens share the same clock.
+    private static let cycleDuration: Double = 4.0
+
     public init(isActive: Bool = true, cornerRadius: CGFloat = DS.Radius.medium) {
         self.isActive = isActive
         self.cornerRadius = cornerRadius
@@ -36,6 +39,29 @@ public struct IridescentSheenModifier: ViewModifier {
         }
     }
 
+    /// Compute starting phase from absolute time so new instances sync with existing ones.
+    private static func currentPhase() -> CGFloat {
+        let t = Date().timeIntervalSinceReferenceDate
+        return CGFloat(t.truncatingRemainder(dividingBy: cycleDuration) / cycleDuration)
+    }
+
+    /// Start the repeating animation from the current absolute-time phase.
+    private func startAnimation() {
+        let startPhase = Self.currentPhase()
+        phase = startPhase
+        // Animate to end of this cycle, then repeat full cycles
+        withAnimation(.linear(duration: Self.cycleDuration * Double(1 - startPhase))) {
+            phase = 1
+        }
+        // Schedule the repeating loop after the first partial cycle completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.cycleDuration * Double(1 - startPhase)) {
+            phase = 0
+            withAnimation(.linear(duration: Self.cycleDuration).repeatForever(autoreverses: false)) {
+                phase = 1
+            }
+        }
+    }
+
     public func body(content: Content) -> some View {
         content.overlay {
             if isActive {
@@ -61,24 +87,13 @@ public struct IridescentSheenModifier: ViewModifier {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 .allowsHitTesting(false)
-                .onAppear {
-                    phase = 0
-                    withAnimation(
-                        .linear(duration: 4.0)
-                        .repeatForever(autoreverses: false)
-                    ) {
-                        phase = 1
-                    }
-                }
+                .onAppear { startAnimation() }
                 .onDisappear { phase = 0 }
             }
         }
         .onChange(of: isActive) { _, active in
             if active {
-                phase = 0
-                withAnimation(.linear(duration: 4.0).repeatForever(autoreverses: false)) {
-                    phase = 1
-                }
+                startAnimation()
             } else {
                 withAnimation(.linear(duration: 0.3)) { phase = 0 }
             }

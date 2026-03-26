@@ -10,6 +10,8 @@ extension DS {
     public enum Shadow {
         /// Subtle card shadow (job cards)
         public static let card = ShadowStyle(color: SwiftUI.Color.black.opacity(0.12), radius: 3, y: 1)
+        /// Elevated sticky card shadow (Cuttle-docked card clamped to scroll edge)
+        public static let sticky = ShadowStyle(color: SwiftUI.Color.black.opacity(0.2), radius: 6, y: 2)
         /// Floating panel shadow (Cuttle expanded, popovers)
         public static let floating = ShadowStyle(color: SwiftUI.Color.black.opacity(0.3), radius: 12, y: 4)
         /// No shadow

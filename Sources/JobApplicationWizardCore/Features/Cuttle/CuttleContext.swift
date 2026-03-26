@@ -109,13 +109,14 @@ public extension EnvironmentValues {
 public extension View {
     /// Makes this view a Cuttle drop target. Registers geometry as a DropZone
     /// and shows a glow overlay when Cuttle is hovering over it.
-    func cuttleDockable(context: CuttleContext) -> some View {
-        modifier(CuttleDockableModifier(context: context))
+    func cuttleDockable(context: CuttleContext, isActive: Bool = true) -> some View {
+        modifier(CuttleDockableModifier(context: context, isActive: isActive))
     }
 }
 
 struct CuttleDockableModifier: ViewModifier {
     let context: CuttleContext
+    let isActive: Bool
     @Environment(\.cuttlePendingContext) private var pendingContext
     @Environment(\.cuttleCurrentContext) private var currentContext
     @State private var isCuttleDocked = false
@@ -136,17 +137,22 @@ struct CuttleDockableModifier: ViewModifier {
                     Color.clear
                         .preference(
                             key: DropZonePreferenceKey.self,
-                            value: [DropZone(id: dropZoneId, frame: frame, context: context)]
+                            value: isActive
+                                ? [DropZone(id: dropZoneId, frame: frame, context: context)]
+                                : []
                         )
                 }
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(Color.accentColor, lineWidth: 2)
-                    .opacity(pendingContext == context ? 0.6 : 0)
+                    .opacity(isActive && pendingContext == context ? 0.6 : 0)
                     .animation(.easeInOut(duration: 0.2), value: pendingContext)
             )
-            .iridescentSheen(isActive: isCuttleDocked, cornerRadius: DS.Radius.medium)
+            .iridescentSheen(isActive: isCuttleDocked && isActive, cornerRadius: DS.Radius.medium)
+            .onAppear {
+                isCuttleDocked = currentContext == context
+            }
             .onChange(of: currentContext) { _, newContext in
                 isCuttleDocked = newContext == context
             }

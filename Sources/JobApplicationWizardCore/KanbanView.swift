@@ -40,8 +40,41 @@ public struct KanbanView: View {
             }
             .padding(.horizontal, DS.Spacing.lg)
             .padding(.vertical, DS.Spacing.md)
+            .padding(.bottom, 120)
         }
         .background(DS.Color.windowBackground)
+    }
+}
+
+// MARK: - Sticky Card Logic (extracted for testability)
+
+/// Pure computation for the sticky card boundary detection and clamping.
+/// Used by KanbanRow; extracted so the math can be unit-tested.
+struct StickyCardState {
+    var cardFrame: CGRect = .zero
+    var viewportWidth: CGFloat = 0
+    var hasPinnedCard: Bool = false
+    var awaitingFirstGeometry: Bool = false
+    var cardWidth: CGFloat = KanbanRow.cardWidth
+    var padding: CGFloat = DS.Spacing.md
+
+    /// Whether the pinned card has crossed a scroll boundary.
+    var isStuck: Bool {
+        guard hasPinnedCard,
+              !awaitingFirstGeometry,
+              cardFrame.width > 0,
+              viewportWidth > 0 else { return false }
+        if cardFrame.minX < padding { return true }
+        if cardFrame.maxX > viewportWidth - padding { return true }
+        return false
+    }
+
+    /// Leading-edge X for the sticky overlay, clamped within the viewport.
+    var clampedX: CGFloat {
+        let naturalX = cardFrame.minX
+        let minAllowed = padding
+        let maxAllowed = viewportWidth - cardWidth - padding
+        return min(max(naturalX, minAllowed), maxAllowed)
     }
 }
 
@@ -58,11 +91,44 @@ struct KanbanRow: View {
     var onDocumentDrop: (UUID, [URL]) -> Void = { _, _ in }
     var processingJobIds: Set<UUID> = []
 
+    /// Shared card width used in layout, overlay, and clamp math.
+    static let cardWidth: CGFloat = 240
+
+    @Environment(\.cuttleCurrentContext) private var cuttleCurrentContext
+
     @State private var isTargeted = false
+    @State private var pinnedCardNaturalFrame: CGRect = .zero
+    @State private var scrollViewportSize: CGSize = .zero
+    /// True while waiting for the newly pinned card's first geometry report.
+    /// Prevents stale frames from the old card triggering the overlay.
+    @State private var awaitingFirstGeometry = false
+
+    private var pinnedJobID: UUID? {
+        guard case .job(let id) = cuttleCurrentContext,
+              jobs.contains(where: { $0.id == id }) else { return nil }
+        return id
+    }
+
+    private var rowCoordinateSpace: String {
+        "kanban-row-\(status.rawValue)"
+    }
+
+    private var stickyState: StickyCardState {
+        StickyCardState(
+            cardFrame: pinnedCardNaturalFrame,
+            viewportWidth: scrollViewportSize.width,
+            hasPinnedCard: pinnedJobID != nil,
+            awaitingFirstGeometry: awaitingFirstGeometry
+        )
+    }
+
+    private var pinnedCardIsStuck: Bool { stickyState.isStuck }
+    private var stickyClampedX: CGFloat { stickyState.clampedX }
+
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
-            // Status header — fixed left column
+            // Status header; fixed left column
             VStack(alignment: .leading, spacing: DS.Spacing.xxs) {
                 HStack(spacing: DS.Spacing.xs) {
                     Image(systemName: status.icon)
@@ -101,7 +167,7 @@ struct KanbanRow: View {
                             onToggleFavorite: { onToggleFavorite(job.id) },
                             onDelete: { onDelete(job.id) }
                         )
-                        .frame(width: 240)
+                        .frame(width: Self.cardWidth)
                         .overlay {
                             if processingJobIds.contains(job.id) {
                                 RoundedRectangle(cornerRadius: DS.Radius.medium)
@@ -117,7 +183,11 @@ struct KanbanRow: View {
                                     }
                             }
                         }
-                        .cuttleDockable(context: .job(job.id))
+                        .cuttleDockable(
+                            context: .job(job.id),
+                            isActive: !(job.id == pinnedJobID && pinnedCardIsStuck)
+                        )
+                        .opacity(job.id == pinnedJobID && pinnedCardIsStuck ? 0 : 1)
                         .dropDestination(for: URL.self) { urls, _ in
                             guard !urls.isEmpty else { return false }
                             onDocumentDrop(job.id, urls)
@@ -135,6 +205,18 @@ struct KanbanRow: View {
                             .frame(width: 220)
                             .opacity(0.8)
                         }
+                        // Track the docked card's position within the scroll viewport
+                        .onGeometryChange(for: CGRect.self) { geo in
+                            geo.frame(in: .named(rowCoordinateSpace))
+                        } action: { frame in
+                            if job.id == pinnedJobID {
+                                pinnedCardNaturalFrame = frame
+                                // First valid geometry from the new pinned card; safe to evaluate sticky
+                                if awaitingFirstGeometry {
+                                    awaitingFirstGeometry = false
+                                }
+                            }
+                        }
                     }
                     if jobs.isEmpty {
                         EmptyColumnView(status: status)
@@ -143,6 +225,47 @@ struct KanbanRow: View {
                 }
                 .padding(.horizontal, DS.Spacing.md)
                 .padding(.vertical, DS.Spacing.sm)
+            }
+            .coordinateSpace(name: rowCoordinateSpace)
+            .onGeometryChange(for: CGSize.self) { geo in
+                geo.size
+            } action: { newSize in
+                scrollViewportSize = newSize
+            }
+            .overlay(alignment: .leading) {
+                if pinnedCardIsStuck,
+                   let pinnedJob = jobs.first(where: { $0.id == pinnedJobID }) {
+                    JobCard(
+                        job: pinnedJob,
+                        isSelected: selectedJobID == pinnedJob.id,
+                        onSelect: { onSelect(pinnedJob.id) },
+                        onMove: { onMove(pinnedJob.id, $0) },
+                        onToggleFavorite: { onToggleFavorite(pinnedJob.id) },
+                        onDelete: { onDelete(pinnedJob.id) }
+                    )
+                    .frame(width: Self.cardWidth)
+                    .background(
+                        RoundedRectangle(cornerRadius: DS.Radius.medium)
+                            .fill(DS.Color.controlBackground)
+                    )
+                    .dsShadow(DS.Shadow.sticky)
+                    .cuttleDockable(context: .job(pinnedJob.id))
+                    .padding(.leading, stickyClampedX)
+                    // v1: overlay is visual-only; interaction goes through the original card.
+                    // Future: route clicks through the overlay for full interactivity.
+                    .allowsHitTesting(false)
+                }
+            }
+        }
+        .onChange(of: cuttleCurrentContext) { _, _ in
+            pinnedCardNaturalFrame = .zero
+            awaitingFirstGeometry = true
+        }
+        // Flush stale pinned state if the docked job is deleted
+        .onChange(of: jobs) { _, newJobs in
+            if let id = pinnedJobID, !newJobs.contains(where: { $0.id == id }) {
+                pinnedCardNaturalFrame = .zero
+                awaitingFirstGeometry = false
             }
         }
         .background(
