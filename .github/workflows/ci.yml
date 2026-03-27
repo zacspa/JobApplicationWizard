@@ -11,7 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  build-and-test-macos:
+    name: macOS (Build + Test)
     runs-on: macos-15
     timeout-minutes: 15
     steps:
@@ -28,3 +29,20 @@ jobs:
         with:
           name: failed-snapshots
           path: Tests/**/__Snapshots__/**
+
+  build-ios:
+    name: iOS (Build)
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+      - name: Build iOS app
+        run: >
+          xcodebuild build
+          -project iOS/JobApplicationWizardiOS.xcodeproj
+          -scheme JobApplicationWizardiOS
+          -destination 'generic/platform=iOS Simulator'
+          -configuration Debug
+          CODE_SIGNING_ALLOWED=NO
