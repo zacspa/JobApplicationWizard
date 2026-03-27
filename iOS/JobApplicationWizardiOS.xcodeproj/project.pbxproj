@@ -36,7 +36,7 @@
 		4CF039786143739D0085E42F /* GoogleDriveSyncClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveSyncClient.swift; sourceTree = "<group>"; };
 		554518668E49B6B3B23F177B /* SettingsViewiOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewiOS.swift; sourceTree = "<group>"; };
 		59ABE44C7342A51CC9514412 /* PipelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineView.swift; sourceTree = "<group>"; };
-		7F0D79B8CCE69BBDA4FD2F7D /* JobApplicationWizardiOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = JobApplicationWizardiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7F0D79B8CCE69BBDA4FD2F7D /* JobApplicationWizardiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JobApplicationWizardiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8AC1C543BBC07D40BC73E6A2 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		94EE01D036F9547CF812D150 /* ShareJobExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ShareJobExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		98BCE5002AC9DC4D1FDDF3DB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -251,8 +251,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = DF9DA82AC36EF8DDB5D0B535 /* Build configuration list for PBXProject "JobApplicationWizardiOS" */;
 			developmentRegion = en;
@@ -321,6 +319,7 @@
 				CODE_SIGN_ENTITLEMENTS = JobApplicationWizardiOS/Resources/App.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LS3NPGGCN7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JobApplicationWizardiOS/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -331,7 +330,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -413,7 +412,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS.PipelineWidget;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -432,7 +431,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS.PipelineWidget;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -452,7 +451,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS.ShareJobExtension;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -472,7 +471,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS.ShareJobExtension;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -487,6 +486,7 @@
 				CODE_SIGN_ENTITLEMENTS = JobApplicationWizardiOS/Resources/App.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LS3NPGGCN7;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JobApplicationWizardiOS/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -497,7 +497,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zsparks.JobApplicationWizardiOS;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
