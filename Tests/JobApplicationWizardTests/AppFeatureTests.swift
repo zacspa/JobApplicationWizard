@@ -13,6 +13,7 @@ final class AppFeatureTests: XCTestCase {
         let settings: AppSettings = {
             var s = AppSettings()
             s.userProfile.name = "Test"
+            s.lastSeenOnboardingVersion = "3.0.4"
             return s
         }()
 
@@ -24,6 +25,7 @@ final class AppFeatureTests: XCTestCase {
             $0.keychainClient.loadAPIKey = { "sk-test-key" }
             $0.keychainClient.saveAPIKey = { _ in }
             $0.acpRegistryClient = ACPRegistryClient(fetchAgents: { [] })
+            $0.appVersionClient.currentVersion = { "3.0.4" }
         }
 
         store.exhaustivity = .off
@@ -42,15 +44,56 @@ final class AppFeatureTests: XCTestCase {
         }
     }
 
-    func testEmptyJobsTriggersOnboarding() async {
+    func testNewVersionTriggersOnboardingEvenWhenJobsExist() async {
+        let jobs = [JobApplication.mock()]
+        let settings: AppSettings = {
+            var s = AppSettings()
+            s.lastSeenOnboardingVersion = "3.0.3"
+            return s
+        }()
+
+        let store = TestStore(initialState: AppFeature.State()) {
+            AppFeature()
+        } withDependencies: {
+            $0.persistenceClient.loadJobs = { jobs }
+            $0.persistenceClient.loadSettings = { settings }
+            $0.keychainClient.loadAPIKey = { "" }
+            $0.keychainClient.saveAPIKey = { _ in }
+            $0.acpRegistryClient = ACPRegistryClient(fetchAgents: { [] })
+            $0.appVersionClient.currentVersion = { "3.0.4" }
+        }
+
+        store.exhaustivity = .off
+
+        await store.send(.onAppear)
+        await store.receive(\.jobsLoaded) {
+            $0.jobs = IdentifiedArray(uniqueElements: jobs)
+        }
+        await store.receive(\.settingsLoaded) {
+            $0.settings = settings
+            $0.viewMode = settings.defaultViewMode
+            $0.$acpConnection.withLock { $0.aiProvider = settings.aiProvider }
+            $0.showOnboarding = true
+        }
+        await store.receive(\.saveSettingsKey)
+    }
+
+    func testMatchingVersionDoesNotTriggerOnboardingWhenJobsAreEmpty() async {
+        let settings: AppSettings = {
+            var s = AppSettings()
+            s.lastSeenOnboardingVersion = "3.0.4"
+            return s
+        }()
+
         let store = TestStore(initialState: AppFeature.State()) {
             AppFeature()
         } withDependencies: {
             $0.persistenceClient.loadJobs = { [] }
-            $0.persistenceClient.loadSettings = { AppSettings() }
+            $0.persistenceClient.loadSettings = { settings }
             $0.keychainClient.loadAPIKey = { "" }
             $0.keychainClient.saveAPIKey = { _ in }
             $0.acpRegistryClient = ACPRegistryClient(fetchAgents: { [] })
+            $0.appVersionClient.currentVersion = { "3.0.4" }
         }
 
         store.exhaustivity = .off
@@ -58,9 +101,12 @@ final class AppFeatureTests: XCTestCase {
         await store.send(.onAppear)
         await store.receive(\.jobsLoaded) {
             $0.jobs = []
-            $0.showOnboarding = true
         }
-        await store.receive(\.settingsLoaded)
+        await store.receive(\.settingsLoaded) {
+            $0.settings = settings
+            $0.viewMode = settings.defaultViewMode
+            $0.$acpConnection.withLock { $0.aiProvider = settings.aiProvider }
+        }
         await store.receive(\.saveSettingsKey)
     }
 
@@ -407,6 +453,39 @@ final class AppFeatureTests: XCTestCase {
             $0.jobs = []
             $0.selectedJobID = nil
             $0.jobDetail = nil
+        }
+    }
+
+    func testDismissOnboardingPersistsCurrentVersion() async {
+        var state = AppFeature.State()
+        state.showOnboarding = true
+        state.settings.hasCuttleOnboardingCompleted = true
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.persistenceClient.saveSettings = { _ in }
+            $0.appVersionClient.currentVersion = { "3.0.4" }
+        }
+
+        await store.send(.dismissOnboarding) {
+            $0.showOnboarding = false
+            $0.settings.lastSeenOnboardingVersion = "3.0.4"
+        }
+    }
+
+    func testReplayWelcomeScreenClearsStoredVersionAndShowsOnboarding() async {
+        var state = AppFeature.State()
+        state.settings.lastSeenOnboardingVersion = "3.0.4"
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.persistenceClient.saveSettings = { _ in }
+        }
+
+        await store.send(.replayWelcomeScreen) {
+            $0.settings.lastSeenOnboardingVersion = nil
             $0.showOnboarding = true
         }
     }
@@ -426,6 +505,7 @@ final class AppFeatureTests: XCTestCase {
             $0.keychainClient.loadAPIKey = { "" }
             $0.keychainClient.saveAPIKey = { _ in }
             $0.acpRegistryClient = ACPRegistryClient(fetchAgents: { [] })
+            $0.appVersionClient.currentVersion = { "3.0.4" }
         }
 
         store.exhaustivity = .off

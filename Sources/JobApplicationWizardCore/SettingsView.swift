@@ -78,6 +78,18 @@ private struct GeneralSettingsTab: View {
                     .font(DS.Typography.caption)
                     .foregroundColor(DS.Color.textSecondary)
             }
+
+            Section("Welcome") {
+                Button("Show Welcome Screen Again") {
+                    store.send(.replayWelcomeScreen)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Text("Reopen the welcome screen for this version.")
+                    .font(DS.Typography.caption)
+                    .foregroundColor(DS.Color.textSecondary)
+            }
         }
         .formStyle(.grouped)
         .padding(.horizontal, DS.Spacing.lg)

@@ -456,6 +456,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     // API key is stored in the system Keychain, not here.
     public var userProfile: UserProfile = UserProfile()
     public var defaultViewMode: ViewMode = .kanban
+    public var lastSeenOnboardingVersion: String? = nil
     public var aiProvider: AIProvider = .acpAgent
     public var selectedACPAgentId: String? = nil
     public var cuttleContext: CuttleContext? = nil
@@ -467,7 +468,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var companyProfiles: [CompanyProfile] = []
 
     private enum CodingKeys: String, CodingKey {
-        case userProfile, defaultViewMode, aiProvider, selectedACPAgentId
+        case userProfile, defaultViewMode, lastSeenOnboardingVersion, aiProvider, selectedACPAgentId
         case cuttleContext, globalChatSessions, statusChatSessions
         case agentActionMode, autoProcessDocuments, hasCuttleOnboardingCompleted, companyProfiles
     }
@@ -484,6 +485,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         let legacy = try decoder.container(keyedBy: LegacyCodingKeys.self)
         userProfile          = try c.decodeIfPresent(UserProfile.self,            forKey: .userProfile)          ?? UserProfile()
         defaultViewMode      = try c.decodeIfPresent(ViewMode.self,               forKey: .defaultViewMode)      ?? .kanban
+        lastSeenOnboardingVersion = try c.decodeIfPresent(String.self,            forKey: .lastSeenOnboardingVersion)
         aiProvider           = try c.decodeIfPresent(AIProvider.self,             forKey: .aiProvider)           ?? .acpAgent
         selectedACPAgentId   = try c.decodeIfPresent(String.self,                 forKey: .selectedACPAgentId)
         cuttleContext        = try c.decodeIfPresent(CuttleContext.self,          forKey: .cuttleContext)

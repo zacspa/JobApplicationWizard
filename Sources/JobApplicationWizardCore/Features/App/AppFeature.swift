@@ -14,6 +14,7 @@ public struct AppFeature {
     @ObservableState
     public struct State: Equatable {
         public var jobs: IdentifiedArrayOf<JobApplication> = []
+        public var hasLoadedJobs: Bool = false
         public var selectedJobID: UUID? = nil
         public var searchQuery: String = ""
         public var filterStatus: JobStatus? = nil
@@ -102,6 +103,7 @@ public struct AppFeature {
         case importCSV
         case importCSVResult([JobApplication])
         case dismissOnboarding
+        case replayWelcomeScreen
         case saveSettingsKey(String)
         case showProfileTapped
         case dismissProfile
@@ -158,6 +160,7 @@ public struct AppFeature {
 
     @Dependency(\.persistenceClient) var persistence
     @Dependency(\.keychainClient) var keychain
+    @Dependency(\.appVersionClient) var appVersionClient
     @Dependency(\.acpClient) var acpClient
     @Dependency(\.acpRegistryClient) var acpRegistry
     @Dependency(\.historyClient) var historyClient
@@ -198,26 +201,28 @@ public struct AppFeature {
                 )
 
             case .jobsLoaded(.success(let jobs)):
+                state.hasLoadedJobs = true
                 state.jobs = IdentifiedArray(uniqueElements: jobs)
                 state.cuttle.jobs = Array(state.jobs)
-                if state.jobs.isEmpty {
-                    state.showOnboarding = true
-                }
                 return .none
 
             case .jobsLoaded(.failure(let error)):
+                state.hasLoadedJobs = true
                 state.saveError = "Failed to load jobs: \(error.localizedDescription). Your data file may be corrupted; check jobs.json or jobs.backup.json in Application Support."
                 return .none
 
             case .settingsLoaded(.success(let settings)):
+                let currentVersion = appVersionClient.currentVersion()
+                let shouldShowWelcome = state.hasLoadedJobs && settings.lastSeenOnboardingVersion != currentVersion
                 state.settings = settings
                 state.viewMode = settings.defaultViewMode
+                state.showOnboarding = shouldShowWelcome
                 state.$acpConnection.withLock { $0.aiProvider = settings.aiProvider }
                 // Restore Cuttle state from settings
                 state.cuttle.userProfile = settings.userProfile
                 let context = settings.cuttleContext ?? .global
                 // Trigger Cuttle onboarding if not completed and app onboarding is not showing
-                let shouldStartOnboarding = !settings.hasCuttleOnboardingCompleted && !state.showOnboarding
+                let shouldStartOnboarding = !settings.hasCuttleOnboardingCompleted && !shouldShowWelcome
                 if shouldStartOnboarding {
                     state.cuttleOnboarding.aiReady = state.acpConnection.isConnected || !state.claudeAPIKey.isEmpty
                     insertOnboardingDemoJob(state: &state)
@@ -235,6 +240,7 @@ public struct AppFeature {
             case .settingsLoaded(.failure):
                 state.settings = AppSettings()
                 state.viewMode = state.settings.defaultViewMode
+                state.showOnboarding = state.hasLoadedJobs
                 state.$acpConnection.withLock { $0.aiProvider = state.settings.aiProvider }
                 if state.settings.aiProvider == .acpAgent {
                     return .send(.fetchACPRegistry)
@@ -808,13 +814,22 @@ public struct AppFeature {
 
             case .dismissOnboarding:
                 state.showOnboarding = false
+                state.settings.lastSeenOnboardingVersion = appVersionClient.currentVersion()
                 // Start Cuttle onboarding if not yet completed
                 if !state.settings.hasCuttleOnboardingCompleted {
                     state.cuttleOnboarding.aiReady = state.acpConnection.isConnected || !state.claudeAPIKey.isEmpty
                     insertOnboardingDemoJob(state: &state)
-                    return .send(.cuttleOnboarding(.start))
+                    return .merge(
+                        saveSettings(state.settings),
+                        .send(.cuttleOnboarding(.start))
+                    )
                 }
-                return .none
+                return saveSettings(state.settings)
+
+            case .replayWelcomeScreen:
+                state.settings.lastSeenOnboardingVersion = nil
+                state.showOnboarding = true
+                return saveSettings(state.settings)
 
             case .saveSettingsKey(let key):
                 state.claudeAPIKey = key
@@ -847,7 +862,6 @@ public struct AppFeature {
                 state.jobs = []
                 state.selectedJobID = nil
                 state.jobDetail = nil
-                state.showOnboarding = true
                 state.cuttle.jobs = []
                 return saveJobs(state.jobs)
 
