@@ -43,28 +43,7 @@ install_name_tool \
     -add_rpath "@loader_path/../Frameworks" \
     "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
-cat > "$APP_BUNDLE/Contents/Info.plist" << INFOPLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleExecutable</key><string>$APP_NAME</string>
-    <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
-    <key>CFBundleName</key><string>Job Application Wizard</string>
-    <key>CFBundleDisplayName</key><string>Job Application Wizard</string>
-    <key>CFBundleVersion</key><string>$VERSION</string>
-    <key>CFBundleShortVersionString</key><string>$VERSION</string>
-    <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleIconFile</key><string>AppIcon</string>
-    <key>NSPrincipalClass</key><string>NSApplication</string>
-    <key>NSHighResolutionCapable</key><true/>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
-    <key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoads</key><true/></dict>
-    <key>SUPublicEDKey</key><string>YY0EyAJ+Ce21J9m6kGnRDWaRGJSbLvnrStmrXLpiEto=</string>
-    <key>SUFeedURL</key><string>https://raw.githubusercontent.com/zacspa/JobApplicationWizard/main/appcast.xml</string>
-</dict>
-</plist>
-INFOPLIST
+cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
 
 echo "▶ Signing app bundle (inside-out)..."
 SPARKLE_FW="$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
