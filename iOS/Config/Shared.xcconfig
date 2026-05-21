@@ -1,0 +1,4 @@
+// Upstream defaults. To use your own values, create Local.xcconfig (gitignored).
+BUNDLE_ID_PREFIX = com.zsparks
+DEVELOPMENT_TEAM = LS3NPGGCN7
+#include? "Local.xcconfig"

@@ -1,4 +1,5 @@
 .build/
+.swiftpm/
 *.o
 *.d
 *.swp
@@ -16,4 +17,5 @@ commercial/
 default.profraw
 demo_data.json
 iOS/build/
+iOS/Config/Local.xcconfig
 Sources/JobApplicationShared/Secrets.swift
